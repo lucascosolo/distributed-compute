@@ -202,6 +202,28 @@ without making provider adapters aware of node placement.
 **Exit gate:** duplicate delivery is safe, abandoned work is reclaimed, and one
 busy or offline node does not block unrelated tasks.
 
+### Chunk 4.4: Native agent-provider bridges
+
+Add explicitly configured bridges for Codex CLI and Claude CLI as agent-style
+providers, separate from completion APIs. A bridge submits a bounded,
+repository-scoped task, captures its structured result or patch, applies the
+same quality and cost gates, and records the originating runtime. This is an
+opt-in local capability; it must not expose native credentials to the VPS or
+provider workers.
+
+Prevent recursive self-delegation: a Claude-originated session must not route
+back to Claude CLI, and a Codex-originated session must not route back to Codex
+CLI. Cross-runtime delegation (Claude to Codex and Codex to Claude) is allowed
+only when the target is installed, authorized, capable, cheaper than local
+completion, and not already in the active delegation chain. Every bridge needs
+bounded depth, timeout, workspace/sandbox boundaries, cancellation, and a
+human-visible approval path for changes or external effects.
+
+**Exit gate:** Claude can delegate one approved, low-risk repository task to
+Codex and receive an auditable result; Codex can do the reverse; same-runtime
+loops are rejected; missing runtimes produce native fallback; no credentials or
+unbounded agent prompts cross the bridge.
+
 ## Phase 5 — Candidate provider discovery
 
 ### Chunk 5.1: Discovery source registry
