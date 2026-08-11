@@ -481,3 +481,21 @@ the repository.
 ```bash
 PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -q
 ```
+## 2026-08-11 — first real OmniRoute-backed coding smoke
+
+- OmniRoute is running on the VPS with its public dashboard temporarily open
+  for operator configuration; its API remains available to the VPS-local
+  coordinator. The `aipool` service has a mode-600 file-backed OmniRoute key.
+- The optional `omniroute` adapter is deployed and enabled for the selected
+  `auto/best-free` route. Its authenticated `/v1/models` check returned 808
+  catalog entries without a generation request.
+- The first attempt correctly fell back because the test supplied the whole
+  natural-language prompt as an unknown task kind. The corrected task used
+  `task: "coding"` and placed the prompt in `requirements.objective`.
+- The corrected bounded task succeeded. OmniRoute selected
+  `catalog:kilo-gateway-nvidia-nemotron-3-ultra-550b-a55b-free`; aipool reported
+  517 worker tokens, an internal delegation cost of 0.12, and 0.88 estimated
+  delegated compute saved. The result passed the current coding quality gate.
+- This proves the end-to-end path works, but does not yet prove the selected
+  backend's long-term quota or economic value. Those require an operator-
+  reviewed comparison against the native model.
