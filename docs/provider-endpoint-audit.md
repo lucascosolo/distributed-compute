@@ -5,6 +5,9 @@ adapter compatibility from primary documentation where available. It does not
 send model requests, validate credentials, or prove that a tier is free.
 The panel's model discovery action is a separate, human-initiated no-generation
 GET request and remains subject to provider terms and rate limits.
+Catalog entries now carry a preflight status. Pending entries are shown with the
+provider's review note, excluded from the batch plan, and rejected by both the
+individual and batch smoke-test endpoints until their contract is verified.
 
 | Family | Endpoint / transport | Preflight result | Notes |
 | --- | --- | --- | --- |

@@ -301,6 +301,10 @@ or the operator's environment.
 - Clarified Cohere's quota metadata: the official compatibility path is
   retained; Command A+ is documented as free until rate limits, while Command
   A publishes paid prices, so the family remains account-dependent.
+- Added explicit catalog preflight gates. Providers whose endpoint, model
+  access, or host contract is still unresolved now show a review note in the
+  panel, are excluded from the no-network smoke plan, and are rejected by
+  individual and batch smoke-test endpoints until marked verified.
 
 ## Immediate user requirement
 

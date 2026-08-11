@@ -133,6 +133,15 @@ class CliTests(unittest.TestCase):
         self.assertEqual({item.model for item in providers}, {"glm-4.7-flash", "glm-4.7"})
         self.assertTrue(all(item.source_url.startswith("https://docs.z.ai/") for item in providers))
 
+    def test_catalog_exposes_preflight_gate_for_unverified_contracts(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        by_family = {}
+        for item in load_catalog():
+            by_family.setdefault(item.provider_name, item)
+        self.assertEqual(by_family["TokenRouter"].preflight_status, "pending")
+        self.assertIn(".com", by_family["TokenRouter"].preflight_note)
+        self.assertEqual(by_family["Google AI Studio API"].preflight_status, "verified")
+
     def test_tokenrouter_registers_responses_adapter(self) -> None:
         from aipool.provider_catalog import config_prefix, load_catalog
         provider = next(item for item in load_catalog() if item.provider_name == "TokenRouter")

@@ -33,6 +33,8 @@ class CatalogProvider:
     quota_checked_at: str = ""
     required_config: tuple[str, ...] = ()
     api_key_optional: bool = False
+    preflight_status: str = "pending"
+    preflight_note: str = "Primary-document and access checks are not complete."
 
 
 def provider_slug(name: str) -> str:
@@ -80,6 +82,8 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
         raw_required_config = item.get("required_config", ())
         required_config = tuple(str(value).strip().casefold() for value in raw_required_config if str(value).strip()) if isinstance(raw_required_config, list) else ()
         api_key_optional = bool(item.get("api_key_optional", False))
+        preflight_status = str(item.get("preflight_status", "pending")).strip().casefold() or "pending"
+        preflight_note = str(item.get("preflight_note", "Primary-document and access checks are not complete.")).strip() or "Primary-document and access checks are not complete."
         base_slug = provider_slug(name)
         for model_item in models:
             if isinstance(model_item, str):
@@ -101,7 +105,7 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
             if slug in seen:
                 continue
             seen.add(slug)
-            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport, quota_status, quota_scope, quota_dimensions, quota_reset, quota_summary, quota_checked_at, required_config, api_key_optional))
+            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport, quota_status, quota_scope, quota_dimensions, quota_reset, quota_summary, quota_checked_at, required_config, api_key_optional, preflight_status, preflight_note))
     return tuple(result)
 
 

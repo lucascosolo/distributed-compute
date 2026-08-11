@@ -104,6 +104,10 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(row["state"], {"not_loaded", "healthy", "quarantined"})
         self.assertTrue(row["smoke_test_requires_approval"])
         self.assertIn("blocked_reasons", row)
+        self.assertIn("preflight_status", row)
+        pending = next(item for item in data["providers"] if item["provider_slug"] == "tokenrouter")
+        self.assertEqual(pending["preflight_status"], "pending")
+        self.assertIn("preflight_pending", pending["blocked_reasons"])
         self.assertNotIn("secret", json.dumps(data))
 
     def test_admin_readiness_reports_usage_for_loaded_catalog_provider(self) -> None:
@@ -139,6 +143,7 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"family-card", body)
         self.assertIn(b"Next step", body)
         self.assertIn(b"Recommendation", body)
+        self.assertIn(b"provider contract note", body)
         self.assertIn(b"provider adapter, account metadata, endpoint, or model ID", body)
         self.assertIn(b"human review required", body)
         self.assertIn(b"Approve for bounded smoke test", body)
@@ -279,6 +284,20 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(data["provider_id"], profile.id)
         self.assertEqual(data["valid"], 1)
         benchmark.assert_called_once_with(profile.id)
+
+    def test_individual_smoke_test_rejects_pending_provider_contract(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        provider = next(item for item in load_catalog() if item.provider_name == "TokenRouter")
+        profile = ProviderProfile(
+            "catalog:" + provider.slug, provider.name, provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+        )
+        self.server.aipool_coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))  # type: ignore[attr-defined]
+        status, data = self.request("POST", "/admin/provider/smoke-test", {
+            "slug": provider.slug, "operator_approved": True,
+        })
+        self.assertEqual(status, 409)
+        self.assertIn("provider_preflight_pending", data["error"])
 
     def test_smoke_batch_plan_is_bounded_and_makes_no_provider_call(self) -> None:
         from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix
