@@ -18,7 +18,7 @@ from .service import Coordinator
 MAX_BODY_BYTES = 256 * 1024
 CONFIG_KEYS = frozenset({
     "AIPOOL_HF_MODEL", "AIPOOL_HF_ENDPOINT", "AIPOOL_OPENAI_ENDPOINT",
-    "AIPOOL_OPENAI_MODEL", "AIPOOL_BROWSER_COMMAND", "HF_TOKEN",
+    "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND", "HF_TOKEN",
     "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN",
 })
 SECRET_KEYS = frozenset({"HF_TOKEN", "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN"})
@@ -158,6 +158,7 @@ def make_server(
 <label>HF token <input name=HF_TOKEN type=password autocomplete=new-password></label><br>
 <label>OpenAI-compatible endpoint <input name=AIPOOL_OPENAI_ENDPOINT></label><br>
 <label>OpenAI model <input name=AIPOOL_OPENAI_MODEL></label><br>
+<label>Authorized command worker <input name=AIPOOL_COMMAND></label><br>
 <label>Authorized browser wrapper <input name=AIPOOL_BROWSER_COMMAND></label><br>
 <label>OpenAI key <input name=AIPOOL_OPENAI_API_KEY type=password autocomplete=new-password></label><br>
 <button>Save</button></form><pre id=o></pre>

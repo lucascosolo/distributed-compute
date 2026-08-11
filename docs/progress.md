@@ -59,6 +59,13 @@ or the operator's environment.
 - Added `providers/candidate-catalog.json` and `LocalCatalogSource` so supplied
   chatbot leads can be imported reproducibly as unverified quarantine records;
   the catalog is explicitly not an active provider list.
+- Added explicit CLI visibility and approval gates with `candidate list` and
+  `candidate activate --operator-approved`. Community Telegram/Discord bots
+  remain candidates only when an authorized integration path is established;
+  informal reachability is not treated as permission.
+- The admin panel can now configure an operator-owned command worker via
+  `AIPOOL_COMMAND`, which supports authorized Discord/Telegram wrappers while
+  keeping the existing non-shell, rate-limit, and synthetic-test constraints.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and

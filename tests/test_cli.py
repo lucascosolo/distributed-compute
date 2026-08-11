@@ -114,6 +114,54 @@ class CliTests(unittest.TestCase):
             self.assertEqual(reopened.candidate_rows()[0]["state"], "probed")
             reopened.close()
 
+    def test_candidate_activate_requires_explicit_approval_and_passing_probe(self) -> None:
+        from aipool.discovery import CandidateProvider, CandidateRegistry, ProbeResult
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/activate.sqlite"
+            store = Store(database)
+            registry = CandidateRegistry(store)
+            candidate = CandidateProvider(
+                id="candidate:approved", name="Candidate", source="https://source.example/",
+                transport="browser-chat", endpoint="https://chat.example/", terms_url="",
+                authorization="operator reviewed",
+            )
+            registry.add(candidate)
+            registry.mark_probed(candidate.id, ProbeResult(
+                candidate_id=candidate.id, available=True, authorized=True,
+                context_length=1024, output_valid=True, latency_ms=1.0,
+                restrictions_clear=True, cost_known=True, automation_supported=True,
+            ))
+            store.close()
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["candidate", "activate", candidate.id, "--db", database])
+            self.assertEqual(code, 2)
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["candidate", "activate", candidate.id, "--operator-approved", "--db", database])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output.getvalue())["state"], "approved")
+
+    def test_candidate_list_reports_quarantine_and_approval_state(self) -> None:
+        from aipool.discovery import CandidateProvider, CandidateRegistry
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/list.sqlite"
+            store = Store(database)
+            CandidateRegistry(store).add(CandidateProvider(
+                id="candidate:list", name="Candidate", source="https://source.example/",
+                transport="telegram-bot", endpoint="https://t.me/example_bot", terms_url="",
+                authorization="operator reviewed",
+            ))
+            store.close()
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["candidate", "list", "--db", database])
+            self.assertEqual(code, 0)
+            record = json.loads(output.getvalue())["candidates"][0]
+            self.assertEqual(record["state"], "quarantined")
+            self.assertEqual(record["transport"], "telegram-bot")
+            self.assertFalse(record["probe_passed"])
+
     def test_discover_can_ingest_a_supplied_reddit_thread(self) -> None:
         from aipool.discovery_sources import DiscoveryLead
         with __import__("tempfile").TemporaryDirectory() as directory:

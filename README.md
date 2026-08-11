@@ -163,6 +163,22 @@ Use `--terms-prohibited` when the reviewed terms contain an explicit binding
 prohibition on the intended external use. Promotion never activates a provider;
 successful probes and separate operator approval are still required.
 
+Community Telegram and Discord bots follow the same rule: being informal or
+publicly reachable is not permission to automate or send private data. A
+private message could be a useful transport only when the platform, bot owner,
+and applicable server rules authorize the integration. Keep it quarantined
+until its probe and operator review pass.
+
+An operator-owned Discord server can be used as a controlled testbed for
+explicitly authorized bots. Configure an approved wrapper through
+`AIPOOL_COMMAND` in the admin panel, isolate it to a test channel, begin with
+synthetic prompts, and keep each bot's rate limits and integration permission
+under review. Inviting a bot is not blanket permission to automate it.
+
+Inspect candidate state with `aipool candidate list`; approve a passing probe
+only with `aipool candidate activate ID --operator-approved`. Approval records
+operator review but does not create credentials or bypass platform controls.
+
 For asynchronous work, enqueue a task and inspect it later:
 
 ```bash

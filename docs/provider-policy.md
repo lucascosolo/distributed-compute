@@ -14,6 +14,21 @@ by itself, a determination that every use is lawful or risk-free. The operator
 must retain whatever authorization the provider requires and is responsible for
 the legal interpretation of the terms.
 
+Community bots on Telegram, Discord, or similar platforms are not exempt from
+this boundary. Informal ownership or the absence of an obvious contract does
+not establish permission to message a bot, use a group resource, or send
+private data. Platform Terms of Service, bot instructions, server rules,
+privacy expectations, rate limits, and the bot operator's authorization still
+matter. Treat these as quarantined candidates until an authorized integration
+path is confirmed; do not spam, impersonate users, or infer permission from a
+lack of enforcement.
+
+An operator-owned Discord server or Telegram group can provide a cleaner test
+environment, but it does not automatically authorize every invited bot. Invite
+only bots with an explicit permitted integration path, use a dedicated test
+channel, send harmless synthetic prompts first, respect bot and platform rate
+limits, and do not use ordinary members' private messages or data as compute.
+
 ## Prohibited implementation goals
 
 Do not implement or request code for:

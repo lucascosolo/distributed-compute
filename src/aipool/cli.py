@@ -133,6 +133,12 @@ def _parser() -> argparse.ArgumentParser:
     probe.add_argument("--max-candidates", type=int, default=3)
     probe.add_argument("--timeout", type=float, default=120.0)
     probe.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    activate = candidate_subparsers.add_parser("activate", help="explicitly approve a successfully probed candidate")
+    activate.add_argument("candidate_id")
+    activate.add_argument("--operator-approved", action="store_true")
+    activate.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    listing = candidate_subparsers.add_parser("list", help="list discovered candidates and evidence state")
+    listing.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
@@ -219,6 +225,40 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
             return 2
+        finally:
+            store.close()
+    if args.command == "candidate" and args.candidate_action == "activate":
+        store = Store(args.db)
+        try:
+            candidate = CandidateRegistry(store).activate(
+                args.candidate_id, operator_approved=args.operator_approved,
+            )
+            print(json.dumps({
+                "id": candidate.id, "state": candidate.state.value,
+                "endpoint": candidate.endpoint,
+            }, separators=(",", ":")))
+            return 0
+        except (KeyError, ValueError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
+    if args.command == "candidate" and args.candidate_action == "list":
+        store = Store(args.db)
+        try:
+            registry = CandidateRegistry(store)
+            print(json.dumps({"candidates": [
+                {
+                    "id": candidate.id,
+                    "name": candidate.name,
+                    "transport": candidate.transport,
+                    "endpoint": candidate.endpoint,
+                    "state": candidate.state.value,
+                    "probe_passed": bool(registry.probe_result(candidate.id) and registry.probe_result(candidate.id).passed),
+                }
+                for candidate in registry.all()
+            ]}, separators=(",", ":")))
+            return 0
         finally:
             store.close()
     if args.command == "queue":

@@ -104,6 +104,7 @@ class GatewayTests(unittest.TestCase):
             status, data = self.request("POST", "/admin/config", {
                 "AIPOOL_HF_MODEL": "openai/gpt-oss-20b",
                 "AIPOOL_BROWSER_COMMAND": "/usr/local/bin/authorized-browser-wrapper",
+                "AIPOOL_COMMAND": "/usr/local/bin/authorized-discord-wrapper",
                 "HF_TOKEN": "hf-secret",
                 "UNSAFE_SETTING": "must-not-persist",
             })
@@ -112,6 +113,7 @@ class GatewayTests(unittest.TestCase):
             text = config_path.read_text()
             self.assertIn("AIPOOL_HF_MODEL=openai/gpt-oss-20b", text)
             self.assertIn("AIPOOL_BROWSER_COMMAND=/usr/local/bin/authorized-browser-wrapper", text)
+            self.assertIn("AIPOOL_COMMAND=/usr/local/bin/authorized-discord-wrapper", text)
             self.assertIn("HF_TOKEN=hf-secret", text)
             self.assertNotIn("UNSAFE_SETTING", text)
             self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)

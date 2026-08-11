@@ -9,6 +9,9 @@ AIPOOL_PORT=8765
 AIPOOL_TOKEN=
 AIPOOL_DB=.aipool-data/aipool.sqlite
 AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
+# Optional operator-owned command worker. It receives one JSON task envelope
+# on stdin and must write only the worker result to stdout.
+# AIPOOL_COMMAND=/path/to/authorized-command-worker
 # Optional token-authenticated Hugging Face Inference Providers route. The
 # model is operator-selected; HF_TOKEN must be supplied separately as a
 # secret environment variable and is never stored in this file.
