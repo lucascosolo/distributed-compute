@@ -12,6 +12,18 @@ from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
+    def test_agent_commands_register_as_separate_native_runtime_providers(self) -> None:
+        command = f"{os.sys.executable} -c \"import sys; print('agent result')\""
+        with patch.dict(os.environ, {
+            "AIPOOL_CLAUDE_COMMAND": command,
+            "AIPOOL_CODEX_COMMAND": command,
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        self.assertEqual(
+            {adapter.profile.id for adapter in registry.all() if adapter.profile.transport == "agent-command"},
+            {"agent:claude", "agent:codex"},
+        )
+
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
             "task": "classification",

@@ -84,6 +84,8 @@ class TaskEnvelope:
     max_cost: float = 0.0
     local_estimate: float = 0.0
     task_id: str = ""
+    origin_provider_id: str = ""
+    delegation_chain: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.input_ref or len(self.input_ref) > 4096:
@@ -92,6 +94,10 @@ class TaskEnvelope:
             raise ValueError("importance must be between 1 and 5")
         if self.max_cost < 0 or self.local_estimate < 0:
             raise ValueError("cost estimates cannot be negative")
+        if len(self.origin_provider_id) > 256 or any(not isinstance(item, str) or not item.strip() for item in self.delegation_chain):
+            raise ValueError("agent delegation metadata is invalid")
+        if len(self.delegation_chain) > 8 or any(len(item) > 256 for item in self.delegation_chain):
+            raise ValueError("agent delegation chain is too long")
         _reject_secrets(self.requirements)
         if not self.task_id:
             object.__setattr__(self, "task_id", self.stable_id())
@@ -106,6 +112,8 @@ class TaskEnvelope:
                 "strategy": self.strategy.value,
                 "max_cost": self.max_cost,
                 "local_estimate": self.local_estimate,
+                "origin_provider_id": self.origin_provider_id,
+                "delegation_chain": self.delegation_chain,
             }
         )
 
@@ -118,6 +126,9 @@ class TaskEnvelope:
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "TaskEnvelope":
+        raw_chain = data.get("delegation_chain", ())
+        if not isinstance(raw_chain, (list, tuple)):
+            raise ValueError("delegation_chain must be a list")
         return cls(
             task=TaskKind(data["task"]) if data["task"] in TaskKind._value2member_map_ else str(data["task"]),
             input_ref=str(data["input_ref"]),
@@ -127,6 +138,8 @@ class TaskEnvelope:
             max_cost=float(data.get("max_cost", 0.0)),
             local_estimate=float(data.get("local_estimate", 0.0)),
             task_id=str(data.get("task_id", "")),
+            origin_provider_id=str(data.get("origin_provider_id", "")),
+            delegation_chain=tuple(str(item) for item in raw_chain),
         )
 
 

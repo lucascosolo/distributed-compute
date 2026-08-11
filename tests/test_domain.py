@@ -26,6 +26,13 @@ class DomainTests(unittest.TestCase):
         self.assertEqual(restored, task)
         self.assertEqual(restored.task_id, task.stable_id())
 
+    def test_task_round_trip_preserves_agent_delegation_metadata(self) -> None:
+        task = TaskEnvelope(
+            task="coding", input_ref="artifact:repo", origin_provider_id="agent:claude",
+            delegation_chain=("agent:claude",),
+        )
+        self.assertEqual(TaskEnvelope.from_dict(task.to_dict()), task)
+
     def test_task_rejects_secret_like_requirement(self) -> None:
         with self.assertRaisesRegex(ValueError, "secret-like"):
             TaskEnvelope(

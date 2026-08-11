@@ -72,6 +72,10 @@ class Coordinator:
         return {provider_id: self.benchmark_provider(provider_id, cases) for provider_id in ids}
 
     def _submit_single(self, task: TaskEnvelope, excluded: frozenset[str] = frozenset()) -> TaskOutcome:
+        delegation_ancestors = set(task.delegation_chain)
+        if task.origin_provider_id:
+            delegation_ancestors.add(task.origin_provider_id)
+        excluded = frozenset(set(excluded) | delegation_ancestors)
         profiles = [
             replace(profile, capabilities=self.store.learned_capabilities(profile))
             for profile in self.health.profiles(adapter.profile for adapter in self.registry.all())
@@ -151,9 +155,17 @@ class Coordinator:
                 self.health.hold(profile, usage_hold_until, "configured_token_limit_reached")
 
         if not dispatched:
+            healthy_profiles = [
+                profile for profile in profiles
+                if profile.state in {ProviderState.HEALTHY, ProviderState.DEGRADED}
+            ]
+            if (task.origin_provider_id or task.delegation_chain) and healthy_profiles and all(profile.id in excluded for profile in healthy_profiles):
+                reason = "delegation_chain_exhausted"
+            else:
+                reason = "provider_usage_limit_reached"
             outcome = TaskOutcome(
                 task.task_id, Strategy.NO_DELEGATION, None, None, True, True,
-                "provider_usage_limit_reached", native_fallback=True,
+                reason, native_fallback=True,
             )
             self.store.record_outcome(outcome)
             return outcome
@@ -245,6 +257,8 @@ class Coordinator:
             strategy=Strategy.SINGLE,
             max_cost=max(0.0, task.max_cost - mapped.orchestration_cost),
             local_estimate=max(0.0, task.local_estimate - mapped.orchestration_cost),
+            origin_provider_id=task.origin_provider_id,
+            delegation_chain=task.delegation_chain,
         )
         reduced = self.submit(reduce_task)
         total_cost = mapped.orchestration_cost + reduced.orchestration_cost

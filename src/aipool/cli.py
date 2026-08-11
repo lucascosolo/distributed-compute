@@ -24,7 +24,7 @@ from .discovered import build_discovered_adapter
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
-from .providers import BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from .providers import AgentCommandAdapter, BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .provider_catalog import config_prefix, load_catalog, model_config_prefix
 from .service import Coordinator
 from .storage import Store
@@ -114,6 +114,20 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             reliability=0.5, state=ProviderState.HEALTHY, max_complexity=2,
         )
         registry.register(CommandAdapter(profile, tuple(shlex.split(command))))
+    for runtime, label in (("claude", "Claude CLI"), ("codex", "Codex CLI")):
+        agent_command = os.environ.get(f"AIPOOL_{runtime.upper()}_COMMAND")
+        if not agent_command:
+            continue
+        profile = ProviderProfile(
+            f"agent:{runtime}", label, "agent-command",
+            capabilities={"classification": 0.9, "structured_json": 0.9,
+                          "extraction": 0.9, "summarization": 0.9,
+                          "coding": 0.9, "code_review": 0.9,
+                          "reasoning": 0.9, "instruction_following": 0.9,
+                          "research": 0.8, "long_context": 0.9},
+            reliability=0.7, state=ProviderState.HEALTHY, max_complexity=5,
+        )
+        registry.register(AgentCommandAdapter(profile, tuple(shlex.split(agent_command))))
     endpoint = os.environ.get("AIPOOL_OPENAI_ENDPOINT")
     if endpoint and os.environ.get("AIPOOL_OPENAI_MODEL"):
         profile = ProviderProfile(

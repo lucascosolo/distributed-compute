@@ -134,6 +134,47 @@ class CommandAdapter:
 
 
 @dataclass(slots=True)
+class AgentCommandAdapter:
+    """Run an operator-owned Claude/Codex-style agent command.
+
+    This is deliberately a local command bridge, not a remote provider API.
+    The wrapper receives a bounded JSON envelope and must return only the task
+    result on stdout. Credentials remain in the wrapper's local environment.
+    """
+
+    profile: ProviderProfile
+    command: tuple[str, ...]
+    timeout_seconds: float = 120.0
+    max_output_bytes: int = 1_000_000
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        if not self.command:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, "agent command is not configured", 0)
+        payload = json.dumps({
+            "task": task.to_dict(),
+            "bridge": {"provider_id": self.profile.id, "transport": self.profile.transport},
+        }, sort_keys=True, separators=(",", ":")).encode()
+        try:
+            completed = subprocess.run(
+                self.command, input=payload, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, timeout=self.timeout_seconds,
+                check=False, shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            return _failure(self.profile.id, ProviderErrorKind.TIMEOUT, "agent command timed out", (time.monotonic() - started) * 1000)
+        except OSError as exc:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
+        latency = (time.monotonic() - started) * 1000
+        if completed.returncode:
+            message = completed.stderr.decode(errors="replace").strip() or "agent command failed"
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, message, latency)
+        if len(completed.stdout) > self.max_output_bytes:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, "agent output exceeds limit", latency)
+        return ProviderResult(provider_id=self.profile.id, output=completed.stdout.decode(errors="replace"), latency_ms=latency)
+
+
+@dataclass(slots=True)
 class CandidateCommandAdapter:
     """Run an operator-owned wrapper for one approved candidate.
 

@@ -11,7 +11,7 @@ from aipool.browser_ui import UIAction, UIPlan
 from aipool.providers import ModelGuidedBrowserAdapter
 import tempfile
 from pathlib import Path
-from aipool.providers import CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from aipool.providers import AgentCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 
 
 def task() -> TaskEnvelope:
@@ -154,6 +154,21 @@ class ProvidersTests(unittest.TestCase):
         result = adapter.complete(task())
         self.assertTrue(result.success)
         self.assertEqual(json.loads(result.output)["input_ref"], "artifact:sha256:test")
+
+    def test_agent_command_adapter_sends_bridge_envelope_without_secrets(self) -> None:
+        adapter = AgentCommandAdapter(
+            ProviderProfile("agent:codex", "Codex CLI", "agent-command", state=ProviderState.HEALTHY),
+            (sys.executable, "-c", "import json,sys; p=json.load(sys.stdin); print(json.dumps(p))"),
+        )
+        result = adapter.complete(TaskEnvelope(
+            task="coding", input_ref="artifact:repo", origin_provider_id="agent:claude",
+            delegation_chain=("agent:claude",),
+        ))
+        payload = json.loads(result.output)
+        self.assertTrue(result.success)
+        self.assertEqual(payload["task"]["origin_provider_id"], "agent:claude")
+        self.assertEqual(payload["task"]["delegation_chain"], ["agent:claude"])
+        self.assertNotIn("secret", result.output.casefold())
 
     def test_candidate_command_adapter_sends_candidate_and_task_metadata(self) -> None:
         adapter = CandidateCommandAdapter(

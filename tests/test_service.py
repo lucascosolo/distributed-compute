@@ -12,6 +12,57 @@ def profile(provider_id: str, *, state: ProviderState = ProviderState.HEALTHY, *
 
 
 class ServiceTests(unittest.TestCase):
+    def test_agent_origin_cannot_route_back_to_itself(self) -> None:
+        calls = []
+        claude = FixtureAdapter(
+            ProviderProfile(
+                "agent:claude", "Claude CLI", "agent-command",
+                capabilities={"classification": 0.9, "structured_json": 0.9},
+                reliability=0.9, state=ProviderState.HEALTHY,
+            ),
+            lambda _: calls.append("claude") or '{"label":"wrong-loop"}',
+        )
+        codex = FixtureAdapter(
+            ProviderProfile(
+                "agent:codex", "Codex CLI", "agent-command",
+                capabilities={"classification": 0.9, "structured_json": 0.9},
+                reliability=0.9, state=ProviderState.HEALTHY,
+            ),
+            lambda _: calls.append("codex") or '{"label":"codex"}',
+        )
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"agent:claude": claude, "agent:codex": codex}), store).submit(
+            TaskEnvelope(
+                task="classification", input_ref="artifact:x", requirements={"output": "json"},
+                local_estimate=1.0, origin_provider_id="agent:claude",
+                delegation_chain=("agent:claude",),
+            )
+        )
+        self.assertTrue(outcome.success)
+        self.assertEqual(outcome.provider_id, "agent:codex")
+        self.assertEqual(calls, ["codex"])
+
+    def test_agent_delegation_chain_cannot_alternate_between_native_runtimes(self) -> None:
+        claude = FixtureAdapter(
+            ProviderProfile("agent:claude", "Claude CLI", "agent-command", capabilities={"classification": 0.9, "structured_json": 0.9}, reliability=0.9, state=ProviderState.HEALTHY),
+            lambda _: '{"label":"claude"}',
+        )
+        codex = FixtureAdapter(
+            ProviderProfile("agent:codex", "Codex CLI", "agent-command", capabilities={"classification": 0.9, "structured_json": 0.9}, reliability=0.9, state=ProviderState.HEALTHY),
+            lambda _: '{"label":"codex"}',
+        )
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"agent:claude": claude, "agent:codex": codex}), store).submit(
+            TaskEnvelope(
+                task="classification", input_ref="artifact:x", requirements={"output": "json"}, local_estimate=1.0,
+                origin_provider_id="agent:codex", delegation_chain=("agent:claude", "agent:codex"),
+            )
+        )
+        self.assertTrue(outcome.native_fallback)
+        self.assertEqual(outcome.reason, "delegation_chain_exhausted")
+
     def test_rate_limit_blocks_other_workers_on_same_transport(self) -> None:
         calls = {"first": 0, "second": 0}
 
