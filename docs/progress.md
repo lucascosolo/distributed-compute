@@ -146,6 +146,9 @@ or the operator's environment.
   configured artifact contents when available, instead of sending an opaque
   task reference that a remote worker could not reconstruct. Context remains
   explicitly untrusted and is truncated to the Discord message budget.
+- The built-in Discord benchmark cases now contain explicit synthetic objectives
+  and input text, so a response is tested against a reconstructable task rather
+  than an empty `benchmark:*` reference.
 
 ## Non-negotiable design decisions
 

@@ -30,17 +30,35 @@ def default_cases() -> tuple[BenchmarkCase, ...]:
     return (
         BenchmarkCase(
             "classification_json", "classification",
-            TaskEnvelope(task="classification", input_ref="benchmark:classification", requirements={"output": "json"}),
+            TaskEnvelope(
+                task="classification",
+                input_ref="Synthetic text: The package was released under an open-source license.",
+                requirements={
+                    "objective": "Classify the text as documentation, code, or other. Return one JSON object with a label field.",
+                    "output": "json",
+                },
+            ),
             lambda output: output.strip().startswith("{") or output.strip().startswith("["),
         ),
         BenchmarkCase(
             "extraction_json", "extraction",
-            TaskEnvelope(task="extraction", input_ref="benchmark:extraction", requirements={"output": "json"}),
+            TaskEnvelope(
+                task="extraction",
+                input_ref="Synthetic record: Name: Ada Lovelace; Role: mathematician.",
+                requirements={
+                    "objective": "Extract the person's name and role as one JSON object.",
+                    "output": "json",
+                },
+            ),
             lambda output: "name" in output.casefold() or "value" in output.casefold(),
         ),
         BenchmarkCase(
             "summary", "summarization",
-            TaskEnvelope(task="summarization", input_ref="benchmark:summary"),
+            TaskEnvelope(
+                task="summarization",
+                input_ref="Synthetic memo: The small library moved its release process to weekly automated builds. Maintainers reported faster fixes and fewer manual deployment errors.",
+                requirements={"objective": "Summarize the memo in one or two concise sentences."},
+            ),
             lambda output: len(output.strip()) >= 20,
         ),
     )

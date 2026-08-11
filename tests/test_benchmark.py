@@ -6,6 +6,13 @@ from aipool.providers import FixtureAdapter
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_default_cases_include_context_and_explicit_objectives(self) -> None:
+        cases = default_cases()
+        self.assertEqual(len(cases), 3)
+        for case in cases:
+            self.assertTrue(case.task.requirements["objective"])
+            self.assertNotIn("benchmark:", case.task.input_ref)
+
     def test_benchmark_scores_capabilities_separately(self) -> None:
         profile = ProviderProfile(
             "fixture", "Fixture", "fixture",
