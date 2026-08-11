@@ -153,6 +153,18 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(output.getvalue())["leads"][0]["title"], "article link")
 
+    def test_discover_can_import_local_candidate_catalog(self) -> None:
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            catalog = directory + "/catalog.json"
+            with open(catalog, "w") as handle:
+                json.dump({"items": [{"name": "candidate", "url": "https://chat.example/"}]}, handle)
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["discover", "--catalog-file", catalog, "--db", directory + "/catalog.sqlite"])
+            self.assertEqual(code, 0)
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["leads"][0]["source_kind"], "local-catalog")
+
     def test_stats_is_compact_and_reads_persisted_metrics(self) -> None:
         with __import__("tempfile").TemporaryDirectory() as directory:
             database = directory + "/stats.sqlite"

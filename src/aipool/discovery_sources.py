@@ -8,6 +8,7 @@ import re
 import time
 from dataclasses import asdict, dataclass, replace
 from itertools import islice
+from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 from urllib import parse, request
 from xml.etree import ElementTree
@@ -360,6 +361,54 @@ class JsonDirectorySource:
                 terms_url=str(item.get("terms_url", "")),
                 transport_hint=str(item.get("transport", "browser-chat")),
                 discovered_at=float(self.clock()),
+            ))
+        return tuple(leads)
+
+
+class LocalCatalogSource:
+    """Load a checked-in operator catalog as provenance-only discovery leads."""
+
+    def __init__(self, path: str | Path, *, max_results: int = 100) -> None:
+        if not 1 <= max_results <= 1_000:
+            raise ValueError("local catalog max_results must be between 1 and 1000")
+        self.path = Path(path).expanduser()
+        self.max_results = max_results
+
+    def collect(self) -> tuple[DiscoveryLead, ...]:
+        try:
+            raw = self.path.read_bytes()
+        except OSError as exc:
+            raise ValueError("local catalog is unavailable") from exc
+        if len(raw) > MAX_RESPONSE_BYTES:
+            raise ValueError("local catalog response exceeds size limit")
+        try:
+            payload = json.loads(raw)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("local catalog is invalid JSON") from exc
+        items = payload.get("items") if isinstance(payload, Mapping) else payload
+        if not isinstance(items, list):
+            raise ValueError("local catalog must contain an items list")
+        leads: list[DiscoveryLead] = []
+        for item in items[:self.max_results]:
+            if not isinstance(item, Mapping):
+                continue
+            target = str(item.get("url", ""))
+            if not target:
+                continue
+            try:
+                _web_url(target, "catalog item URL")
+                source_url = str(item.get("source_url", target))
+                _web_url(source_url, "catalog source URL")
+            except ValueError:
+                continue
+            title = str(item.get("name", item.get("title", ""))).strip() or target
+            summary = str(item.get("description", ""))[:7_700]
+            summary = (summary + "\n" if summary else "") + "unverified local catalog lead; requires terms, login, capability, and rate-limit testing."
+            leads.append(DiscoveryLead(
+                title=title[:512], source_url=source_url,
+                summary=summary[:8_000], external_url=target,
+                source_kind="local-catalog", terms_url=str(item.get("terms_url", "")),
+                transport_hint=str(item.get("transport", "browser-chat")),
             ))
         return tuple(leads)
 

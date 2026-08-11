@@ -196,6 +196,10 @@ of authorization or capability.
 **Exit gate:** discovery only creates candidate records with provenance, terms,
 authorization requirements, transport metadata, and a quarantine state.
 
+The checked-in `providers/candidate-catalog.json` is an operator-supplied seed
+catalog only. It is intentionally not a default active provider list; that list
+will be generated after the bounded external test run.
+
 ### Chunk 5.2: Candidate normalization and policy filter
 
 Normalize candidate metadata and reject candidates that require credential abuse,

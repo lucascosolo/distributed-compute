@@ -136,6 +136,18 @@ Page links are discovery leads only. Navigation links, recommendations, and
 marketing claims are not evidence that a chatbot is available, capable, or
 permitted to automate.
 
+The repository also contains `providers/candidate-catalog.json`, a
+quarantine-only seed list assembled from operator-supplied leads. Import it
+into local discovery state with:
+
+```bash
+aipool discover --catalog-file providers/candidate-catalog.json \
+  --db .aipool-data/aipool.sqlite
+```
+
+These entries are not default active providers. They must pass current terms,
+login-wall, capability, output, cost, and rate-limit checks before promotion.
+
 This performs one bounded public search request. It does not probe, automate,
 or activate any discovered chatbot; review each source's current terms and
 candidate evidence before configuring a transport.

@@ -56,6 +56,9 @@ or the operator's environment.
   non-shell operator workflow for testing quarantined browser/API candidates.
   Probe wrappers receive candidate metadata and return structured evidence;
   discovered URLs are never executed directly.
+- Added `providers/candidate-catalog.json` and `LocalCatalogSource` so supplied
+  chatbot leads can be imported reproducibly as unverified quarantine records;
+  the catalog is explicitly not an active provider list.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and

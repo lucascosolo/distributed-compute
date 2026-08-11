@@ -1,0 +1,23 @@
+{
+  "items": [
+    {"name": "Pi", "url": "https://pi.ai/"},
+    {"name": "HIX AI chatbot", "url": "https://hix.ai/hixchatbot"},
+    {"name": "HIX ChatGPT", "url": "https://hix.ai/chatgpt"},
+    {"name": "iSEOAI chatbot", "url": "https://iseoai.com/chatbot/"},
+    {"name": "LibreChat", "url": "https://www.librechat.ai/"},
+    {"name": "Chai AI", "url": "https://en-chaiai.com/"},
+    {"name": "Labiba", "url": "https://www.olabiba.com/"},
+    {"name": "NoteGPT", "url": "https://notegpt.io/ai-chat"},
+    {"name": "TurboChat", "url": "https://theturbochat.com/"},
+    {"name": "Nation AI", "url": "https://nation.ai/chat/"},
+    {"name": "Vizly", "url": "https://vizly.ai/ai-chat"},
+    {"name": "HuggingChat", "url": "https://huggingface.co/chat/"},
+    {"name": "TalkAI", "url": "https://talkai.info/"},
+    {"name": "Gab AI", "url": "https://gab.ai/"},
+    {"name": "Blushly", "url": "https://blushly.chat/topics/ai-chat-free-no-sign-in"},
+    {"name": "PixelDojo", "url": "https://pixeldojo.ai/free-ai-chatbot-no-sign-up"},
+    {"name": "Talkie AI", "url": "https://www.talkie-ai.com/pages/ai-chat-no-login"},
+    {"name": "Rewind", "url": "https://rewind.ai/chat/"},
+    {"name": "HoneyChat", "url": "https://honeychat.bot/en/blog/ai-roleplay-no-sign-up/"}
+  ]
+}

@@ -7,6 +7,7 @@ from aipool.discovery_sources import (
     DiscoveryRunner,
     HtmlPageSource,
     JsonDirectorySource,
+    LocalCatalogSource,
     LeadRegistry,
     RedditSearchSource,
     RedditThreadSource,
@@ -100,6 +101,22 @@ class DiscoverySourceTests(unittest.TestCase):
         self.assertEqual(len(leads), 1)
         self.assertEqual(leads[0].external_url, "https://assistant.example/")
         self.assertEqual(leads[0].source_kind, "json-directory")
+
+    def test_local_catalog_source_loads_bounded_unverified_entries(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.json"
+            path.write_text('{"items":[{"name":"Assistant","url":"https://assistant.example/"}]}')
+            leads = LocalCatalogSource(path).collect()
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0].source_kind, "local-catalog")
+        self.assertIn("unverified", leads[0].summary)
+
+    def test_local_catalog_source_rejects_oversized_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "catalog.json"
+            path.write_text("x" * (1_000_001))
+            with self.assertRaisesRegex(ValueError, "exceeds size"):
+                LocalCatalogSource(path).collect()
 
     def test_rss_source_keeps_article_as_provenance_lead(self) -> None:
         xml = b"""<rss><channel><item><title>Chatbot discussion</title>
