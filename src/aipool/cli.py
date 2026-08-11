@@ -187,14 +187,14 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             family_key_present = bool(os.environ.get("HF_TOKEN"))
         if enabled_setting and enabled_setting.casefold() not in {"1", "true", "yes", "on"}:
             continue
-        if not enabled_setting and not family_key_present:
+        if not enabled_setting and not family_key_present and not catalog_provider.api_key_optional:
             continue
         if any(not os.environ.get(provider_config_name(catalog_provider, field)) for field in catalog_provider.required_config):
             continue
         api_key_env = f"{provider_prefix}_API_KEY"
         if not os.environ.get(api_key_env) and catalog_provider.transport == "huggingface-api":
             api_key_env = "HF_TOKEN"
-        if not os.environ.get(api_key_env):
+        if not os.environ.get(api_key_env) and not catalog_provider.api_key_optional:
             continue
         model = os.environ.get(f"{model_prefix}_MODEL") or catalog_provider.model
         request_limit = _nonnegative_int(os.environ.get(f"{provider_prefix}_REQUEST_LIMIT"))
@@ -220,7 +220,10 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             if not endpoint.rstrip("/").endswith("/chat/completions"):
                 endpoint = endpoint.rstrip("/") + "/chat/completions"
             headers_extra = {"X-Free-Fallback": "false"} if catalog_provider.provider_slug == "bazaarlink" else {}
-            registry.register(OpenAICompatibleAdapter(profile, endpoint, model, api_key_env, headers_extra=headers_extra))
+            registry.register(OpenAICompatibleAdapter(
+                profile, endpoint, model, api_key_env,
+                headers_extra=headers_extra, allow_anonymous=catalog_provider.api_key_optional,
+            ))
         elif catalog_provider.transport == "cloudflare-workers-ai":
             registry.register(CloudflareWorkersAIAdapter(
                 profile, model, api_key_env,

@@ -408,11 +408,12 @@ class OpenAICompatibleAdapter:
     opener: Callable[..., object] = request.urlopen
     static_api_key: str = ""
     headers_extra: Mapping[str, str] = field(default_factory=dict)
+    allow_anonymous: bool = False
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = time.monotonic()
         api_key = self.static_api_key or os.environ.get(self.api_key_env)
-        if not api_key:
+        if not api_key and not self.allow_anonymous:
             return _failure(self.profile.id, ProviderErrorKind.AUTH, "configured API key is unavailable", 0)
         body = json.dumps(
             {
@@ -420,7 +421,9 @@ class OpenAICompatibleAdapter:
                 "messages": [{"role": "user", "content": json.dumps(task.to_dict(), separators=(",", ":"))}],
             }
         ).encode()
-        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json"}
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
         headers.update(self.headers_extra)
         req = request.Request(
             self.endpoint,

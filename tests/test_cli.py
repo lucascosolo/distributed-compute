@@ -137,6 +137,13 @@ class CliTests(unittest.TestCase):
             "minimax/minimax-m2.1:free", "z-ai/glm-5:free",
         })
 
+    def test_kilo_free_models_load_without_an_api_key(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        kilo = [adapter for adapter in registry.all() if adapter.profile.id.startswith("catalog:kilo-gateway-")]
+        self.assertEqual(len(kilo), 2)
+        self.assertTrue(all(adapter.allow_anonymous for adapter in kilo))
+
     def test_bazaarlink_catalog_uses_documented_free_routes(self) -> None:
         from aipool.provider_catalog import load_catalog
         providers = [item for item in load_catalog() if item.provider_name == "BazaarLink"]

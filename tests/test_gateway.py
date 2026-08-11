@@ -149,6 +149,7 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"Tokens per window", body)
         self.assertIn(b"Quota guidance", body)
         self.assertIn(b"Cloudflare account ID", body)
+        self.assertIn(b"Anonymous free access", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])

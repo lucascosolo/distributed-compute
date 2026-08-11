@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: `1148a6f`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `176 tests passed` with
+- Verification for the current implementation: `177 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -360,6 +360,9 @@ new batch plan. No provider calls were made during the endpoint audit.
 - BazaarLink requests now send `X-Free-Fallback: false`, so exhausting the free
   route fails instead of silently spending account credit. This has regression
   coverage.
+- Kilo's documented anonymous free access is now represented directly: its
+  selected `:free` models load without a key, and the panel labels the key as
+  optional. Users can still add a Kilo key for authenticated access.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
