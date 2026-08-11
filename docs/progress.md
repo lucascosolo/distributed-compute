@@ -164,6 +164,9 @@ or the operator's environment.
   recorded their observations and health holds, and a follow-up task returned
   the required native fallback (`no_healthy_capable_provider`). The benchmark
   now reports held/degraded workers as skipped rather than probing them again.
+- A Discord rate-limit now blocks immediate retries against other Discord
+  workers during the same routed task and stops the remainder of a benchmark
+  batch. Other provider transports can still be considered when available.
 
 ## Non-negotiable design decisions
 

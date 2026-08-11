@@ -17,7 +17,7 @@ from .benchmark import run_benchmark
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
 from .discord_api import DiscordApiClient, DiscordChannelAdapter
-from .domain import ProviderProfile, ProviderState, TaskEnvelope
+from .domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
 from .providers import BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
@@ -391,12 +391,16 @@ def main(argv: list[str] | None = None) -> int:
             coordinator = Coordinator(registry, store)
             results = []
             skipped = []
+            shared_rate_limited = False
             effective_profiles = {
                 profile.id: profile for profile in coordinator.health.profiles(
                     adapter.profile for adapter in registry.all()
                 )
             }
             for adapter in registry.all():
+                if shared_rate_limited:
+                    skipped.append({"provider_id": adapter.profile.id, "state": "shared_rate_limited"})
+                    continue
                 state = effective_profiles[adapter.profile.id].state
                 held_states = {ProviderState.RATE_LIMITED, ProviderState.AUTH_REQUIRED, ProviderState.BROKEN}
                 if not args.include_degraded:
@@ -411,6 +415,8 @@ def main(argv: list[str] | None = None) -> int:
                     "stopped_error": result.stopped_error.value if result.stopped_error else None,
                     "retry_after_seconds": result.retry_after_seconds,
                 })
+                if result.stopped_error == ProviderErrorKind.RATE_LIMITED:
+                    shared_rate_limited = True
             print(json.dumps({"workers": results, "skipped": skipped}, separators=(",", ":")))
             return 0
         except (KeyError, ValueError, TypeError) as exc:

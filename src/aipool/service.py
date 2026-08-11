@@ -86,10 +86,15 @@ class Coordinator:
             return outcome
 
         attempted: set[str] = set()
+        blocked_transports: set[str] = set()
         dispatched = False
         candidates = [decision.provider] + [profile for profile in profiles if profile.id != decision.provider.id]
         for profile in candidates:
-            if profile.id in excluded or profile.id in attempted or profile.state not in {ProviderState.HEALTHY, ProviderState.DEGRADED}:
+            if (
+                profile.id in excluded or profile.id in attempted
+                or profile.transport in blocked_transports
+                or profile.state not in {ProviderState.HEALTHY, ProviderState.DEGRADED}
+            ):
                 continue
             attempted.add(profile.id)
             cache_key = self._cache_key(task, profile.id)
@@ -140,6 +145,8 @@ class Coordinator:
                 reason,
                 retry_after_seconds=result.retry_after_seconds,
             )
+            if result.error_kind == ProviderErrorKind.RATE_LIMITED:
+                blocked_transports.add(profile.transport)
             if usage_exhausted:
                 self.health.hold(profile, usage_hold_until, "configured_token_limit_reached")
 

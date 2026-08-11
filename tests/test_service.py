@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from aipool.domain import ProviderProfile, ProviderState, Strategy, TaskEnvelope
+from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderResult, ProviderState, Strategy, TaskEnvelope
 from aipool.providers import FixtureAdapter, ProviderRegistry
 from aipool.service import Coordinator
 from aipool.storage import Store
@@ -12,6 +12,32 @@ def profile(provider_id: str, *, state: ProviderState = ProviderState.HEALTHY, *
 
 
 class ServiceTests(unittest.TestCase):
+    def test_rate_limit_blocks_other_workers_on_same_transport(self) -> None:
+        calls = {"first": 0, "second": 0}
+
+        def limited(provider_id: str):
+            def handler(_: TaskEnvelope) -> ProviderResult:
+                calls[provider_id] += 1
+                return ProviderResult(provider_id, success=False, error_kind=ProviderErrorKind.RATE_LIMITED)
+            return handler
+
+        def discord_profile(provider_id: str) -> ProviderProfile:
+            return ProviderProfile(
+                provider_id, provider_id, "discord",
+                capabilities={"classification": 0.9, "structured_json": 0.9},
+                reliability=0.9, state=ProviderState.HEALTHY,
+            )
+
+        first = FixtureAdapter(discord_profile("first"), limited("first"))
+        second = FixtureAdapter(discord_profile("second"), limited("second"))
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"first": first, "second": second}), store).submit(
+            TaskEnvelope(task="classification", input_ref="synthetic", local_estimate=1.0)
+        )
+        self.assertFalse(outcome.success)
+        self.assertEqual(calls, {"first": 1, "second": 0})
+
     def test_invalid_first_provider_falls_back_and_records_scores(self) -> None:
         first = FixtureAdapter(profile("bad", classification=0.8, structured_json=0.8), lambda _: "I cannot do that")
         second = FixtureAdapter(profile("good", classification=0.8, structured_json=0.8), lambda _: '{"label":"docs"}')
