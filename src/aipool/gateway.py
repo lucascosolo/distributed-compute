@@ -134,6 +134,7 @@ def make_server(
                 "adapter": (
                     "openai-compatible" if provider.transport == "openai-compatible"
                     else "cloudflare-workers-ai" if provider.transport == "cloudflare-workers-ai"
+                    else "tokenrouter-responses" if provider.transport == "tokenrouter-responses"
                     else "manual"
                 ),
             })

@@ -59,7 +59,7 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
         name = str(item.get("name", "")).strip()
         endpoint_url = urlsplit(endpoint)
         source = urlsplit(source_url)
-        if transport not in {"api", "openai-compatible", "huggingface-api", "cloudflare-workers-ai"} or not name:
+        if transport not in {"api", "openai-compatible", "huggingface-api", "cloudflare-workers-ai", "tokenrouter-responses"} or not name:
             continue
         if endpoint_url.scheme not in {"http", "https"} or not endpoint_url.netloc:
             continue

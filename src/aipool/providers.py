@@ -535,6 +535,86 @@ class CloudflareWorkersAIAdapter:
 
 
 @dataclass(slots=True)
+class TokenRouterResponsesAdapter:
+    """TokenRouter Responses API adapter.
+
+    TokenRouter's detailed API contract uses ``/responses`` and an
+    ``output[].content[].text`` envelope, not OpenAI chat completions. The
+    base endpoint remains operator-configurable because the public .com and
+    legacy .io documentation currently identify different hosts.
+    """
+
+    profile: ProviderProfile
+    model: str
+    api_key_env: str
+    endpoint: str
+    timeout_seconds: float = 30.0
+    opener: Callable[..., object] = request.urlopen
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        api_key = os.environ.get(self.api_key_env, "")
+        if not api_key:
+            return _failure(self.profile.id, ProviderErrorKind.AUTH, "configured TokenRouter API key is unavailable", 0)
+        body = json.dumps({
+            "model": self.model,
+            "input": json.dumps(task.to_dict(), separators=(",", ":")),
+        }).encode()
+        endpoint = self.endpoint.rstrip("/")
+        if not endpoint.endswith("/responses"):
+            endpoint += "/responses"
+        req = request.Request(
+            endpoint,
+            data=body,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with self.opener(req, timeout=self.timeout_seconds) as response:  # type: ignore[attr-defined]
+                raw = response.read()
+            data = json.loads(raw)
+            output = data.get("output_text")
+            if not isinstance(output, str):
+                output = ""
+                blocks = data.get("output", [])
+                if isinstance(blocks, list):
+                    for item in blocks:
+                        content = item.get("content", []) if isinstance(item, dict) else []
+                        if isinstance(content, list):
+                            for block in content:
+                                if isinstance(block, dict) and isinstance(block.get("text"), str):
+                                    output += block["text"]
+            if not output:
+                raise ValueError("TokenRouter response did not contain output text")
+            return ProviderResult(
+                provider_id=self.profile.id,
+                output=output,
+                latency_ms=(time.monotonic() - started) * 1000,
+                worker_tokens=int(data.get("usage", {}).get("total_tokens", 0)),
+            )
+        except error.HTTPError as exc:
+            retry_after = None
+            if exc.code == 429:
+                raw_retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                try:
+                    retry_after = max(0.0, float(raw_retry_after)) if raw_retry_after is not None else None
+                except (TypeError, ValueError):
+                    retry_after = None
+            kind = ProviderErrorKind.RATE_LIMITED if exc.code == 429 else ProviderErrorKind.AUTH if exc.code in (401, 403) else ProviderErrorKind.INTERNAL
+            return _failure(
+                self.profile.id,
+                kind,
+                f"TokenRouter HTTP {exc.code}",
+                (time.monotonic() - started) * 1000,
+                retry_after_seconds=retry_after,
+            )
+        except (error.URLError, TimeoutError) as exc:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, f"invalid TokenRouter response: {exc}", (time.monotonic() - started) * 1000)
+
+
+@dataclass(slots=True)
 class HuggingFaceInferenceAdapter:
     """Hugging Face Inference Providers via their OpenAI-compatible router.
 

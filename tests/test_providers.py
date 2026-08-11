@@ -11,7 +11,7 @@ from aipool.browser_ui import UIAction, UIPlan
 from aipool.providers import ModelGuidedBrowserAdapter
 import tempfile
 from pathlib import Path
-from aipool.providers import AgentCommandAdapter, CandidateCommandAdapter, CloudflareWorkersAIAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from aipool.providers import AgentCommandAdapter, CandidateCommandAdapter, CloudflareWorkersAIAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry, TokenRouterResponsesAdapter
 
 
 def task() -> TaskEnvelope:
@@ -335,6 +335,36 @@ class ProvidersTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.RATE_LIMITED)
         self.assertEqual(result.retry_after_seconds, 9.0)
+
+    def test_tokenrouter_uses_responses_contract_not_chat_completions(self) -> None:
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self):
+                return json.dumps({
+                    "output": [{"role": "assistant", "content": [{"type": "text", "text": "TokenRouter result"}]}],
+                    "usage": {"total_tokens": 23},
+                }).encode()
+
+        requests = []
+        def opener(req, timeout):
+            requests.append((req, timeout))
+            return Response()
+
+        adapter = TokenRouterResponsesAdapter(
+            ProviderProfile("tr", "TokenRouter", "tokenrouter-responses", state=ProviderState.QUARANTINED),
+            "auto:balance", "TR_API_KEY", "https://api.tokenrouter.com/v1", opener=opener,
+        )
+        with patch.dict(os.environ, {"TR_API_KEY": "tr-test"}, clear=True):
+            result = adapter.complete(task())
+        self.assertTrue(result.success)
+        self.assertEqual(result.output, "TokenRouter result")
+        self.assertEqual(result.worker_tokens, 23)
+        self.assertEqual(requests[0][0].full_url, "https://api.tokenrouter.com/v1/responses")
+        self.assertEqual(requests[0][0].get_header("Authorization"), "Bearer tr-test")
+        payload = json.loads(requests[0][0].data)
+        self.assertEqual(payload["model"], "auto:balance")
+        self.assertIn('"input_ref":"artifact:sha256:test"', payload["input"])
 
     def test_registry_rejects_duplicate_ids(self) -> None:
         profile = ProviderProfile("fixture", "Fixture", "fixture")

@@ -24,7 +24,7 @@ from .discovered import build_discovered_adapter
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
-from .providers import AgentCommandAdapter, BrowserCommandAdapter, CandidateCommandAdapter, CloudflareWorkersAIAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from .providers import AgentCommandAdapter, BrowserCommandAdapter, CandidateCommandAdapter, CloudflareWorkersAIAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry, TokenRouterResponsesAdapter
 from .provider_catalog import config_prefix, load_catalog, model_config_prefix, provider_config_name
 from .service import Coordinator
 from .storage import Store
@@ -224,6 +224,11 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             registry.register(CloudflareWorkersAIAdapter(
                 profile, model, api_key_env,
                 provider_config_name(catalog_provider, "account_id"),
+                endpoint=os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint,
+            ))
+        elif catalog_provider.transport == "tokenrouter-responses":
+            registry.register(TokenRouterResponsesAdapter(
+                profile, model, api_key_env,
                 endpoint=os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint,
             ))
         elif catalog_provider.transport == "huggingface-api":
