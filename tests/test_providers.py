@@ -7,6 +7,8 @@ from unittest.mock import patch
 from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvelope
 from aipool.artifacts import ArtifactStore
 from aipool.providers import BrowserChatAdapter, BrowserCommandAdapter
+from aipool.browser_ui import UIAction, UIPlan
+from aipool.providers import ModelGuidedBrowserAdapter
 import tempfile
 from pathlib import Path
 from aipool.providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
@@ -66,6 +68,72 @@ class BrowserChatAdapterTests(unittest.TestCase):
         result = adapter.complete(TaskEnvelope(task="summarization", input_ref="public-page"))
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+
+    def test_model_guided_browser_adapter_selects_model_and_submits_context(self) -> None:
+        class Session:
+            def __init__(self):
+                self.actions = []
+
+            def snapshot(self):
+                return "visible controls: model select, prompt textbox, Send button"
+
+            def select(self, target, value):
+                self.actions.append(("select", target, value))
+
+            def fill(self, target, value):
+                self.actions.append(("fill", target, value))
+
+            def click(self, target):
+                self.actions.append(("click", target))
+
+            def submit(self):
+                self.actions.append(("submit",))
+
+            def wait(self, seconds):
+                self.actions.append(("wait", seconds))
+
+            def read_response(self):
+                return "useful browser result"
+
+        session = Session()
+        requests = []
+
+        def planner(planning_request):
+            requests.append(planning_request)
+            return UIPlan((
+                UIAction("select", "model select", "strong-free-model"),
+                UIAction("fill", "prompt textbox", "__AIPOOL_PROMPT__"),
+                UIAction("submit", "Send"),
+            ))
+
+        profile = ProviderProfile("guided", "Guided browser", "browser-chat", state=ProviderState.HEALTHY)
+        adapter = ModelGuidedBrowserAdapter(profile, session, planner)
+        result = adapter.complete(TaskEnvelope(
+            task="summarization", input_ref="public-page",
+            requirements={"objective": "Summarize this page"},
+        ))
+        self.assertTrue(result.success)
+        self.assertEqual(result.output, "useful browser result")
+        self.assertEqual(session.actions[0], ("select", "model select", "strong-free-model"))
+        self.assertTrue(any(action[0] == "submit" for action in session.actions))
+        self.assertIn("Summarize this page", next(iter(requests)).prompt)
+
+    def test_model_guided_browser_adapter_rejects_login_snapshot(self) -> None:
+        class Session:
+            def snapshot(self):
+                return "Sign in to continue"
+
+        profile = ProviderProfile("guided", "Guided browser", "browser-chat", state=ProviderState.HEALTHY)
+        adapter = ModelGuidedBrowserAdapter(profile, Session(), lambda _: UIPlan(()))
+        result = adapter.complete(TaskEnvelope(task="summarization", input_ref="public-page"))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+
+    def test_ui_plan_is_bounded_and_rejects_credential_controls(self) -> None:
+        with self.assertRaisesRegex(ValueError, "at most"):
+            UIPlan(tuple(UIAction("click", "button") for _ in range(9)))
+        with self.assertRaisesRegex(ValueError, "credential"):
+            UIAction("fill", "password field", "anything")
 
 
 class ProvidersTests(unittest.TestCase):

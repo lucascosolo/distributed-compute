@@ -56,6 +56,9 @@ active pool.
    chat UI whose reviewed terms do not explicitly prohibit the intended
    external use; it does not log in, bypass challenges, discover hidden
    endpoints, or assume that no-key access resolves every legal or policy issue.
+   A model-guided variant can inspect the visible accessibility snapshot and
+   select model/options controls through a bounded action plan; it cannot log in,
+   navigate to hidden endpoints, or rotate profiles to evade usage limits.
 
 The adapter protocol leaves room for permitted CLI and future remote-node
 providers without adding transport assumptions to routing. All transports use

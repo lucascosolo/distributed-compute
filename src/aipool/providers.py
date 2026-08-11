@@ -11,6 +11,7 @@ from typing import Callable, Mapping, Protocol
 from urllib import error, request
 
 from .artifacts import ArtifactStore
+from .browser_ui import BrowserSession, TASK_PROMPT_TOKEN, UIAction, UIPlan, UIPlannerRequest
 from .context import ContextPacket
 from .domain import (
     ProviderErrorKind,
@@ -220,6 +221,86 @@ class BrowserCommandAdapter:
             output=output,
             latency_ms=latency,
         )
+
+
+@dataclass(slots=True)
+class ModelGuidedBrowserAdapter:
+    """Use the native model to operate visible, bounded chat-UI controls.
+
+    The planner may select a model and visible options, but it cannot navigate,
+    authenticate, execute JavaScript, or access credentials. Operators should
+    account for planner-model cost in the profile's estimated cost.
+    """
+
+    profile: ProviderProfile
+    session: BrowserSession
+    planner: Callable[[UIPlannerRequest], UIPlan]
+    artifacts: ArtifactStore | None = None
+    max_prompt_chars: int = 12_000
+    max_planner_calls: int = 2
+    max_actions: int = 8
+
+    def __post_init__(self) -> None:
+        if self.max_planner_calls < 1 or self.max_actions < 1:
+            raise ValueError("browser planner and action budgets must be positive")
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        try:
+            packet = ContextPacket.from_task(task, self.artifacts, max_chars=self.max_prompt_chars)
+            prompt = packet.render()
+            actions_used = 0
+            submitted = False
+            for _ in range(self.max_planner_calls):
+                snapshot = self.session.snapshot()
+                if _is_login_wall(snapshot):
+                    return _failure(self.profile.id, ProviderErrorKind.AUTH, "browser session reached a login wall", (time.monotonic() - started) * 1000)
+                plan = self.planner(UIPlannerRequest(
+                    prompt=prompt,
+                    snapshot=snapshot,
+                    instruction=(
+                        "Use only visible controls to select the best available model/options, "
+                        "fill the task prompt, and submit it. Never log in, register, or bypass a limit. "
+                        "Use __AIPOOL_PROMPT__ as the fill value for the task prompt."
+                    ),
+                ))
+                if not isinstance(plan, UIPlan):
+                    raise ValueError("browser planner must return UIPlan")
+                if actions_used + len(plan.actions) > self.max_actions:
+                    raise ValueError("browser action budget exceeded")
+                for action in plan.actions:
+                    actions_used += 1
+                    self._apply(action, prompt)
+                    if action.kind == "submit":
+                        submitted = True
+                if submitted:
+                    break
+            if not submitted:
+                return _failure(self.profile.id, ProviderErrorKind.INVALID_REQUEST, "browser planner did not submit the task", (time.monotonic() - started) * 1000)
+            output = self.session.read_response()
+            if not isinstance(output, str):
+                raise ValueError("browser session must return text")
+            if _is_login_wall(output):
+                return _failure(self.profile.id, ProviderErrorKind.AUTH, "browser session reached a login wall", (time.monotonic() - started) * 1000)
+            return ProviderResult(self.profile.id, output=output, latency_ms=(time.monotonic() - started) * 1000)
+        except Exception as exc:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, str(exc), (time.monotonic() - started) * 1000)
+
+    def _apply(self, action: UIAction, prompt: str) -> None:
+        value = prompt if action.value == TASK_PROMPT_TOKEN else action.value
+        if action.kind == "click":
+            self.session.click(action.target)
+        elif action.kind == "select":
+            self.session.select(action.target, value)
+        elif action.kind == "fill":
+            if action.value != TASK_PROMPT_TOKEN:
+                raise ValueError("browser prompt fields must use the task prompt token")
+            self.session.fill(action.target, value)
+        elif action.kind == "submit":
+            self.session.submit()
+        else:
+            seconds = float(action.value or action.target or "0")
+            self.session.wait(seconds)
 
 
 @dataclass(slots=True)

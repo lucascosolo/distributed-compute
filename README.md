@@ -60,6 +60,8 @@ providers.
 - Bounded, provider-neutral context packets that reconstruct artifact-backed
   task context for constrained API or browser transports without passing
   credentials or treating source text as coordinator instructions.
+- Model-guided browser sessions that use the native model to select visible
+  model/options controls and submit a task through a bounded typed action plan.
 - Bounded Reddit lead discovery with persistent provenance; discovered links
   remain leads/candidates and are never activated automatically.
 - JSON-directory and RSS lead adapters plus an explicit lead-to-quarantine

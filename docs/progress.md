@@ -80,6 +80,11 @@ or the operator's environment.
   no-signup chatbot lists; page links remain unverified leads.
 - Browser transports now classify common login/sign-up walls as
   `AUTH` failures instead of returning them as successful provider output.
+- `ModelGuidedBrowserAdapter` now gives the base model a bounded visible-page
+  snapshot so it can choose model selectors, options, prompt fields, and submit
+  buttons through typed actions. Fresh isolated browser profiles are allowed
+  for clean state, but limit resets through profile rotation are explicitly not
+  supported.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.

@@ -22,6 +22,8 @@ Do not implement or request code for:
 - stolen credentials, cookies, sessions, API keys, or hidden endpoints;
 - scraping or browser automation prohibited by the provider;
 - evading safety controls or disguising prohibited traffic;
+- rotating browser profiles, clearing cookies, or otherwise resetting state to
+  evade a provider's message, quota, or rate limit;
 - exploiting a service's bug or misconfiguration to obtain compute;
 - sending data to a provider without the required privacy or user consent.
 
