@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `987a2ed`
+- Last pushed commit: `982d4e8`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `164 tests passed` with
+- Verification for the current implementation: `169 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -309,7 +309,7 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `987a2ed`; working tree is clean; VPS service is
+- Current deployed commit: `982d4e8`; working tree is clean; VPS service is
   active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
@@ -321,7 +321,7 @@ new batch plan. No provider calls were made during the endpoint audit.
   expected calls, but the new requirement supersedes that plan: do not execute
   it yet. The approval-gated sequential endpoint is implemented but intentionally
   unused after the audit.
-- Current readiness is 68 model cards: 52 quarantined, 5 healthy, 6
+- Current readiness after deployment is 68 model cards: 52 quarantined, 5 healthy, 6
   auth-required, 1 degraded, and 4 not-loaded. The four not-loaded cards are
   Cloudflare Workers AI (2 cards) and SambaNova (2 cards disabled by operator
   state). The dashboard now explains that a saved key can still require an
@@ -333,12 +333,11 @@ new batch plan. No provider calls were made during the endpoint audit.
   paid usage.
 - Next session: resume with the remaining-provider integration audit, keep all
   changes scoped and tested, and pause again before any external model calls.
-- First implementation task after compaction: add the Cloudflare account ID and
-  any other required non-secret fields to the panel. This is now implemented in
-  the working tree and covered by fixture tests; the panel explains where the
-  account ID comes from, never echoes the API token, and keeps the family
-  unloaded until both values are present. Deploy this chunk, then perform only
-  a no-network readiness check before requesting any live provider call.
+- First implementation task after compaction is deployed: the panel now accepts
+  the Cloudflare account ID, explains where to find it, never echoes the API
+  token, and keeps the family unloaded until both values are present. The VPS
+  no-network readiness check confirms the token is already saved but the account
+  ID is missing; no provider calls were made.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
