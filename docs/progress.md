@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `239cb5e`
+- Last pushed commit: `685877f`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `152 tests passed` with
+- Verification for this chunk: `157 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -227,6 +227,17 @@ or the operator's environment.
 - Added the repository-local `scripts/aipool` launcher so the distributed-compute
   skill works before editable package installation. The panel now exposes an
   explicit bounded smoke-test button for configured catalog models.
+- Added a local `agent-command` bridge contract for Claude CLI and Codex CLI.
+  Tasks carry an origin and bounded delegation chain; the coordinator excludes
+  the originating runtime and all ancestor runtimes, preventing self-routing
+  and Claude↔Codex ping-pong. Commands receive JSON over stdin and return only
+  bounded stdout; credentials remain local. Both runtimes are opt-in through
+  operator command configuration.
+- Added Kilo Code as a future agent-command candidate and Kilo Gateway as a
+  quarantined OpenAI-compatible candidate. Kilo's official page advertises a
+  $0/forever tier with default free models, but publishes no numeric free-tier
+  request/token caps; free model availability may change, so it is not yet
+  treated as proven useful compute.
 
 ## Non-negotiable design decisions
 
@@ -251,9 +262,10 @@ or the operator's environment.
 
 Continue researching and normalizing official quota rules for the remaining
 provider families before running real smoke tests. The first pass now covers
-six families; the next pass should add evidence where the provider publishes
+seven families plus Kilo's qualitative free-tier claim; the next pass should add evidence where the provider publishes
 it, preserve account-dependent dimensions, and avoid guessing unknown caps.
-After that, obtain a Cloudflare Access service token through the operator
+Then wire the native-agent bridge wrappers and run a human-approved, bounded
+cross-runtime test. After that, obtain a Cloudflare Access service token through the operator
 dashboard if CLI-over-HTTPS use is needed, then run a human-approved bounded
 provider benchmark. Retired transports are not reintroduced.
 
