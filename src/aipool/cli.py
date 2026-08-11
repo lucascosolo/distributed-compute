@@ -565,6 +565,12 @@ def main(argv: list[str] | None = None) -> int:
         try:
             coordinator = Coordinator(registry, store)
             task_queue = TaskQueue(store, max_pending=int(os.environ.get("AIPOOL_MAX_PENDING", "1000")))
+
+            def reload_registry() -> None:
+                """Apply panel changes to the live coordinator without a process restart."""
+                _load_local_config()
+                coordinator.registry = _build_registry(args)
+
             server = make_server(
                 coordinator,
                 host=args.host,
@@ -572,6 +578,7 @@ def main(argv: list[str] | None = None) -> int:
                 token=os.environ.get("AIPOOL_TOKEN") or None,
                 queue=task_queue,
                 max_pending=task_queue.max_pending,
+                reload_callback=reload_registry,
             )
             if not args.no_worker:
                 worker = QueueWorker(

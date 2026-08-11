@@ -30,10 +30,12 @@ class GatewayTests(unittest.TestCase):
         self.addCleanup(self.store.close)
         self.config_directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.config_directory.cleanup)
+        self.reloads = []
         coordinator = Coordinator(ProviderRegistry({"p": FixtureAdapter(profile, lambda _: '{"label":"docs"}')}), self.store)
         self.server = make_server(
             coordinator, port=0, token="test-token",
             config_path=Path(self.config_directory.name) / ".aipool.local",
+            reload_callback=lambda: self.reloads.append(True),
         )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -101,6 +103,9 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(content_type.startswith("text/html"))
         self.assertIn(b"provider console", body)
+        self.assertIn(b"savebar", body)
+        self.assertIn(b"API key saved", body)
+        self.assertIn(b"No API key saved", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
@@ -148,6 +153,23 @@ class GatewayTests(unittest.TestCase):
             self.assertNotIn("hf-secret", json.dumps(data))
             self.assertNotIn("discord-secret", json.dumps(data))
             self.assertNotIn("model-secret", json.dumps(data))
+
+    def test_api_key_defaults_provider_models_to_enabled(self) -> None:
+        status, snapshot = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        provider = snapshot["providers"][0]
+        key = "AIPOOL_PROVIDER_" + provider["provider_slug"].upper().replace("-", "_") + "_API_KEY"
+        status, data = self.request("POST", "/admin/config", {key: "example-key"})
+        self.assertEqual(status, 200)
+        self.assertTrue(data["updated"])
+        self.assertTrue(data["reloaded"])
+        self.assertFalse(data["restart_required"])
+        self.assertTrue(self.reloads)
+        status, snapshot = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        family = [item for item in snapshot["providers"] if item["provider_slug"] == provider["provider_slug"]]
+        self.assertTrue(family)
+        self.assertTrue(all(item["enabled"] for item in family), family)
 
     def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
         status, config = self.request("GET", "/admin/config")

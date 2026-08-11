@@ -211,6 +211,12 @@ or the operator's environment.
   expected consumption from a provider's free allowance rather than dollars;
   configured keys are shared once per provider family and remain masked; each
   model card remains quarantined until a later smoke-test/activation path.
+- The provider console now shows an explicit saved/not-saved API-key badge on
+  every model card. Editing a provider key defaults that provider family to
+  enabled, while an explicit toggle-off remains respected. A floating save bar
+  appears only after edits and uses a short plain-language human checkpoint.
+  The running `serve` process now reloads its configured provider registry after
+  a successful save, so adding a key does not require a manual backend restart.
 - Added bounded live model discovery. The running panel successfully queried
   Hugging Face's authorized `/v1/models` endpoint and found 129 model IDs without
   exposing the token. Live results now receive conservative, explainable power,
