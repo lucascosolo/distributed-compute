@@ -137,6 +137,8 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"Setup needed", body)
         self.assertIn(b"View model details", body)
         self.assertIn(b"family-card", body)
+        self.assertIn(b"Next step", body)
+        self.assertIn(b"Recommendation", body)
         self.assertIn(b"human review required", body)
         self.assertIn(b"Approve for bounded smoke test", body)
         self.assertIn(b"Run bounded smoke test", body)

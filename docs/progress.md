@@ -256,6 +256,10 @@ or the operator's environment.
   with saved keys are marked and collapsed, unconfigured families sort first,
   and per-model controls remain behind a `View model details` button. The shared
   family key field still enables all models in that family when saved.
+- The provider console now merges live readiness into each family card. Auth,
+  rate-limit, broken, degraded, missing-key, disabled, and not-loaded states show
+  a concrete next step and a recommendation; this distinguishes provider
+  failures from configuration/setup issues instead of hiding them in details.
 
 ## Non-negotiable design decisions
 
