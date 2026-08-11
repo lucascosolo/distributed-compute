@@ -287,6 +287,8 @@ configured channel, polls for its exact bot, and turns Discord
 401/403/429/timeouts into normal provider failures so routing can pause it.
 Start with harmless synthetic prompts and keep workers at complexity level 1
 until benchmark evidence says otherwise.
+Each worker is mentioned automatically; a custom message prefix is only needed
+for a bot that requires a nonstandard command format.
 
 Discord workers receive the same bounded `ContextPacket` format as the other
 constrained transports. Artifact-backed inputs are rendered into explicitly

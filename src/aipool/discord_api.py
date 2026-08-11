@@ -156,10 +156,11 @@ class DiscordChannelAdapter:
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = self.clock()
         try:
-            packet_limit = self.max_prompt_chars - len(self.message_prefix)
+            prefix = self.message_prefix or f"<@{self.target_bot_id}> "
+            packet_limit = self.max_prompt_chars - len(prefix)
             if packet_limit < 256:
                 raise ValueError("Discord message prefix leaves too little room for context")
-            content = self.message_prefix + ContextPacket.from_task(
+            content = prefix + ContextPacket.from_task(
                 task, self.artifacts, max_chars=packet_limit,
             ).render()
         except (TypeError, ValueError, OSError) as exc:

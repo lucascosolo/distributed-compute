@@ -117,6 +117,7 @@ class DiscordApiTests(unittest.TestCase):
         self.assertEqual(requests[0].method, "POST")
         sent = json.loads(requests[0].data)
         self.assertLessEqual(len(sent["content"]), 2000)
+        self.assertTrue(sent["content"].startswith("<@worker-bot> "))
         self.assertNotIn("controller-secret", requests[0].full_url)
         self.assertIn("after=controller-message", requests[-1].full_url)
 

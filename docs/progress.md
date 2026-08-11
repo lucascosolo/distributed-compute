@@ -149,6 +149,10 @@ or the operator's environment.
 - The built-in Discord benchmark cases now contain explicit synthetic objectives
   and input text, so a response is tested against a reconstructable task rather
   than an empty `benchmark:*` reference.
+- Discord workers are now mentioned automatically before each bounded task,
+  which removes another per-bot configuration requirement for common
+  mention-triggered bots; the optional prefix remains available for nonstandard
+  command formats.
 
 ## Non-negotiable design decisions
 
