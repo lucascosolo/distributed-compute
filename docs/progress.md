@@ -62,6 +62,10 @@ or the operator's environment.
   directories (`~/.claude/skills` or `~/.codex/skills`); CLI config discovery
   supports matching per-agent operator environment files while retaining the
   legacy shared operator path for compatibility.
+- Refreshed the repository and installed distributed-compute skills with the
+  VPS HTTPS handshake workflow, operator-local secret boundaries, durable queue
+  usage, and explicit auth/error handling. No endpoint or credential value is
+  embedded in either skill copy.
 - The gateway now exposes authenticated `/admin` and `/admin/config` routes for
   allowlisted provider settings. It writes operator-local config with mode
   `0600`, never returns secret values, and makes restart required explicit.
@@ -252,11 +256,8 @@ After that, obtain a Cloudflare Access service token through the operator
 dashboard if CLI-over-HTTPS use is needed, then run a human-approved bounded
 provider benchmark. Retired transports are not reintroduced.
 
-Follow-up documentation chunk: refresh the repository skill and installed skill
-instructions so a new Claude/Codex session can use the deployed HTTPS orchestrator
-correctly, including remote configuration discovery, Access credentials, bounded
-delegation, native fallback, and the human approval boundary. Keep operator host
-names and secrets out of both skill copies.
+The skill refresh is complete; keep it synchronized whenever the remote gateway
+handshake or CLI contract changes.
 
 The VPS service is already deployed behind the operator's Cloudflare HTTPS
 hostname. Do not put a real VPS address, service token, or provider credential in

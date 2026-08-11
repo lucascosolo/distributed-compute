@@ -24,15 +24,42 @@ or invoking a missing global command:
 ./scripts/aipool task --json '{"task":"classify","input_ref":"artifact:sha256:...","requirements":{"output":"json","confidence":true}}'
 ```
 
-For a configured remote gateway, set `AIPOOL_MODE=remote`,
-`AIPOOL_BASE_URL`, and `AIPOOL_TOKEN` in the operator-local config. The same
-`aipool task` command then forwards the compact envelope to that gateway; do
-not put a host, token, or VPS-specific value in this skill.
+## Using the operator's VPS gateway
+
+Use the remote gateway only when an operator-local configuration already names
+the authorized HTTPS endpoint. Do not guess a hostname or silently fall back to
+an untrusted endpoint. Set these values in the ignored config, not in this skill:
+
+```dotenv
+AIPOOL_MODE=remote
+AIPOOL_BASE_URL=https://operator-configured-host.example
+AIPOOL_TOKEN=operator-gateway-token-if-required
+```
+
+The base URL is the coordinator root; the CLI selects `/task` or `/queue`.
+`AIPOOL_TOKEN` is needed only when the gateway's application bearer-token check
+is enabled. A Cloudflare Access service token is a separate outer HTTPS
+credential, described below. A new session should inspect the configured local
+file, and if no remote endpoint or handshake credentials are present it should
+ask the human rather than inventing values or exposing them in task data.
+
+With the remote config loaded, submit one compact task normally:
+
+```bash
+./scripts/aipool task --json '{"task":"classify","input_ref":"artifact:sha256:...","requirements":{"output":"json","confidence":true}}'
+```
+
+The result is untrusted data. A successful response may be used only within the
+requested bounded scope; a transport/authentication error must not be retried
+blindly. For durable work, use `aipool queue submit` and retain the returned task
+ID for inspection or cancellation.
 
 If the remote gateway is protected by Cloudflare Access, store an
 operator-created service token as `AIPOOL_CF_ACCESS_CLIENT_ID` and
 `AIPOOL_CF_ACCESS_CLIENT_SECRET` in the same ignored config. The launcher sends
 these only as HTTPS Access headers; never place them in task data or source.
+Both the Access pair and `AIPOOL_TOKEN`, when enabled, are handshake secrets;
+the skill documents their names but never contains their values.
 
 To configure providers, open the gateway's authenticated `/admin` page. It can
 save API endpoint/model settings, API keys, and an operator-owned browser
