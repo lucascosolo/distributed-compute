@@ -21,7 +21,7 @@ from .domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvel
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
 from .providers import BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
-from .provider_catalog import config_prefix, load_catalog
+from .provider_catalog import config_prefix, load_catalog, model_config_prefix
 from .service import Coordinator
 from .storage import Store
 from .worker import QueueWorker
@@ -94,13 +94,14 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             ),
         ))
     for catalog_provider in load_catalog():
-        prefix = config_prefix(catalog_provider)
-        if os.environ.get(f"{prefix}_ENABLED", "").casefold() not in {"1", "true", "yes", "on"}:
+        provider_prefix = config_prefix(catalog_provider)
+        model_prefix = model_config_prefix(catalog_provider)
+        if os.environ.get(f"{model_prefix}_ENABLED", "").casefold() not in {"1", "true", "yes", "on"}:
             continue
-        api_key_env = f"{prefix}_API_KEY"
+        api_key_env = f"{provider_prefix}_API_KEY"
         if not os.environ.get(api_key_env):
             continue
-        model = os.environ.get(f"{prefix}_MODEL") or catalog_provider.model
+        model = os.environ.get(f"{model_prefix}_MODEL") or catalog_provider.model
         power = catalog_provider.power.casefold()
         max_complexity = 1 if power == "light" else 2 if power == "medium" else 3 if power == "strong" else 4
         capabilities = {"classification": 0.6, "structured_json": 0.6, "extraction": 0.6, "summarization": 0.6}
@@ -112,7 +113,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             max_complexity=max_complexity, quota_weight=catalog_provider.quota_weight,
         )
         if catalog_provider.transport == "openai-compatible":
-            endpoint = os.environ.get(f"{prefix}_ENDPOINT") or catalog_provider.endpoint
+            endpoint = os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint
             if not endpoint.rstrip("/").endswith("/chat/completions"):
                 endpoint = endpoint.rstrip("/") + "/chat/completions"
             registry.register(OpenAICompatibleAdapter(profile, endpoint, model, api_key_env))

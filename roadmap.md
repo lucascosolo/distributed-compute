@@ -300,6 +300,12 @@ reviewable adapter exists; a key alone must never activate an untested provider.
 panel, restart the coordinator, verify both masked configurations, and route only
 the provider whose smoke test and cost gate pass.
 
+The first implementation uses one shared key per provider family and groups its
+model cards together. A provider-level key must never be duplicated into separate
+model secrets. Live model discovery is diagnostic first; newly returned models
+need normalization, capability/quota classification, and an operator-visible
+activation decision before they become cards or routing providers.
+
 ### Chunk 5.4c: Guided API-key onboarding
 
 Provide a provider-specific “get a key” link and a guided checklist, not an

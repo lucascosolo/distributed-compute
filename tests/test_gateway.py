@@ -125,8 +125,8 @@ class GatewayTests(unittest.TestCase):
                 "AIPOOL_DISCORD_CHANNEL_ID": "345678901234567890",
                 "AIPOOL_DISCORD_BOT_TOKEN": "discord-secret",
                 "HF_TOKEN": "hf-secret",
-                "AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_ENABLED": "1",
-                "AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_API_KEY": "model-secret",
+                "AIPOOL_MODEL_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_ENABLED": "1",
+                "AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_API_KEY": "model-secret",
                 "UNSAFE_SETTING": "must-not-persist",
             })
             self.assertEqual(status, 200)
@@ -138,7 +138,7 @@ class GatewayTests(unittest.TestCase):
             self.assertIn("AIPOOL_DISCORD_APPLICATION_ID=123456789012345678", text)
             self.assertIn("AIPOOL_DISCORD_BOT_TOKEN=discord-secret", text)
             self.assertIn("HF_TOKEN=hf-secret", text)
-            self.assertIn("AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_API_KEY=model-secret", text)
+            self.assertIn("AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_API_KEY=model-secret", text)
             self.assertNotIn("UNSAFE_SETTING", text)
             self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
             status, data = self.request("GET", "/admin/config")
@@ -148,6 +148,19 @@ class GatewayTests(unittest.TestCase):
             self.assertNotIn("hf-secret", json.dumps(data))
             self.assertNotIn("discord-secret", json.dumps(data))
             self.assertNotIn("model-secret", json.dumps(data))
+
+    def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
+        status, config = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        slug = config["providers"][0]["slug"]
+        with patch("aipool.gateway.discover_models") as discover:
+            from aipool.model_discovery import ModelDiscovery
+            discover.return_value = ModelDiscovery(True, ("model-a", "model-b"), "https://router.example/v1/models")
+            status, data = self.request("GET", f"/admin/discover-models?slug={slug}")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["models"], ["model-a", "model-b"])
+        discover.assert_called_once()
+        self.assertNotIn("secret", json.dumps(data))
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}

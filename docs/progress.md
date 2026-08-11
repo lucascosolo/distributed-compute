@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: `1cbf64d`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `144 tests passed` with
+- Verification for this chunk: `148 tests passed` with
   `-W error::ResourceWarning`
 - No VPS deployment has been performed.
 
@@ -209,9 +209,12 @@ or the operator's environment.
 - The admin-panel chunk now expands catalog entries with model metadata into
   separate model cards. Cards show a capability tier and `quota_weight`, meaning
   expected consumption from a provider's free allowance rather than dollars;
-  configured keys remain masked and model cards remain quarantined until a later
-  smoke-test/activation path. The panel still needs live `/models` discovery for
-  providers whose model lists are not cleanly exposed.
+  configured keys are shared once per provider family and remain masked; each
+  model card remains quarantined until a later smoke-test/activation path.
+- Added bounded live model discovery. The running panel successfully queried
+  Hugging Face's authorized `/v1/models` endpoint and found 128 model IDs without
+  exposing the token. Live results are currently diagnostic; hydrating new model
+  cards and assigning capability/quota metadata remains a follow-up step.
 
 ## Non-negotiable design decisions
 

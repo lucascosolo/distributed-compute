@@ -15,6 +15,8 @@ _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 @dataclass(frozen=True, slots=True)
 class CatalogProvider:
+    provider_slug: str
+    provider_name: str
     slug: str
     name: str
     model: str
@@ -80,9 +82,13 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
             if slug in seen:
                 continue
             seen.add(slug)
-            result.append(CatalogProvider(slug, model_name or name, model, power, quota_weight, endpoint, source_url, transport))
+            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport))
     return tuple(result)
 
 
 def config_prefix(provider: CatalogProvider) -> str:
-    return f"AIPOOL_PROVIDER_{provider.slug.upper().replace('-', '_')}"
+    return f"AIPOOL_PROVIDER_{provider.provider_slug.upper().replace('-', '_')}"
+
+
+def model_config_prefix(provider: CatalogProvider) -> str:
+    return f"AIPOOL_MODEL_{provider.slug.upper().replace('-', '_')}"
