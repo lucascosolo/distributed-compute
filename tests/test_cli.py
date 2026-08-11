@@ -72,6 +72,17 @@ class CliTests(unittest.TestCase):
             registry = _build_registry(__import__("argparse").Namespace(command="serve"), store)
         self.assertIn("discovered:" + model_key, {adapter.profile.id for adapter in registry.all()})
 
+    def test_compare_command_reports_baseline_and_distributed_economics(self) -> None:
+        output = io.StringIO()
+        baseline = f"{os.sys.executable} -c \"print('native baseline')\""
+        with patch.dict(os.environ, {"AIPOOL_FIXTURE_OUTPUT": "a sufficiently useful distributed summary"}, clear=True), contextlib.redirect_stdout(output):
+            code = main(["compare", "--baseline-command", baseline, "--local-estimate", "1"])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertIn("baseline_valid_rate", result)
+        self.assertIn("distributed_cheaper_count", result)
+        self.assertEqual(len(result["records"]), 3)
+
     def test_discord_check_uses_operator_config_without_printing_token(self) -> None:
         output = io.StringIO()
         fake = __import__("unittest").mock.Mock()

@@ -96,6 +96,10 @@ or the operator's environment.
 - The comparison harness in `aipool.comparison` runs the same cases through an
   injected native-model runner and the coordinator, reporting quality,
   context-transfer size, latency, fallback, and delegation-cost differences.
+- Added the operator-run `aipool compare` command. It feeds bounded synthetic
+  cases to an explicitly supplied native wrapper and the coordinator, returning
+  quality, latency, context, fallback, and cost evidence without registering
+  accounts or providers automatically.
 - Discovery requirements now include bounded public chatbot directories,
   search results, and community discussions as candidate leads, while keeping
   provenance and terms review separate from activation.

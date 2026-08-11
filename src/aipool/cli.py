@@ -6,14 +6,18 @@ import argparse
 import json
 import os
 import shlex
+import subprocess
 import sys
 import threading
+from dataclasses import replace
 from dataclasses import asdict
 from pathlib import Path
 
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .artifacts import ArtifactStore
-from .benchmark import run_benchmark
+from .benchmark import default_cases, run_benchmark
+from .comparison import run_comparison
+from .context import ContextPacket
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
 from .discord_api import DiscordApiClient, DiscordChannelAdapter
@@ -68,6 +72,20 @@ def _positive_float(value: str | None, default: float) -> float:
         return parsed if parsed > 0 else default
     except (TypeError, ValueError):
         return default
+
+
+def _baseline_command(command: tuple[str, ...], timeout: float):
+    def run(packet: ContextPacket) -> str:
+        completed = subprocess.run(
+            command, input=packet.render().encode(), stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE, timeout=timeout, check=False, shell=False,
+        )
+        if completed.returncode:
+            raise RuntimeError("baseline command failed")
+        if len(completed.stdout) > 1_000_000:
+            raise RuntimeError("baseline output exceeds limit")
+        return completed.stdout.decode(errors="replace")
+    return run
 
 
 def _build_registry(args: argparse.Namespace, store: Store | None = None) -> ProviderRegistry:
@@ -268,6 +286,11 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    compare = subparsers.add_parser("compare", help="compare bounded native baseline work with distributed work")
+    compare.add_argument("--baseline-command", default=os.environ.get("AIPOOL_BASELINE_COMMAND"), required=not bool(os.environ.get("AIPOOL_BASELINE_COMMAND")))
+    compare.add_argument("--local-estimate", type=float, default=1.0)
+    compare.add_argument("--timeout", type=float, default=120.0)
+    compare.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     serve = subparsers.add_parser("serve", help="run the local or authorized remote gateway")
     serve.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     serve.add_argument("--host", default=os.environ.get("AIPOOL_HOST", "127.0.0.1"))
@@ -605,12 +628,35 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         print(json.dumps(result, separators=(",", ":")))
         return 0
+    if args.command == "compare":
+        store = Store(args.db)
+        try:
+            if args.local_estimate <= 0 or args.timeout <= 0:
+                raise ValueError("local estimate and timeout must be positive")
+            command = tuple(shlex.split(args.baseline_command))
+            if not command:
+                raise ValueError("baseline command is required")
+            cases = tuple(
+                replace(case, task=replace(case.task, local_estimate=args.local_estimate))
+                for case in default_cases()
+            )
+            report = run_comparison(
+                cases, _baseline_command(command, args.timeout),
+                Coordinator(_build_registry(args, store), store),
+            )
+            print(json.dumps(report.to_dict(), separators=(",", ":")))
+            return 0
+        except (OSError, ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
     if args.command == "serve":
         store = Store(args.db)
         stop_event = threading.Event()
         worker_thread = None
         try:
-            coordinator = Coordinator(registry, store)
+            coordinator = Coordinator(_build_registry(args, store), store)
             task_queue = TaskQueue(store, max_pending=int(os.environ.get("AIPOOL_MAX_PENDING", "1000")))
 
             def reload_registry() -> None:

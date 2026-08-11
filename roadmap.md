@@ -154,6 +154,17 @@ explicit budgets, task importance, parallelism limits, and synthesis boundaries.
 **Exit gate:** important results can be independently checked while low-risk tasks
 remain cheaper than direct primary-model execution.
 
+### Chunk 3.4: Native-vs-distributed comparison runs
+
+Expose a bounded `aipool compare` command that runs the same synthetic cases through
+an operator-supplied native-model wrapper and the coordinator. Report quality,
+latency, context size, fallback rate, worker cost, and whether delegation was
+actually cheaper. This is an operator-run measurement tool, not an autonomous
+benchmark account or provider-registration workflow.
+
+**Exit gate:** a controlled run produces an auditable report and refuses to call
+delegation economical when its valid result is not cheaper than the native estimate.
+
 ### Chunk 3.4: Savings and operations reporting
 
 Expose provider usage, capability strengths, failure trends, avoided paid-model
