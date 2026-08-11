@@ -149,6 +149,10 @@ def _parser() -> argparse.ArgumentParser:
     discord_bots.add_argument("--limit", type=int, default=1000)
     discord_recent = discord_subparsers.add_parser("recent", help="read recent diagnostic messages from the configured test channel")
     discord_recent.add_argument("--limit", type=int, default=50)
+    discord_hold = discord_subparsers.add_parser("hold", help="disable one discovered worker without sending a message")
+    discord_hold.add_argument("--username", required=True, help="exact discovered Discord bot username")
+    discord_hold.add_argument("--reason", required=True, help="operator evidence for holding this worker")
+    discord_hold.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     discord_benchmark = discord_subparsers.add_parser("benchmark", help="run bounded capability cases against discovered worker bots")
     discord_benchmark.add_argument("--max-bots", type=int, default=3)
     discord_benchmark.add_argument("--include-degraded", action="store_true", help="retest workers already showing failures")
@@ -375,6 +379,40 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
             return 2
+    if args.command == "discord" and args.discord_action == "hold":
+        store = Store(args.db)
+        try:
+            username = args.username.strip()
+            reason = args.reason.strip()
+            if not username or not reason:
+                raise ValueError("username and reason are required")
+            client = DiscordApiClient(
+                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
+                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
+                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
+            )
+            matches = [bot for bot in client.list_bots() if bot.get("username") == username]
+            if len(matches) != 1:
+                raise ValueError(f"expected exactly one discovered bot named {username!r}, found {len(matches)}")
+            bot = matches[0]
+            provider_id = f"discord-worker:{bot['id']}"
+            profile = ProviderProfile(
+                provider_id, f"Discord worker {username}", "discord",
+                capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
+                reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=1,
+            )
+            store.ensure_health(profile)
+            store.set_health(
+                provider_id, state=ProviderState.DISABLED, next_probe_at=0,
+                last_failure_reason=reason[:500],
+            )
+            print(json.dumps({"provider_id": provider_id, "username": username, "state": "disabled"}, separators=(",", ":")))
+            return 0
+        except (KeyError, ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
     if args.command == "discord" and args.discord_action == "benchmark":
         store = Store(args.db)
         try:

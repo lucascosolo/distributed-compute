@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `6e5ad04`
+- Last pushed commit: `ebcba9d`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `82 tests passed` with
+- Verification for this chunk: `143 tests passed` with
   `-W error::ResourceWarning`
 - No VPS deployment has been performed.
 
@@ -175,6 +175,12 @@ or the operator's environment.
   confirmed the human-vs-bot distinction, and CommunityOne was marked disabled
   in the ignored local database with the reason
   `bot_to_bot_unsupported`; no repository secret or account OAuth was used.
+- Live discovery later found `Hana`. The operator confirmed that it requires the
+  user-invoked `/ask-hana` slash command rather than responding to a bot mention.
+  Discord application commands are user-invoked interactions; the controller must
+  not impersonate a user or use account OAuth to trigger one. Added
+  `aipool discord hold --username ... --reason ...` so this evidence can be
+  recorded without another probe; Hana remains held locally and is not compute.
 
 ## Non-negotiable design decisions
 
@@ -197,13 +203,11 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Create the dedicated synthetic Discord test channel, manually invite the
-operator-approved worker bots, restart the coordinator, and run the first
-end-to-end bounded response tests against the automatically discovered pool.
-Record which bots reply without login, whether output is usable, observed
-limits, and capability evidence. Do not route complex work merely because a bot
-is present; keep every discovered worker at complexity level 1 until benchmark
-evidence warrants promotion.
+Use the hold workflow for workers that require user-only slash-command
+interactions, then evaluate the remaining discovered workers or other authorized
+transports. Do not route complex work merely because a bot is present; keep every
+discovered worker at complexity level 1 until benchmark evidence warrants
+promotion.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

@@ -313,6 +313,19 @@ with `aipool discord recent --limit 20`. If a bot answers a human but ignores
 the controller, leave it disabled as `bot_to_bot_unsupported`; do not provide
 user OAuth or automate a personal Discord account to work around that behavior.
 
+If a discovered bot requires a slash command or other human interaction, hold it
+without sending another probe:
+
+```bash
+aipool discord hold --username Hana \
+  --reason "bot requires a user slash-command interaction" \
+  --db .aipool-data/aipool.sqlite
+```
+
+The controller can send ordinary messages as a bot, but it cannot impersonate a
+human user to invoke another application's slash command. A held worker is skipped
+by future Discord benchmarks and routing.
+
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an
 operator-owned, non-shell wrapper. It receives one candidate JSON object on
