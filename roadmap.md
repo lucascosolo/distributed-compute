@@ -308,7 +308,10 @@ activation decision before they become cards or routing providers.
 
 Live findings must visibly distinguish provider-reported metadata from local name
 heuristics. A heuristic tier is useful for exploration but is never enough to
-grant coding or high-complexity routing capability.
+grant coding or high-complexity routing capability. Persist successful discovery
+results as quarantined records so they remain available after restart, but require
+a concise human review showing model identity, inferred capability, quota impact,
+risks, and rollback before promotion into the active catalog.
 
 ### Chunk 5.4c: Guided API-key onboarding
 

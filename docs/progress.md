@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `225e52a`
+- Last pushed commit: `7589114`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `148 tests passed` with
+- Verification for this chunk: `149 tests passed` with
   `-W error::ResourceWarning`
 - No VPS deployment has been performed.
 
@@ -215,8 +215,10 @@ or the operator's environment.
   Hugging Face's authorized `/v1/models` endpoint and found 129 model IDs without
   exposing the token. Live results now receive conservative, explainable power,
   capability, quota-weight, and metadata-confidence hints. They are still
-  diagnostic only; automatic persistence and benchmark promotion remain a
-  follow-up step.
+  diagnostic only; results are now persisted in SQLite as quarantined findings
+  and shown after panel restart. They cannot become routing providers without a
+  human review of identity, evidence, capability, quota impact, risks, and
+  rollback.
 
 ## Non-negotiable design decisions
 
@@ -243,8 +245,8 @@ Continue with the configured Hugging Face API and bounded browser/API-candidate
 probes. Verify actual cost/credit behavior before treating Hugging Face as free,
 and keep candidates quarantined until a probe proves usable context transfer,
 valid output, acceptable terms, and a cheaper total cost. The next implementation
-chunk is live model-list discovery and quota accounting; Discord removal follows
-as roadmap chunk 5.4d.
+chunk is human-reviewed promotion and quota accounting for persisted model
+findings; Discord removal follows as roadmap chunk 5.4d.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

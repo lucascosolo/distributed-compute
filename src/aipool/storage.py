@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import threading
 from pathlib import Path
@@ -63,6 +64,16 @@ class Store:
                 terms_url TEXT NOT NULL, transport_hint TEXT NOT NULL,
                 discovered_at REAL NOT NULL, first_seen REAL NOT NULL,
                 last_seen REAL NOT NULL, hit_count INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS discovered_models (
+                model_key TEXT PRIMARY KEY, provider_slug TEXT NOT NULL,
+                provider_name TEXT NOT NULL, model_id TEXT NOT NULL,
+                transport TEXT NOT NULL, endpoint TEXT NOT NULL,
+                source_url TEXT NOT NULL, power TEXT NOT NULL,
+                quota_weight REAL NOT NULL, capabilities_json TEXT NOT NULL,
+                metadata_confidence TEXT NOT NULL, state TEXT NOT NULL,
+                first_seen REAL NOT NULL, last_seen REAL NOT NULL,
+                UNIQUE(provider_slug, model_id)
             );
             """
         )
@@ -163,6 +174,50 @@ class Store:
     def close(self) -> None:
         with self._lock:
             self.connection.close()
+
+    def save_discovered_models(self, provider: object, models: list[dict[str, object]], *, now: float) -> None:
+        """Upsert redacted model metadata; discovery never changes routing state."""
+        provider_slug = str(getattr(provider, "provider_slug"))
+        provider_name = str(getattr(provider, "provider_name"))
+        transport = str(getattr(provider, "transport"))
+        endpoint = str(getattr(provider, "endpoint"))
+        source_url = str(getattr(provider, "source_url"))
+        with self._lock:
+            for model in models:
+                model_id = str(model.get("id", "")).strip()
+                if not model_id:
+                    continue
+                self.connection.execute(
+                    """INSERT INTO discovered_models
+                    (model_key, provider_slug, provider_name, model_id, transport,
+                     endpoint, source_url, power, quota_weight, capabilities_json,
+                     metadata_confidence, state, first_seen, last_seen)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'quarantined', ?, ?)
+                    ON CONFLICT(provider_slug, model_id) DO UPDATE SET
+                    provider_name=excluded.provider_name, transport=excluded.transport,
+                    endpoint=excluded.endpoint, source_url=excluded.source_url,
+                    power=excluded.power, quota_weight=excluded.quota_weight,
+                    capabilities_json=excluded.capabilities_json,
+                    metadata_confidence=excluded.metadata_confidence,
+                    last_seen=excluded.last_seen""",
+                    (
+                        f"model:{provider_slug}:{model_id}", provider_slug, provider_name,
+                        model_id, transport, endpoint, source_url,
+                        str(model.get("power", "unknown")), float(model.get("quota_weight", 1.0)),
+                        json.dumps(model.get("capabilities", []), separators=(",", ":")),
+                        str(model.get("metadata_confidence", "low")), now, now,
+                    ),
+                )
+            self.connection.commit()
+
+    def discovered_model_rows(self, provider_slug: str | None = None) -> list[sqlite3.Row]:
+        with self._lock:
+            if provider_slug:
+                return self.connection.execute(
+                    "SELECT * FROM discovered_models WHERE provider_slug = ? ORDER BY model_id",
+                    (provider_slug,),
+                ).fetchall()
+            return self.connection.execute("SELECT * FROM discovered_models ORDER BY provider_slug, model_id").fetchall()
 
     def cache_get(self, cache_key: str) -> sqlite3.Row | None:
         with self._lock:

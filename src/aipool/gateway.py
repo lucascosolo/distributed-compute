@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
@@ -101,6 +102,17 @@ def make_server(
             },
             "secrets": {key: bool(os.environ.get(key) or file_values.get(key)) for key in sorted(secret_keys)},
             "providers": providers,
+            "discovered_models": [
+                {
+                    "provider_slug": row["provider_slug"], "provider_name": row["provider_name"],
+                    "model_id": row["model_id"], "power": row["power"],
+                    "quota_weight": row["quota_weight"],
+                    "capabilities": json.loads(row["capabilities_json"]),
+                    "metadata_confidence": row["metadata_confidence"],
+                    "state": row["state"], "last_seen": row["last_seen"],
+                }
+                for row in coordinator.store.discovered_model_rows()
+            ],
             "config_path": str(operator_config),
             "restart_required": True,
         }
@@ -201,7 +213,10 @@ def make_server(
                     api_key = os.environ.get("HF_TOKEN", "")
                 endpoint = os.environ.get(f"{config_prefix_value}_ENDPOINT") or provider.endpoint
                 result = discover_models(endpoint, api_key)
-                self._send(200, {"success": result.success, "models": [classify_model(model) for model in result.models], "endpoint": result.endpoint, "error": result.error})
+                models = [classify_model(model) for model in result.models]
+                if result.success:
+                    coordinator.store.save_discovered_models(provider, models, now=time.time())
+                self._send(200, {"success": result.success, "models": models, "endpoint": result.endpoint, "error": result.error, "persisted": len(models) if result.success else 0})
                 return
             if self.path == "/admin":
                 self._send_html(200, """<!doctype html>
@@ -215,7 +230,7 @@ const providerKey=(slug,suffix)=>'AIPOOL_PROVIDER_'+slug.toUpperCase().replaceAl
 function card(p){let keyName=providerKey(p.provider_slug,'API_KEY');return `<article class="card"><header><div><h3>${esc(p.name)}</h3><span class="tag">${esc(p.power)} · quota ×${p.quota_weight}</span></div><label class="toggle"><input type="checkbox" data-key="${key(p.slug,'ENABLED')}" ${p.enabled?'checked':''}> enable</label></header><p class="meta"><a href="${esc(p.source_url)}" target="_blank" rel="noreferrer">source</a> · ${esc(p.transport)} · ${p.adapter==='manual'?'adapter needed':'OpenAI-compatible'}<br>provider key is shared across this model family<br>default model: ${esc(p.model)}</p><label>Model ID<input data-key="${key(p.slug,'MODEL')}" value="${esc(p.configured_model)}"></label><label>API key ${p.has_api_key?'(saved; leave blank to preserve)':''}<input type="password" autocomplete="new-password" data-key="${keyName}" placeholder="one key for ${esc(p.provider_slug)}"></label><button type="button" onclick="refreshModels('${p.slug}')">Refresh live model list</button><span class="status" id="live-${p.slug}"></span></article>`}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
-async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);cards.innerHTML=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('')||'<p class="status">No API models in the catalog.</p>'}
+async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);let catalog=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('');let findings=c.discovered_models?.length?`<section><h3>Quarantined live findings</h3><div class="grid">${c.discovered_models.slice(0,96).map(m=>`<article class="card"><h3>${esc(m.model_id)}</h3><span class="tag">${esc(m.power)} · quota ×${m.quota_weight} · ${esc(m.metadata_confidence)} confidence</span><p class="meta">${esc(m.provider_name)} · ${esc(m.state)} · capabilities: ${esc(m.capabilities.join(', '))}</p></article>`).join('')}</div></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
 form.onsubmit=async e=>{e.preventDefault();let payload={};for(let el of form.querySelectorAll('[data-key],input[name]')){let k=el.dataset.key||el.name;if(el.type==='password'&&!el.value)continue;payload[k]=el.type==='checkbox'?(el.checked?'1':'0'):el.value}let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json();out.textContent=data.updated?'Saved. Restart required before routing changes apply.':(data.error||'Save failed')};load();
 </script></body></html>""")
                 return

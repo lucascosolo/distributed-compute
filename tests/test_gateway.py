@@ -161,6 +161,9 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual([model["id"] for model in data["models"]], ["model-a", "model-b"])
         discover.assert_called_once()
         self.assertNotIn("secret", json.dumps(data))
+        status, snapshot = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        self.assertEqual({row["model_id"] for row in snapshot["discovered_models"]}, {"model-a", "model-b"})
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}
