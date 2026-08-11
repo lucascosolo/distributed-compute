@@ -225,6 +225,9 @@ or the operator's environment.
   and shown after panel restart. They cannot become routing providers without a
   human review of identity, evidence, capability, quota impact, risks, and
   rollback.
+- Discovered-model review is now an explicit authenticated workflow. A required
+  human note is persisted with an approve/reject audit record; approved findings
+  remain outside routing until a separate bounded smoke-test promotion step.
 
 ## Non-negotiable design decisions
 

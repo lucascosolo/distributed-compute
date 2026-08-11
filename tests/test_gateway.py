@@ -106,6 +106,8 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"savebar", body)
         self.assertIn(b"API key saved", body)
         self.assertIn(b"No API key saved", body)
+        self.assertIn(b"human review required", body)
+        self.assertIn(b"Approve for bounded smoke test", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
@@ -186,6 +188,35 @@ class GatewayTests(unittest.TestCase):
         status, snapshot = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertEqual({row["model_id"] for row in snapshot["discovered_models"]}, {"model-a", "model-b"})
+
+    def test_discovered_model_review_is_explicit_and_persisted(self) -> None:
+        status, config = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        slug = config["providers"][0]["slug"]
+        with patch("aipool.gateway.discover_models") as discover:
+            from aipool.model_discovery import ModelDiscovery
+            discover.return_value = ModelDiscovery(True, ("review-me",), "https://router.example/v1/models")
+            status, _ = self.request("GET", f"/admin/discover-models?slug={slug}")
+        self.assertEqual(status, 200)
+        status, snapshot = self.request("GET", "/admin/config")
+        finding = next(row for row in snapshot["discovered_models"] if row["model_id"] == "review-me")
+        self.assertEqual(finding["state"], "quarantined")
+        status, data = self.request("POST", "/admin/discovered-model/review", {
+            "model_key": finding["model_key"], "decision": "approve", "note": "Reviewed identity and bounded capability evidence.",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(data["state"], "approved")
+        status, snapshot = self.request("GET", "/admin/config")
+        finding = next(row for row in snapshot["discovered_models"] if row["model_id"] == "review-me")
+        self.assertEqual(finding["state"], "approved")
+        self.assertEqual(finding["review_note"], "Reviewed identity and bounded capability evidence.")
+
+    def test_discovered_model_review_does_not_activate_routing(self) -> None:
+        status, data = self.request("POST", "/admin/discovered-model/review", {
+            "model_key": "missing", "decision": "approve", "note": "not found",
+        })
+        self.assertEqual(status, 404)
+        self.assertEqual(data["error"], "unknown_discovered_model")
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}

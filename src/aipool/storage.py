@@ -75,8 +75,17 @@ class Store:
                 first_seen REAL NOT NULL, last_seen REAL NOT NULL,
                 UNIQUE(provider_slug, model_id)
             );
+            CREATE TABLE IF NOT EXISTS discovered_model_reviews (
+                review_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                model_key TEXT NOT NULL, decision TEXT NOT NULL,
+                note TEXT NOT NULL, reviewed_at REAL NOT NULL
+            );
             """
         )
+        columns = {str(row["name"]) for row in self.connection.execute("PRAGMA table_info(discovered_models)")}
+        for name, definition in (("review_note", "TEXT"), ("reviewed_at", "REAL")):
+            if name not in columns:
+                self.connection.execute(f"ALTER TABLE discovered_models ADD COLUMN {name} {definition}")
         self.connection.commit()
 
     def record_outcome(self, outcome: TaskOutcome) -> None:
@@ -218,6 +227,38 @@ class Store:
                     (provider_slug,),
                 ).fetchall()
             return self.connection.execute("SELECT * FROM discovered_models ORDER BY provider_slug, model_id").fetchall()
+
+    def review_discovered_model(self, model_key: str, decision: str, note: str, *, now: float) -> sqlite3.Row:
+        model_key = str(model_key).strip()
+        decision = str(decision).strip().casefold()
+        note = str(note).strip()
+        if not model_key:
+            raise ValueError("model_key is required")
+        if decision not in {"approve", "reject"}:
+            raise ValueError("decision must be approve or reject")
+        if not note or len(note) > 1_000:
+            raise ValueError("a review note between 1 and 1000 characters is required")
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT * FROM discovered_models WHERE model_key = ?", (model_key,)
+            ).fetchone()
+            if row is None:
+                raise LookupError("unknown_discovered_model")
+            if row["state"] != "quarantined":
+                raise ValueError("discovered model has already been reviewed")
+            state = "approved" if decision == "approve" else "rejected"
+            self.connection.execute(
+                "UPDATE discovered_models SET state = ?, review_note = ?, reviewed_at = ? WHERE model_key = ?",
+                (state, note, now, model_key),
+            )
+            self.connection.execute(
+                "INSERT INTO discovered_model_reviews(model_key, decision, note, reviewed_at) VALUES (?, ?, ?, ?)",
+                (model_key, decision, note, now),
+            )
+            self.connection.commit()
+            return self.connection.execute(
+                "SELECT * FROM discovered_models WHERE model_key = ?", (model_key,)
+            ).fetchone()
 
     def cache_get(self, cache_key: str) -> sqlite3.Row | None:
         with self._lock:

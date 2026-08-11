@@ -311,7 +311,10 @@ heuristics. A heuristic tier is useful for exploration but is never enough to
 grant coding or high-complexity routing capability. Persist successful discovery
 results as quarantined records so they remain available after restart, but require
 a concise human review showing model identity, inferred capability, quota impact,
-risks, and rollback before promotion into the active catalog.
+risks, and rollback before promotion into the active catalog. The operator panel
+now records an authenticated approve/reject decision and review note; approval
+only makes a finding eligible for a later bounded smoke test and never activates
+routing by itself.
 
 ### Chunk 5.4c: Guided API-key onboarding
 

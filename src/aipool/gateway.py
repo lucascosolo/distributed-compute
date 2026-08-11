@@ -110,12 +110,13 @@ def make_server(
             "providers": providers,
             "discovered_models": [
                 {
-                    "provider_slug": row["provider_slug"], "provider_name": row["provider_name"],
+                    "model_key": row["model_key"], "provider_slug": row["provider_slug"], "provider_name": row["provider_name"],
                     "model_id": row["model_id"], "power": row["power"],
                     "quota_weight": row["quota_weight"],
                     "capabilities": json.loads(row["capabilities_json"]),
                     "metadata_confidence": row["metadata_confidence"],
                     "state": row["state"], "last_seen": row["last_seen"],
+                    "review_note": row["review_note"], "reviewed_at": row["reviewed_at"],
                 }
                 for row in coordinator.store.discovered_model_rows()
             ],
@@ -248,7 +249,8 @@ const providerKey=(slug,suffix)=>'AIPOOL_PROVIDER_'+slug.toUpperCase().replaceAl
 function card(p){let keyName=providerKey(p.provider_slug,'API_KEY');let keyState=p.has_api_key?'<span class="key-status key-set">API key saved</span>':'<span class="key-status key-unset">No API key saved</span>';return `<article class="card"><header><div><h3>${esc(p.name)}</h3><span class="tag">${esc(p.power)} · quota ×${p.quota_weight}</span><br>${keyState}</div><label class="toggle"><input type="checkbox" data-provider="${esc(p.provider_slug)}" data-key="${key(p.slug,'ENABLED')}" ${p.enabled?'checked':''}> enable</label></header><p class="meta"><a href="${esc(p.source_url)}" target="_blank" rel="noreferrer">source</a> · ${esc(p.transport)} · ${p.adapter==='manual'?'adapter needed':'OpenAI-compatible'}<br>provider key is shared across this model family<br>default model: ${esc(p.model)}</p><label>Model ID<input data-key="${key(p.slug,'MODEL')}" value="${esc(p.configured_model)}"></label><label>API key ${p.has_api_key?'(saved; leave blank to preserve)':''}<input type="password" data-provider="${esc(p.provider_slug)}" autocomplete="new-password" data-key="${keyName}" placeholder="one key for ${esc(p.provider_slug)}"></label><button type="button" onclick="refreshModels('${p.slug}')">Refresh live model list</button><span class="status" id="live-${p.slug}"></span></article>`}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
-async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);let catalog=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('');let findings=c.discovered_models?.length?`<section><h3>Quarantined live findings</h3><div class="grid">${c.discovered_models.slice(0,96).map(m=>`<article class="card"><h3>${esc(m.model_id)}</h3><span class="tag">${esc(m.power)} · quota ×${m.quota_weight} · ${esc(m.metadata_confidence)} confidence</span><p class="meta">${esc(m.provider_name)} · ${esc(m.state)} · capabilities: ${esc(m.capabilities.join(', '))}</p></article>`).join('')}</div></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
+async function reviewModel(encoded,decision){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('[data-review-model]')).find(el=>el.dataset.reviewModel===key);let note=input?.value.trim()||'';if(!note){alert('Add a short review note before deciding.');return}let r=await fetch('/admin/discovered-model/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,decision,note})});let d=await r.json();if(!r.ok){alert(d.error||'Review failed');return}await load()}
+async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);let catalog=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('');let findings=c.discovered_models?.length?`<section><h3>Live findings — human review required</h3><div class="grid">${c.discovered_models.slice(0,96).map(m=>{let actions=m.state==='quarantined'?`<label>Review note<input data-review-model="${esc(m.model_key)}" placeholder="identity, capability, quota evidence"></label><button type="button" onclick="reviewModel('${encodeURIComponent(m.model_key)}','approve')">Approve for bounded smoke test</button> <button type="button" onclick="reviewModel('${encodeURIComponent(m.model_key)}','reject')">Reject</button>`:`<span class="status">${esc(m.state)} — review recorded</span>`;return `<article class="card"><h3>${esc(m.model_id)}</h3><span class="tag">${esc(m.power)} · quota ×${m.quota_weight} · ${esc(m.metadata_confidence)} confidence</span><p class="meta">${esc(m.provider_name)} · ${esc(m.state)} · capabilities: ${esc(m.capabilities.join(', '))}<br>heuristics never grant complex routing</p>${actions}</article>`}).join('')}</div></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
 form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.target;if(el.dataset.provider&&el.value){for(let box of form.querySelectorAll('input[type="checkbox"][data-provider="'+el.dataset.provider+'"]'))box.checked=true}});form.onsubmit=async e=>{e.preventDefault();let payload={};for(let el of form.querySelectorAll('[data-key],input[name]')){let k=el.dataset.key||el.name;if(el.type==='password'&&!el.value)continue;payload[k]=el.type==='checkbox'?(el.checked?'1':'0'):el.value}let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json();if(data.updated)savebar.classList.remove('is-dirty');out.textContent=data.updated?'Saved and applied immediately.':(data.error||'Save failed')};load();
 </script></body></html>""")
                 return
@@ -292,6 +294,29 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     self._send(400, {"updated": False, "error": str(exc)[:300]})
                     return
                 self._send(200, {"updated": True, "saved_keys": sorted(updates), "config_path": str(operator_config), "restart_required": not reloaded, "reloaded": reloaded})
+                return
+            if path == "/admin/discovered-model/review":
+                try:
+                    payload = self._read_json()
+                    if not isinstance(payload, dict):
+                        raise ValueError("review must be an object")
+                    row = coordinator.store.review_discovered_model(
+                        str(payload.get("model_key", "")),
+                        str(payload.get("decision", "")),
+                        str(payload.get("note", "")),
+                        now=time.time(),
+                    )
+                except LookupError as exc:
+                    self._send(404, {"error": str(exc)})
+                    return
+                except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                    return
+                self._send(200, {
+                    "model_key": row["model_key"], "model_id": row["model_id"],
+                    "state": row["state"], "review_note": row["review_note"],
+                    "reviewed_at": row["reviewed_at"],
+                })
                 return
             if path == "/queue":
                 try:
