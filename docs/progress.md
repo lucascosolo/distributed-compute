@@ -46,6 +46,9 @@ or the operator's environment.
   directories (`~/.claude/skills` or `~/.codex/skills`); CLI config discovery
   supports matching per-agent operator environment files while retaining the
   legacy shared operator path for compatibility.
+- The gateway now exposes authenticated `/admin` and `/admin/config` routes for
+  allowlisted provider settings. It writes operator-local config with mode
+  `0600`, never returns secret values, and makes restart required explicit.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and

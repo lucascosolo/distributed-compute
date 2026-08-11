@@ -1,6 +1,8 @@
 import json
 import threading
 import unittest
+import tempfile
+from pathlib import Path
 from http.client import HTTPConnection
 
 from aipool.domain import ProviderProfile, ProviderState
@@ -41,6 +43,20 @@ class GatewayTests(unittest.TestCase):
         connection.close()
         return response.status, data
 
+    def raw_request(self, method: str, path: str, payload: object | None = None, token: str | None = "test-token"):
+        connection = HTTPConnection(self.host, self.port, timeout=2)
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        body = json.dumps(payload).encode() if payload is not None else None
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        connection.request(method, path, body, headers)
+        response = connection.getresponse()
+        data = response.read()
+        content_type = response.getheader("Content-Type")
+        status = response.status
+        connection.close()
+        return status, content_type, data
+
     def test_task_and_status_require_token(self) -> None:
         status, _ = self.request("GET", "/status", token=None)
         self.assertEqual(status, 401)
@@ -62,6 +78,44 @@ class GatewayTests(unittest.TestCase):
         self.assertIn("tasks", data)
         status, _ = self.request("GET", "/stats", token=None)
         self.assertEqual(status, 401)
+
+    def test_admin_panel_is_authenticated_and_does_not_echo_secret_values(self) -> None:
+        status, _, _ = self.raw_request("GET", "/admin", token=None)
+        self.assertEqual(status, 401)
+        status, content_type, body = self.raw_request("GET", "/admin")
+        self.assertEqual(status, 200)
+        self.assertTrue(content_type.startswith("text/html"))
+        self.assertIn(b"Provider configuration", body)
+        status, data = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        self.assertFalse(data["secrets"]["HF_TOKEN"])
+
+    def test_admin_panel_persists_allowlisted_values_with_restricted_permissions(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / ".aipool.local"
+            self.server.shutdown()
+            self.server.server_close()
+            self.thread.join(timeout=2)
+            coordinator = self.server.aipool_coordinator  # type: ignore[attr-defined]
+            self.server = make_server(coordinator, port=0, token="test-token", config_path=config_path)
+            self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+            self.thread.start()
+            self.host, self.port = self.server.server_address[:2]
+            status, data = self.request("POST", "/admin/config", {
+                "AIPOOL_HF_MODEL": "openai/gpt-oss-20b",
+                "HF_TOKEN": "hf-secret",
+                "UNSAFE_SETTING": "must-not-persist",
+            })
+            self.assertEqual(status, 200)
+            self.assertTrue(data["updated"])
+            text = config_path.read_text()
+            self.assertIn("AIPOOL_HF_MODEL=openai/gpt-oss-20b", text)
+            self.assertIn("HF_TOKEN=hf-secret", text)
+            self.assertNotIn("UNSAFE_SETTING", text)
+            self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
+            status, data = self.request("GET", "/admin/config")
+            self.assertTrue(data["secrets"]["HF_TOKEN"])
+            self.assertNotIn("hf-secret", json.dumps(data))
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}

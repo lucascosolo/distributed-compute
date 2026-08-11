@@ -211,6 +211,12 @@ profile declares capabilities and complexity limits, then benchmark and
 production evidence adjusts the routing score. No provider is trusted merely
 because it is free, popular, or fast.
 
+When the gateway is running, open `/admin` to configure allowlisted model,
+endpoint, and API-key settings. The panel requires the gateway bearer token on
+remote bindings, never displays existing secret values, writes the gitignored
+`.aipool.local` file with mode `0600`, and requires a coordinator restart before
+changes take effect.
+
 ## Claude and Codex integration
 
 The reusable skill is included in the repository so other users can import it.

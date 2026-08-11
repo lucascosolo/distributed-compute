@@ -44,7 +44,7 @@ def _load_local_config() -> None:
                 continue
             key, value = line.split("=", 1)
             key, value = key.strip(), value.strip().strip("'\"")
-            if key.startswith("AIPOOL_"):
+            if key.startswith("AIPOOL_") or key in {"HF_TOKEN"}:
                 os.environ.setdefault(key, value)
         break
 
