@@ -531,3 +531,12 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   OmniRoute auto aliases remain unsuitable as the sole production route until
   stale candidates are repaired or quarantined; aipool's direct-provider path
   and native fallback remain the safety net.
+
+## 2026-08-11 — removed first imported OmniRoute batch
+
+- Removed exactly the original 12 manually imported provider connections by
+  their import-time boundary (`22:43` UTC). Newer dashboard additions were
+  preserved, including providers added while this cleanup was running.
+- Created a mode-600 SQLite backup on the VPS before deletion. OmniRoute was
+  restarted with its configured environment file, is healthy, and its
+  authenticated `/v1/models` endpoint returns 184 current models.
