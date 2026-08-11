@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import base64
 from typing import Callable, Mapping
 from urllib import error, request
 
@@ -59,6 +60,29 @@ def submit_remote(
         base_url, "/task", token=token, method="POST", payload=task.to_dict(),
         headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
     )
+
+
+def upload_artifact_remote(
+    base_url: str,
+    content: bytes,
+    *,
+    token: str | None,
+    headers_extra: Mapping[str, str] | None = None,
+    timeout_seconds: float = 30.0,
+    opener: Callable[..., object] = request.urlopen,
+) -> str:
+    """Upload one bounded context artifact and return its content-addressed ref."""
+    if len(content) > 128 * 1024:
+        raise RemoteCoordinatorError("artifact exceeds 131072 byte limit")
+    result = _remote_json(
+        base_url, "/artifact", token=token, method="POST",
+        payload={"content": base64.b64encode(content).decode("ascii")},
+        headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
+    )
+    reference = result.get("reference")
+    if not isinstance(reference, str) or not reference.startswith("artifact:sha256:"):
+        raise RemoteCoordinatorError("remote coordinator returned an invalid artifact reference")
+    return reference
 
 
 def enqueue_remote(

@@ -146,7 +146,9 @@ class AgentCommandAdapter:
     profile: ProviderProfile
     command: tuple[str, ...]
     timeout_seconds: float = 120.0
+    max_prompt_chars: int = 12_000
     max_output_bytes: int = 1_000_000
+    artifacts: ArtifactStore | None = None
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = time.monotonic()
@@ -161,8 +163,11 @@ class AgentCommandAdapter:
             local_estimate=task.local_estimate, origin_provider_id=self.profile.id,
             delegation_chain=chain,
         )
+        context = ContextPacket.from_task(delegated_task, self.artifacts, max_chars=self.max_prompt_chars)
         payload = json.dumps({
             "task": delegated_task.to_dict(),
+            "context": context.to_dict(),
+            "prompt": context.render(),
             "bridge": {"provider_id": self.profile.id, "transport": self.profile.transport},
         }, sort_keys=True, separators=(",", ":")).encode()
         try:

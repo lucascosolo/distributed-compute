@@ -1,4 +1,5 @@
 import json
+import base64
 import os
 import threading
 import unittest
@@ -80,6 +81,19 @@ class GatewayTests(unittest.TestCase):
         status, data = self.request("POST", "/task", {"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
         self.assertEqual(status, 200)
         self.assertTrue(data["success"])
+
+    def test_authenticated_artifact_upload_and_read_round_trip(self) -> None:
+        status, data = self.request("POST", "/artifact", {"content": base64.b64encode(b"shared context").decode()})
+        self.assertEqual(status, 201)
+        reference = data["reference"]
+        self.assertTrue(reference.startswith("artifact:sha256:"))
+        status, fetched = self.request("GET", "/artifact/" + reference.removeprefix("artifact:sha256:"))
+        self.assertEqual(status, 200)
+        self.assertEqual(base64.b64decode(fetched["content"]), b"shared context")
+
+    def test_artifact_upload_requires_authentication(self) -> None:
+        status, _ = self.request("POST", "/artifact", {"content": "YQ=="}, token=None)
+        self.assertEqual(status, 401)
 
     def test_status_and_stats_expose_authenticated_operational_metrics(self) -> None:
         status, data = self.request("GET", "/status")

@@ -170,6 +170,19 @@ class ProvidersTests(unittest.TestCase):
         self.assertEqual(payload["task"]["delegation_chain"], ["agent:claude", "agent:codex"])
         self.assertNotIn("secret", result.output.casefold())
 
+    def test_agent_command_adapter_receives_reconstructable_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = ArtifactStore(Path(directory))
+            reference = artifacts.put(b"def important_function(): pass")
+            adapter = AgentCommandAdapter(
+                ProviderProfile("agent:codex", "Codex CLI", "agent-command", state=ProviderState.HEALTHY),
+                (sys.executable, "-c", "import json,sys; print(json.load(sys.stdin)['prompt'])"),
+                artifacts=artifacts,
+            )
+            result = adapter.complete(TaskEnvelope(task="coding", input_ref=reference))
+            self.assertTrue(result.success)
+            self.assertIn("def important_function", result.output)
+
     def test_candidate_command_adapter_sends_candidate_and_task_metadata(self) -> None:
         adapter = CandidateCommandAdapter(
             ProviderProfile("candidate", "Candidate", "community-bot", state=ProviderState.HEALTHY),

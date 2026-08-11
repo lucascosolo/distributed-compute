@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import base64
 import os
 import tempfile
 import time
@@ -13,6 +14,7 @@ from urllib.parse import parse_qs, urlsplit
 from html import escape
 
 from .domain import TaskEnvelope
+from .artifacts import ArtifactStore
 from .benchmark import run_benchmark
 from .discovered import build_discovered_adapter
 from .model_discovery import classify_model, discover_models
@@ -23,6 +25,7 @@ from .usage import UsageManager
 
 
 MAX_BODY_BYTES = 256 * 1024
+MAX_ARTIFACT_BYTES = 128 * 1024
 CONFIG_KEYS = frozenset({
     "AIPOOL_HF_MODEL", "AIPOOL_HF_ENDPOINT", "AIPOOL_OPENAI_ENDPOINT",
     "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND",
@@ -77,6 +80,7 @@ def make_server(
         raise ValueError("a token is required for non-loopback gateway binding")
 
     task_queue = queue or TaskQueue(coordinator.store, max_pending=max_pending)
+    artifact_store = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts"))
     operator_config = Path(config_path or os.environ.get("AIPOOL_CONFIG_FILE", ".aipool.local")).expanduser()
     catalog = load_catalog()
     catalog_keys = frozenset(key for provider in catalog for key in _provider_config_keys(provider))
@@ -383,6 +387,17 @@ def make_server(
             if self.path == "/status":
                 self._send(200, self._operational_status())
                 return
+            parsed_path = urlsplit(self.path)
+            if parsed_path.path.startswith("/artifact/"):
+                reference = parsed_path.path.removeprefix("/artifact/")
+                reference = "artifact:sha256:" + reference
+                try:
+                    content = artifact_store.get(reference)
+                except (OSError, ValueError):
+                    self._send(404, {"error": "not_found"})
+                    return
+                self._send(200, {"reference": reference, "content": base64.b64encode(content).decode("ascii")})
+                return
             if self.path == "/admin/config":
                 self._send(200, config_snapshot())
                 return
@@ -468,6 +483,20 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                 self._send(401, {"error": "unauthorized"})
                 return
             path = urlsplit(self.path).path
+            if path == "/artifact":
+                try:
+                    payload = self._read_json()
+                    if not isinstance(payload, dict) or not isinstance(payload.get("content"), str):
+                        raise ValueError("artifact content must be base64 text")
+                    content = base64.b64decode(payload["content"], validate=True)
+                    if len(content) > MAX_ARTIFACT_BYTES:
+                        raise ValueError("artifact exceeds 131072 byte limit")
+                    reference = artifact_store.put(content)
+                except (ValueError, TypeError, base64.binascii.Error, json.JSONDecodeError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                    return
+                self._send(201, {"reference": reference, "bytes": len(content)})
+                return
             if path == "/admin/config":
                 try:
                     payload = self._read_json()

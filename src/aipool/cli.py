@@ -107,6 +107,7 @@ def _baseline_command(command: tuple[str, ...], timeout: float):
 
 def _build_registry(args: argparse.Namespace, store: Store | None = None) -> ProviderRegistry:
     registry = ProviderRegistry()
+    artifact_store = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts"))
     fixture_output = os.environ.get("AIPOOL_FIXTURE_OUTPUT")
     if fixture_output is not None:
         profile = ProviderProfile(
@@ -136,7 +137,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
                           "research": 0.8, "long_context": 0.9},
             reliability=0.7, state=ProviderState.HEALTHY, max_complexity=5,
         )
-        registry.register(AgentCommandAdapter(profile, tuple(shlex.split(agent_command))))
+        registry.register(AgentCommandAdapter(profile, tuple(shlex.split(agent_command)), artifacts=artifact_store))
     endpoint = os.environ.get("AIPOOL_OPENAI_ENDPOINT")
     if endpoint and os.environ.get("AIPOOL_OPENAI_MODEL"):
         profile = ProviderProfile(
@@ -271,7 +272,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
         registry.register(BrowserCommandAdapter(
             profile,
             tuple(shlex.split(browser_command)),
-            ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
+            artifact_store,
         ))
     return registry
 

@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from aipool.client import RemoteCoordinatorError, cancel_remote, enqueue_remote, get_remote_queue, submit_remote
+from aipool.client import RemoteCoordinatorError, cancel_remote, enqueue_remote, get_remote_queue, submit_remote, upload_artifact_remote
 from aipool.domain import TaskEnvelope
 
 
@@ -20,6 +20,23 @@ class Response:
 
 
 class ClientTests(unittest.TestCase):
+    def test_upload_artifact_remote_returns_content_addressed_reference(self) -> None:
+        captured = {}
+
+        def opener(req, timeout):
+            captured["url"] = req.full_url
+            captured["body"] = json.loads(req.data)
+            return Response({"reference": "artifact:sha256:" + "a" * 64, "bytes": 3})
+
+        reference = upload_artifact_remote("https://compute.example", b"abc", token="secret", opener=opener)
+        self.assertEqual(reference, "artifact:sha256:" + "a" * 64)
+        self.assertEqual(captured["url"], "https://compute.example/artifact")
+        self.assertEqual(captured["body"]["content"], "YWJj")
+
+    def test_upload_artifact_remote_rejects_oversized_content_before_network(self) -> None:
+        with self.assertRaises(RemoteCoordinatorError):
+            upload_artifact_remote("https://compute.example", b"x" * (128 * 1024 + 1), token=None, opener=lambda *_: None)
+
     def test_submit_remote_sends_task_and_bearer_token(self) -> None:
         captured = {}
 

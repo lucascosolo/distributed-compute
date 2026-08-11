@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: pending this checkpoint
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `191 tests passed` with
+- Verification for the current implementation: `196 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -48,6 +48,11 @@ or the operator's environment.
 - Added Grok Build as a separate native coding-agent candidate at `x.ai/bot`;
   it is not treated as an xAI API model and will require an operator-installed,
   authenticated CLI wrapper plus explicit approval before activation.
+- Added authenticated, content-addressed remote artifact upload/read endpoints
+  and a client helper, so a caller can transfer bounded context to the VPS
+  before submitting a task instead of sending an unusable local-only reference.
+  Native agent bridges now receive the same bounded rendered context packet as
+  browser transports, alongside the structured task envelope.
 - Added authenticated `/admin/readiness`, a redacted no-network report of key
   presence, enabled/loaded state, health holds, and shared quota-window usage.
 - Added source-backed quota guidance to provider cards for Hugging Face, Google
