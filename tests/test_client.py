@@ -41,6 +41,25 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(captured["authorization"], "Bearer secret")
         self.assertEqual(captured["body"]["task"], "classification")
 
+    def test_submit_remote_can_send_cloudflare_access_service_token_headers(self) -> None:
+        captured = {}
+
+        def opener(req, timeout):
+            captured["client_id"] = req.get_header("Cf-access-client-id")
+            captured["client_secret"] = req.get_header("Cf-access-client-secret")
+            return Response({"status": "queued"})
+
+        submit_remote(
+            "http://localhost", TaskEnvelope(task="classification", input_ref="x"),
+            token=None,
+            headers_extra={
+                "CF-Access-Client-Id": "client-id",
+                "CF-Access-Client-Secret": "client-secret",
+            },
+            opener=opener,
+        )
+        self.assertEqual(captured, {"client_id": "client-id", "client_secret": "client-secret"})
+
     def test_remote_rejects_empty_base_url(self) -> None:
         with self.assertRaises(RemoteCoordinatorError):
             submit_remote("", TaskEnvelope(task="classification", input_ref="x"), token=None, opener=lambda *_: None)

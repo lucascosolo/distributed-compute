@@ -73,6 +73,15 @@ def _positive_float(value: str | None, default: float) -> float:
         return default
 
 
+def _cloudflare_access_headers() -> dict[str, str]:
+    """Return optional Access service-token headers without exposing their values."""
+    client_id = os.environ.get("AIPOOL_CF_ACCESS_CLIENT_ID", "")
+    client_secret = os.environ.get("AIPOOL_CF_ACCESS_CLIENT_SECRET", "")
+    if not client_id or not client_secret:
+        return {}
+    return {"CF-Access-Client-Id": client_id, "CF-Access-Client-Secret": client_secret}
+
+
 def _baseline_command(command: tuple[str, ...], timeout: float):
     def run(packet: ContextPacket) -> str:
         completed = subprocess.run(
@@ -409,7 +418,10 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             try:
                 if mode == "remote":
-                    result = enqueue_remote(base_url, task, token=token, idempotency_key=args.idempotency_key)
+                    result = enqueue_remote(
+                        base_url, task, token=token, idempotency_key=args.idempotency_key,
+                        headers_extra=_cloudflare_access_headers(),
+                    )
                 else:
                     store = Store(args.db)
                     try:
@@ -424,7 +436,10 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if mode == "remote":
                 operation = get_remote_queue if args.queue_action == "status" else cancel_remote
-                result = operation(base_url, args.task_id, token=token)
+                result = operation(
+                    base_url, args.task_id, token=token,
+                    headers_extra=_cloudflare_access_headers(),
+                )
             else:
                 store = Store(args.db)
                 try:
@@ -543,6 +558,7 @@ def main(argv: list[str] | None = None) -> int:
             result = submit_remote(
                 os.environ.get("AIPOOL_BASE_URL", ""), task,
                 token=os.environ.get("AIPOOL_TOKEN") or None,
+                headers_extra=_cloudflare_access_headers(),
             )
         except RemoteCoordinatorError as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))

@@ -29,6 +29,11 @@ For a configured remote gateway, set `AIPOOL_MODE=remote`,
 `aipool task` command then forwards the compact envelope to that gateway; do
 not put a host, token, or VPS-specific value in this skill.
 
+If the remote gateway is protected by Cloudflare Access, store an
+operator-created service token as `AIPOOL_CF_ACCESS_CLIENT_ID` and
+`AIPOOL_CF_ACCESS_CLIENT_SECRET` in the same ignored config. The launcher sends
+these only as HTTPS Access headers; never place them in task data or source.
+
 To configure providers, open the gateway's authenticated `/admin` page. It can
 save API endpoint/model settings, API keys, and an operator-owned browser
 wrapper command to the gitignored `.aipool.local` file. Existing secrets are

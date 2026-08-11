@@ -12,14 +12,10 @@ AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
 # Optional operator-owned command worker. It receives one JSON task envelope
 # on stdin and must write only the worker result to stdout.
 # AIPOOL_COMMAND=/path/to/authorized-command-worker
-# Optional authorized Discord controller bot. IDs are not secrets; the token
-# must never be committed or shared in chat.
-# AIPOOL_DISCORD_APPLICATION_ID=
-# AIPOOL_DISCORD_GUILD_ID=
-# AIPOOL_DISCORD_CHANNEL_ID=
-# Optional mention or command prefix if the server's bots require one.
-# AIPOOL_DISCORD_MESSAGE_PREFIX=
-# AIPOOL_DISCORD_BOT_TOKEN=
+# Optional Cloudflare Access service-token headers for a remote gateway protected
+# by Access. Keep both values in the ignored operator config; never commit them.
+# AIPOOL_CF_ACCESS_CLIENT_ID=
+# AIPOOL_CF_ACCESS_CLIENT_SECRET=
 # Optional token-authenticated Hugging Face Inference Providers route. The
 # model is operator-selected; HF_TOKEN must be supplied separately as a
 # secret environment variable and is never stored in this file.

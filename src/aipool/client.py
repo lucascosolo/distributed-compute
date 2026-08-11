@@ -51,12 +51,13 @@ def submit_remote(
     task: TaskEnvelope,
     *,
     token: str | None,
+    headers_extra: Mapping[str, str] | None = None,
     timeout_seconds: float = 30.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     return _remote_json(
         base_url, "/task", token=token, method="POST", payload=task.to_dict(),
-        timeout_seconds=timeout_seconds, opener=opener,
+        headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
     )
 
 
@@ -65,6 +66,7 @@ def enqueue_remote(
     task: TaskEnvelope,
     *,
     token: str | None,
+    headers_extra: Mapping[str, str] | None = None,
     idempotency_key: str | None = None,
     timeout_seconds: float = 30.0,
     opener: Callable[..., object] = request.urlopen,
@@ -72,7 +74,8 @@ def enqueue_remote(
     headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
     return _remote_json(
         base_url, "/queue", token=token, method="POST", payload=task.to_dict(),
-        headers_extra=headers, timeout_seconds=timeout_seconds, opener=opener,
+        headers_extra={**(headers_extra or {}), **(headers or {})},
+        timeout_seconds=timeout_seconds, opener=opener,
     )
 
 
@@ -81,12 +84,13 @@ def get_remote_queue(
     task_id: str,
     *,
     token: str | None,
+    headers_extra: Mapping[str, str] | None = None,
     timeout_seconds: float = 30.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     return _remote_json(
         base_url, f"/queue/{task_id}", token=token, method="GET",
-        timeout_seconds=timeout_seconds, opener=opener,
+        headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
     )
 
 
@@ -95,10 +99,11 @@ def cancel_remote(
     task_id: str,
     *,
     token: str | None,
+    headers_extra: Mapping[str, str] | None = None,
     timeout_seconds: float = 30.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     return _remote_json(
         base_url, f"/queue/{task_id}/cancel", token=token, method="POST", payload={},
-        timeout_seconds=timeout_seconds, opener=opener,
+        headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
     )

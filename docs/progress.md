@@ -42,8 +42,15 @@ or the operator's environment.
   DeepSeek V4 Flash, and Qwen3.7 Flash) plus a Coze discovery lead. These remain
   quarantined; BazaarLink's documented free tier is limited and may continue at
   paid rates after quota, so no smoke test is automatic.
+- Added xAI's OpenAI-compatible `grok-4.5` candidate from the official model
+  documentation. Its current API pricing/free allowance must be verified for
+  the operator's account before any call; it remains quarantined.
 - Added authenticated `/admin/readiness`, a redacted no-network report of key
   presence, enabled/loaded state, health holds, and shared quota-window usage.
+- Added optional Cloudflare Access service-token headers to the remote client so
+  a protected HTTPS gateway can be used by the CLI without an SSH tunnel. The
+  current Cloudflare API token cannot create service tokens; creation remains an
+  operator dashboard step until the account token is granted Access write scope.
 - Operator queue commands now support local and authenticated remote
   `submit`, `status`, and `cancel` operations. The supervised worker records a
   bounded failure outcome when a coordinator invocation raises, and exits
