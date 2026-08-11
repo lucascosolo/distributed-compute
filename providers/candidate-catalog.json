@@ -18,6 +18,11 @@
     {"name": "PixelDojo", "url": "https://pixeldojo.ai/free-ai-chatbot-no-sign-up"},
     {"name": "Talkie AI", "url": "https://www.talkie-ai.com/pages/ai-chat-no-login"},
     {"name": "Rewind", "url": "https://rewind.ai/chat/"},
-    {"name": "HoneyChat", "url": "https://honeychat.bot/en/blog/ai-roleplay-no-sign-up/"}
+    {"name": "HoneyChat", "url": "https://honeychat.bot/en/blog/ai-roleplay-no-sign-up/"},
+    {"name": "TomoriBot", "url": "https://top.gg/bot/841644102059556915", "source_url": "https://top.gg/bot/841644102059556915", "transport": "discord"},
+    {"name": "AI Bot", "url": "https://top.gg/bot/949022906023829564", "source_url": "https://top.gg/bot/949022906023829564", "transport": "discord"},
+    {"name": "Xavier", "url": "https://top.gg/bot/1203009089588695100", "source_url": "https://top.gg/bot/1203009089588695100", "transport": "discord"},
+    {"name": "BoltBot", "url": "https://top.gg/bot/1250114494081007697", "source_url": "https://top.gg/bot/1250114494081007697", "transport": "discord"},
+    {"name": "Clyde Reborn", "url": "https://clydereborn.github.io/", "source_url": "https://clydereborn.github.io/", "transport": "discord"}
   ]
 }

@@ -59,6 +59,9 @@ or the operator's environment.
 - Added `providers/candidate-catalog.json` and `LocalCatalogSource` so supplied
   chatbot leads can be imported reproducibly as unverified quarantine records;
   the catalog is explicitly not an active provider list.
+- Added several current Discord-directory chatbot leads to that same quarantine
+  catalog. They remain unverified until the operator reviews terms, invites
+  them manually, and the bounded Discord benchmark records usable output.
 - Added explicit CLI visibility and approval gates with `candidate list` and
   `candidate activate --operator-approved`. Community Telegram/Discord bots
   remain candidates only when an authorized integration path is established;

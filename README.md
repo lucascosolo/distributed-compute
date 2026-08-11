@@ -137,7 +137,8 @@ marketing claims are not evidence that a chatbot is available, capable, or
 permitted to automate.
 
 The repository also contains `providers/candidate-catalog.json`, a
-quarantine-only seed list assembled from operator-supplied leads. Import it
+quarantine-only seed list assembled from operator-supplied and Discord-directory
+leads. Import it
 into local discovery state with:
 
 ```bash
