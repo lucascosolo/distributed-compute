@@ -203,6 +203,7 @@ The CLI currently supports these local configuration paths:
 | Fixture | `AIPOOL_FIXTURE_OUTPUT` | Deterministic smoke tests only. |
 | Local command | `AIPOOL_COMMAND` | Receives one JSON task envelope on stdin; shell execution is disabled. |
 | OpenAI-compatible API | `AIPOOL_OPENAI_ENDPOINT`, `AIPOOL_OPENAI_MODEL`, `AIPOOL_OPENAI_API_KEY` | Use only an endpoint and account you are authorized to automate. |
+| Hugging Face Inference Providers | `AIPOOL_HF_MODEL`, `HF_TOKEN`, optional `AIPOOL_HF_ENDPOINT` | Token-authenticated API route; separate from the no-key HuggingChat browser candidate. |
 | Browser chat wrapper | `AIPOOL_BROWSER_COMMAND` | An operator-supplied command reads the bounded rendered prompt on stdin and writes the chatbot text response; no API key is required by `aipool`. |
 
 The coordinator keeps provider-specific behavior inside adapters. A provider

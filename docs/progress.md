@@ -88,6 +88,12 @@ or the operator's environment.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
+- Hugging Face is now split into two explicit candidate paths: no-key
+  `https://huggingface.co/chat/` remains a browser candidate, while the
+  token-authenticated Inference Providers router is available as an optional
+  `huggingface-inference` adapter using `HF_TOKEN` and a selected model. API
+  rate-limit responses preserve `Retry-After` for the existing provider hold
+  logic; no browser profile rotation or quota bypass is supported.
 
 ## Non-negotiable design decisions
 

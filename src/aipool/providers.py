@@ -364,6 +364,33 @@ class OpenAICompatibleAdapter:
             return _failure(self.profile.id, ProviderErrorKind.INTERNAL, f"invalid provider response: {exc}", (time.monotonic() - started) * 1000)
 
 
+@dataclass(slots=True)
+class HuggingFaceInferenceAdapter:
+    """Hugging Face Inference Providers via their OpenAI-compatible router.
+
+    This is intentionally separate from browser candidates. It requires an
+    operator-supplied token and therefore is optional; the no-key HuggingChat
+    page remains a browser transport candidate with its own terms and limits.
+    """
+
+    profile: ProviderProfile
+    model: str
+    api_key_env: str = "HF_TOKEN"
+    endpoint: str = "https://router.huggingface.co/v1/chat/completions"
+    timeout_seconds: float = 30.0
+    opener: Callable[..., object] = request.urlopen
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        return OpenAICompatibleAdapter(
+            self.profile,
+            self.endpoint,
+            self.model,
+            self.api_key_env,
+            timeout_seconds=self.timeout_seconds,
+            opener=self.opener,
+        ).complete(task)
+
+
 class ProviderRegistry:
     def __init__(self, adapters: Mapping[str, ProviderAdapter] | None = None) -> None:
         self._adapters: dict[str, ProviderAdapter] = {}

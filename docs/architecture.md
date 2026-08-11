@@ -51,8 +51,11 @@ active pool.
    local model wrapper; disabled unless configured.
 2. `openai-compatible`: an adapter for a user-authorized endpoint and API key;
    disabled unless configured.
-3. `fixture`: deterministic test provider, never a production provider.
-4. `browser-chat`: an operator-injected browser-session transport for a public
+3. `huggingface-api`: Hugging Face's OpenAI-compatible Inference Providers
+   router, configured with an operator-owned model and `HF_TOKEN`; disabled
+   unless configured.
+4. `fixture`: deterministic test provider, never a production provider.
+5. `browser-chat`: an operator-injected browser-session transport for a public
    chat UI whose reviewed terms do not explicitly prohibit the intended
    external use; it does not log in, bypass challenges, discover hidden
    endpoints, or assume that no-key access resolves every legal or policy issue.

@@ -11,7 +11,7 @@ from aipool.browser_ui import UIAction, UIPlan
 from aipool.providers import ModelGuidedBrowserAdapter
 import tempfile
 from pathlib import Path
-from aipool.providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from aipool.providers import CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 
 
 def task() -> TaskEnvelope:
@@ -176,6 +176,61 @@ class ProvidersTests(unittest.TestCase):
             result = adapter.complete(task())
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+
+    def test_huggingface_adapter_uses_router_and_hf_token(self) -> None:
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def read(self):
+                return json.dumps({
+                    "choices": [{"message": {"content": "HF result"}}],
+                    "usage": {"total_tokens": 17},
+                }).encode()
+
+        requests = []
+
+        def opener(req, timeout):
+            requests.append((req, timeout))
+            return Response()
+
+        adapter = HuggingFaceInferenceAdapter(
+            ProviderProfile("hf", "Hugging Face", "huggingface", state=ProviderState.HEALTHY),
+            "openai/gpt-oss-20b",
+            opener=opener,
+        )
+        with patch.dict(os.environ, {"HF_TOKEN": "hf-test"}, clear=True):
+            result = adapter.complete(task())
+        self.assertTrue(result.success)
+        self.assertEqual(result.output, "HF result")
+        self.assertEqual(result.worker_tokens, 17)
+        self.assertEqual(requests[0][0].full_url, "https://router.huggingface.co/v1/chat/completions")
+        self.assertEqual(requests[0][0].get_header("Authorization"), "Bearer hf-test")
+        self.assertEqual(json.loads(requests[0][0].data)["model"], "openai/gpt-oss-20b")
+
+    def test_huggingface_adapter_holds_on_rate_limit(self) -> None:
+        class RateLimited:
+            def __enter__(self):
+                raise __import__("urllib.error", fromlist=["HTTPError"]).HTTPError(
+                    "https://router.huggingface.co", 429, "slow down", {"Retry-After": "12"}, None,
+                )
+
+            def __exit__(self, *args):
+                return False
+
+        adapter = HuggingFaceInferenceAdapter(
+            ProviderProfile("hf", "Hugging Face", "huggingface", state=ProviderState.HEALTHY),
+            "model",
+            opener=lambda *args, **kwargs: RateLimited(),
+        )
+        with patch.dict(os.environ, {"HF_TOKEN": "hf-test"}, clear=True):
+            result = adapter.complete(task())
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind, ProviderErrorKind.RATE_LIMITED)
+        self.assertEqual(result.retry_after_seconds, 12.0)
 
     def test_registry_rejects_duplicate_ids(self) -> None:
         profile = ProviderProfile("fixture", "Fixture", "fixture")

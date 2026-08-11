@@ -9,6 +9,12 @@ AIPOOL_PORT=8765
 AIPOOL_TOKEN=
 AIPOOL_DB=.aipool-data/aipool.sqlite
 AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
+# Optional token-authenticated Hugging Face Inference Providers route. The
+# model is operator-selected; HF_TOKEN must be supplied separately as a
+# secret environment variable and is never stored in this file.
+# AIPOOL_HF_MODEL=openai/gpt-oss-20b
+# HF_TOKEN=hf_your_token_here
+# AIPOOL_HF_ENDPOINT=https://router.huggingface.co/v1/chat/completions
 # Optional no-key browser-chat wrapper. The wrapper must read the rendered
 # prompt from stdin and write only the chatbot's text response to stdout.
 # AIPOOL_BROWSER_COMMAND=/path/to/authorized-browser-wrapper

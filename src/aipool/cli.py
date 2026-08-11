@@ -17,7 +17,7 @@ from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, Re
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
-from .providers import BrowserCommandAdapter, CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from .providers import BrowserCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .service import Coordinator
 from .storage import Store
 from .worker import QueueWorker
@@ -75,6 +75,19 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             reliability=0.5, state=ProviderState.HEALTHY, max_complexity=4,
         )
         registry.register(OpenAICompatibleAdapter(profile, endpoint, os.environ["AIPOOL_OPENAI_MODEL"], "AIPOOL_OPENAI_API_KEY"))
+    hf_model = os.environ.get("AIPOOL_HF_MODEL")
+    if hf_model:
+        profile = ProviderProfile(
+            "huggingface-inference", "Hugging Face Inference Providers", "huggingface-api",
+            capabilities={"classification": 0.8, "structured_json": 0.8, "extraction": 0.8,
+                          "summarization": 0.8, "coding": 0.7, "instruction_following": 0.8},
+            reliability=0.5, state=ProviderState.HEALTHY, max_complexity=4,
+        )
+        registry.register(HuggingFaceInferenceAdapter(
+            profile, hf_model, endpoint=os.environ.get(
+                "AIPOOL_HF_ENDPOINT", "https://router.huggingface.co/v1/chat/completions"
+            ),
+        ))
     browser_command = os.environ.get("AIPOOL_BROWSER_COMMAND")
     if browser_command:
         profile = ProviderProfile(
