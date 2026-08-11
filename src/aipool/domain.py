@@ -141,12 +141,15 @@ class ProviderProfile:
     estimated_cost: float = 0.0
     concurrency_limit: int = 1
     state: ProviderState = ProviderState.QUARANTINED
+    max_complexity: int = 1
 
     def __post_init__(self) -> None:
         if not self.id or not self.name or not self.transport:
             raise ValueError("provider id, name, and transport are required")
         if self.context_limit < 0 or self.concurrency_limit < 1:
             raise ValueError("provider limits are invalid")
+        if not 1 <= self.max_complexity <= 5:
+            raise ValueError("max_complexity must be between 1 and 5")
         for field_name in ("reliability",):
             value = getattr(self, field_name)
             if not 0 <= value <= 1:

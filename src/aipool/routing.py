@@ -45,19 +45,24 @@ def assess(task: TaskEnvelope) -> TaskAssessment:
     return TaskAssessment(kind, capabilities, complexity, delegation_cost)
 
 
-def _meets(profile: ProviderProfile, capabilities: tuple[str, ...]) -> bool:
-    return all(profile.capabilities.get(capability, 0.0) >= 0.5 for capability in capabilities)
+def _meets(profile: ProviderProfile, capabilities: tuple[str, ...], complexity: int) -> bool:
+    if profile.max_complexity < complexity:
+        return False
+    minimum_score = min(0.5 + (0.1 * max(0, complexity - 1)), 0.9)
+    return all(profile.capabilities.get(capability, 0.0) >= minimum_score for capability in capabilities)
 
 
 def choose_provider(task: TaskEnvelope, providers: Iterable[ProviderProfile]) -> RoutingDecision:
     assessment = assess(task)
-    if task.local_estimate > 0 and assessment.delegation_cost >= task.local_estimate:
+    if task.local_estimate <= 0:
+        return RoutingDecision(Strategy.NO_DELEGATION, None, assessment, "native_work_estimate_required")
+    if assessment.delegation_cost >= task.local_estimate:
         return RoutingDecision(Strategy.NO_DELEGATION, None, assessment, "delegation_cost_not_lower_than_local_estimate")
     eligible = [
         profile
         for profile in providers
         if profile.state in {ProviderState.HEALTHY, ProviderState.DEGRADED}
-        and _meets(profile, assessment.capabilities)
+        and _meets(profile, assessment.capabilities, assessment.complexity)
         and profile.context_limit >= 0
     ]
     if not eligible:

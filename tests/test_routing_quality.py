@@ -5,7 +5,7 @@ from aipool.quality import validate_output
 from aipool.routing import choose_provider
 
 
-def profile(provider_id: str, *, cost: float, classification: float = 0.0, coding: float = 0.0, reliability: float = 0.9) -> ProviderProfile:
+def profile(provider_id: str, *, cost: float, classification: float = 0.0, coding: float = 0.0, reliability: float = 0.9, max_complexity: int = 1) -> ProviderProfile:
     return ProviderProfile(
         provider_id,
         provider_id,
@@ -14,6 +14,7 @@ def profile(provider_id: str, *, cost: float, classification: float = 0.0, codin
         reliability=reliability,
         estimated_cost=cost,
         state=ProviderState.HEALTHY,
+        max_complexity=max_complexity,
     )
 
 
@@ -30,9 +31,20 @@ class RoutingQualityTests(unittest.TestCase):
         self.assertEqual(decision.strategy, Strategy.NO_DELEGATION)
         self.assertIsNone(decision.provider)
 
+    def test_router_requires_native_estimate(self) -> None:
+        task = TaskEnvelope(task="classification", input_ref="artifact:x")
+        decision = choose_provider(task, [profile("cheap", cost=0.0, classification=0.9)])
+        self.assertEqual(decision.reason, "native_work_estimate_required")
+
+    def test_low_complexity_provider_cannot_receive_complex_implementation(self) -> None:
+        task = TaskEnvelope(task="coding", input_ref="artifact:x", local_estimate=10.0)
+        helper = profile("helper", cost=0.0, coding=1.0, max_complexity=1)
+        decision = choose_provider(task, [helper])
+        self.assertEqual(decision.reason, "no_healthy_capable_provider")
+
     def test_router_escalates_coding_to_capable_provider(self) -> None:
         task = TaskEnvelope(task="coding", input_ref="artifact:x", local_estimate=10.0)
-        decision = choose_provider(task, [profile("classifier", cost=0.001, classification=0.9), profile("coder", cost=0.2, coding=0.9)])
+        decision = choose_provider(task, [profile("classifier", cost=0.001, classification=0.9), profile("coder", cost=0.2, coding=0.9, max_complexity=4)])
         self.assertEqual(decision.provider.id, "coder")
 
     def test_quality_gate_rejects_garbage_and_malformed_json(self) -> None:

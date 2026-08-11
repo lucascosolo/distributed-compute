@@ -43,7 +43,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
         profile = ProviderProfile(
             "fixture", "Configured fixture", "fixture",
             capabilities={"classification": 0.8, "structured_json": 0.8, "extraction": 0.8, "summarization": 0.6},
-            reliability=0.5, state=ProviderState.HEALTHY,
+            reliability=0.5, state=ProviderState.HEALTHY, max_complexity=1,
         )
         registry.register(FixtureAdapter(profile, lambda _: fixture_output))
     command = os.environ.get("AIPOOL_COMMAND")
@@ -51,7 +51,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
         profile = ProviderProfile(
             "local-command", "Configured local command", "command",
             capabilities={"classification": 0.7, "structured_json": 0.7, "extraction": 0.7, "summarization": 0.5},
-            reliability=0.5, state=ProviderState.HEALTHY,
+            reliability=0.5, state=ProviderState.HEALTHY, max_complexity=2,
         )
         registry.register(CommandAdapter(profile, tuple(shlex.split(command))))
     endpoint = os.environ.get("AIPOOL_OPENAI_ENDPOINT")
@@ -59,7 +59,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
         profile = ProviderProfile(
             "openai-compatible", "Configured OpenAI-compatible provider", "openai-compatible",
             capabilities={"classification": 0.8, "structured_json": 0.8, "extraction": 0.8, "summarization": 0.8, "coding": 0.7, "instruction_following": 0.8},
-            reliability=0.5, state=ProviderState.HEALTHY,
+            reliability=0.5, state=ProviderState.HEALTHY, max_complexity=4,
         )
         registry.register(OpenAICompatibleAdapter(profile, endpoint, os.environ["AIPOOL_OPENAI_MODEL"], "AIPOOL_OPENAI_API_KEY"))
     return registry
