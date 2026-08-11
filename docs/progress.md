@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `13b8725`
+- Last pushed commit: `3a17589`
 - Working tree at the last checkpoint: clean
 - Verification for this chunk: `82 tests passed` with
   `-W error::ResourceWarning`
