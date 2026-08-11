@@ -151,7 +151,7 @@ def make_server(
             token_limit = int(str(card["token_limit"] or 0))
             window_seconds = float(str(card["usage_window_seconds"] or 60))
             if profile is not None:
-                _, window_end = UsageManager.window(profile, now)
+                window_start, window_end = UsageManager.window(profile, now)
                 requests, tokens = coordinator.store.usage(profile.quota_group, window_start)
                 state = profile.state.value
                 next_probe_at = coordinator.store.health(profile.id)

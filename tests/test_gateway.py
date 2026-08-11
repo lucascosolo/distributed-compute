@@ -106,6 +106,23 @@ class GatewayTests(unittest.TestCase):
         self.assertIn("blocked_reasons", row)
         self.assertNotIn("secret", json.dumps(data))
 
+    def test_admin_readiness_reports_usage_for_loaded_catalog_provider(self) -> None:
+        from aipool.provider_catalog import load_catalog
+
+        provider = load_catalog()[0]
+        profile = ProviderProfile(
+            "catalog:" + provider.slug, provider.name, provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+            quota_group="catalog:" + provider.provider_slug,
+        )
+        self.server.aipool_coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))
+        status, data = self.request("GET", "/admin/readiness")
+        self.assertEqual(status, 200)
+        row = next(item for item in data["providers"] if item["slug"] == provider.slug)
+        self.assertTrue(row["loaded"])
+        self.assertEqual(row["state"], "quarantined")
+        self.assertEqual(row["requests_used"], 0)
+
     def test_admin_panel_is_authenticated_and_does_not_echo_secret_values(self) -> None:
         status, _, _ = self.raw_request("GET", "/admin", token=None)
         self.assertEqual(status, 401)
