@@ -50,6 +50,23 @@ class BrowserChatAdapterTests(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertEqual(result.output.strip(), "browser result")
 
+    def test_browser_chat_login_wall_is_an_authentication_failure(self) -> None:
+        profile = ProviderProfile("browser", "Browser", "browser-chat", state=ProviderState.HEALTHY)
+        adapter = BrowserChatAdapter(profile, lambda _: "Please sign in to continue")
+        result = adapter.complete(TaskEnvelope(task="summarization", input_ref="public-page"))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+
+    def test_browser_command_login_wall_is_an_authentication_failure(self) -> None:
+        profile = ProviderProfile("browser", "Browser", "browser-chat", state=ProviderState.HEALTHY)
+        adapter = BrowserCommandAdapter(
+            profile,
+            (sys.executable, "-c", "print('Create an account to continue')"),
+        )
+        result = adapter.complete(TaskEnvelope(task="summarization", input_ref="public-page"))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+
 
 class ProvidersTests(unittest.TestCase):
     def test_fixture_normalizes_text_output(self) -> None:

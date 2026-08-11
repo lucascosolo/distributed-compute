@@ -78,6 +78,8 @@ or the operator's environment.
 - `HtmlPageSource` and `aipool discover --page-url` now support bounded link
   extraction from public articles and directories, including the supplied
   no-signup chatbot lists; page links remain unverified leads.
+- Browser transports now classify common login/sign-up walls as
+  `AUTH` failures instead of returning them as successful provider output.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.

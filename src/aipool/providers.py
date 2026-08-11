@@ -44,6 +44,23 @@ def _failure(
     )
 
 
+def _is_login_wall(output: str) -> bool:
+    """Recognize common browser auth walls without classifying normal answers."""
+    text = output.strip().casefold()
+    if not text:
+        return False
+    exact_phrases = (
+        "sign in to continue", "log in to continue", "login required",
+        "authentication required", "create an account to continue",
+        "sign up to continue", "please log in", "please sign in",
+    )
+    if any(phrase in text for phrase in exact_phrases):
+        return True
+    return len(text) < 2_000 and ("<html" in text or "<!doctype" in text) and any(
+        phrase in text for phrase in ("sign in", "log in", "login", "register")
+    )
+
+
 @dataclass(slots=True)
 class FixtureAdapter:
     profile: ProviderProfile
@@ -138,6 +155,11 @@ class BrowserChatAdapter:
             output = self.submit(packet.render())
             if not isinstance(output, str):
                 raise ValueError("browser transport must return text")
+            if _is_login_wall(output):
+                return _failure(
+                    self.profile.id, ProviderErrorKind.AUTH,
+                    "browser session reached a login wall", (time.monotonic() - started) * 1000,
+                )
             if len(output) > self.max_output_chars:
                 return _failure(
                     self.profile.id, ProviderErrorKind.INTERNAL,
@@ -190,9 +212,12 @@ class BrowserCommandAdapter:
             return _failure(self.profile.id, ProviderErrorKind.INTERNAL, message, latency)
         if len(completed.stdout) > self.max_output_bytes:
             return _failure(self.profile.id, ProviderErrorKind.INTERNAL, "provider output exceeds limit", latency)
+        output = completed.stdout.decode(errors="replace")
+        if _is_login_wall(output):
+            return _failure(self.profile.id, ProviderErrorKind.AUTH, "browser session reached a login wall", latency)
         return ProviderResult(
             provider_id=self.profile.id,
-            output=completed.stdout.decode(errors="replace"),
+            output=output,
             latency_ms=latency,
         )
 
