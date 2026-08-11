@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `0508f18`
+- Last pushed commit: `aa94f47`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `187 tests passed` with
+- Verification for the current implementation: `188 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -328,7 +328,7 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `0508f18`; working tree is clean; VPS service is
+- Current deployed commit: `aa94f47`; working tree is clean; VPS service is
   active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
@@ -401,6 +401,9 @@ new batch plan. No provider calls were made during the endpoint audit.
 - The second read-only pass verified Z.AI, OpenRouter, and Aion model catalogs;
   it exposed stale Z.AI/OpenRouter IDs, which were refreshed. xAI returned HTTP
   403 from `/models` and remains paused. No generation requests were made.
+- Readiness now exposes the last sanitized provider failure detail and includes
+  it in dashboard next-step guidance. Health failures are also persisted when a
+  provider fails before its health row has been initialized.
 - Groq's catalog was refreshed away from model IDs scheduled for deprecation
   to the current `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, and
   `qwen/qwen3.6-27b` entries.
