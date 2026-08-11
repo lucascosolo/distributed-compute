@@ -289,6 +289,11 @@ or the operator's environment.
   list from the plan, enforces a 12-model/three-case request budget and known
   request headroom, then runs sequentially. It never selects extra models or
   calls providers without the approval flag.
+- Added `docs/provider-endpoint-audit.md` and paused the next batch pending the
+  primary-documentation checks recorded there. Cohere was corrected from its
+  native `/v1` endpoint to the documented `/compatibility/v1` OpenAI-compatible
+  endpoint; several operator-supplied endpoints remain quarantine-only until
+  their own documentation confirms them.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
