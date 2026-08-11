@@ -240,6 +240,15 @@ Discovery retrieval must be bounded, rate-limited, provenance-preserving, and
 source-policy aware. A discussion post or public page is a lead, not evidence
 of authorization or capability.
 
+Browser-chat fallback candidates include the public Gemini web app
+(`gemini.google.com`) and ChatGPT web (`chatgpt.com`) when an API or other
+authorized provider cannot satisfy the task. They must be treated as separate
+browser adapters, tested in a fresh isolated browser context, and used only
+within the site's terms, interface limits, and any login/automation rules. A
+login wall, CAPTCHA, automation prohibition, or ambiguous authorization keeps
+the candidate out of the active pool; browser use is never a way around API
+billing, quotas, or access controls.
+
 **Exit gate:** discovery only creates candidate records with provenance, terms,
 authorization requirements, transport metadata, and a quarantine state.
 

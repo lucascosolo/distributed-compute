@@ -259,6 +259,19 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(data["valid"], 1)
         benchmark.assert_called_once_with(profile.id)
 
+    def test_smoke_batch_plan_is_bounded_and_makes_no_provider_call(self) -> None:
+        with patch("aipool.gateway.load_catalog", return_value=()):
+            status, plan = self.request("GET", "/admin/provider/smoke-batch-plan")
+        self.assertEqual(status, 200)
+        self.assertFalse(plan["network_calls_made"])
+        self.assertTrue(plan["approval_required"])
+        self.assertEqual(plan["expected_calls"], 0)
+
+    def test_smoke_batch_plan_rejects_unbounded_parameters(self) -> None:
+        status, data = self.request("GET", "/admin/provider/smoke-batch-plan?max_models=33")
+        self.assertEqual(status, 400)
+        self.assertIn("max_models", data["error"])
+
     def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
         status, config = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)

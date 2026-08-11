@@ -78,6 +78,18 @@ class CliTests(unittest.TestCase):
         self.assertEqual(profile.token_limit, 1200)
         self.assertEqual(profile.usage_window_seconds, 86400)
 
+    def test_google_ai_studio_key_loads_openai_compatible_models(self) -> None:
+        from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix
+        provider = next(item for item in load_catalog() if item.provider_name == "Google AI Studio API")
+        with patch.dict(os.environ, {
+            f"{config_prefix(provider)}_API_KEY": "google-key",
+            f"{model_config_prefix(provider)}_ENABLED": "1",
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        adapter = registry.get(f"catalog:{provider.slug}")
+        self.assertEqual(adapter.profile.transport, "openai-compatible")
+        self.assertIn("/v1beta/openai/", adapter.endpoint)
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog

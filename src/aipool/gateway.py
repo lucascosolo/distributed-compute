@@ -202,6 +202,55 @@ def make_server(
         counts = {state: sum(1 for row in rows if row["state"] == state) for state in sorted({str(row["state"]) for row in rows})}
         return {"generated_at": now, "providers": rows, "summary": {"total": len(rows), "states": counts}}
 
+    def smoke_batch_plan(max_models: int = 12, cases: int = 3) -> dict[str, object]:
+        """Choose a bounded, reviewable smoke batch without contacting providers."""
+        if not 1 <= max_models <= 32:
+            raise ValueError("max_models must be between 1 and 32")
+        if not 1 <= cases <= 8:
+            raise ValueError("cases must be between 1 and 8")
+        rank = {"light": 0, "medium": 1, "strong": 2, "very-strong": 3}
+        snapshot = readiness_snapshot()
+        families: dict[str, list[dict[str, object]]] = {}
+        for row in snapshot["providers"]:
+            families.setdefault(str(row["provider_slug"]), []).append(row)
+        candidates: list[dict[str, object]] = []
+        skipped: list[dict[str, object]] = []
+        for family, items in families.items():
+            eligible = [
+                item for item in items
+                if item["loaded"] and item["enabled"] and item["state"] in {"healthy", "quarantined"}
+            ]
+            if not eligible:
+                skipped.append({"provider_slug": family, "reason": "no_loaded_enabled_candidate"})
+                continue
+            selected = max(eligible, key=lambda item: (rank.get(str(item["power"]), -1), -float(item["quota_weight"])))
+            candidates.append(selected)
+        candidates.sort(key=lambda item: (-rank.get(str(item["power"]), -1), str(item["provider_slug"]), str(item["slug"])))
+        selected = candidates[:max_models]
+        for item in candidates[max_models:]:
+            skipped.append({"provider_slug": item["provider_slug"], "slug": item["slug"], "reason": "batch_cap"})
+        models = []
+        for item in selected:
+            request_limit = int(item["request_limit"])
+            requests_used = int(item["requests_used"])
+            models.append({
+                "slug": item["slug"], "provider_slug": item["provider_slug"],
+                "name": item["name"], "power": item["power"], "state": item["state"],
+                "quota_weight": item["quota_weight"], "cases": cases,
+                "expected_requests": cases, "request_limit": request_limit,
+                "requests_used": requests_used,
+                "request_headroom": max(0, request_limit - requests_used) if request_limit else None,
+                "token_limit": int(item["token_limit"]), "tokens_used": int(item["tokens_used"]),
+                "window_ends_at": item["window_ends_at"],
+            })
+        return {
+            "network_calls_made": False, "approval_required": True,
+            "cases": cases, "max_models": max_models,
+            "selected_models": models, "skipped": skipped,
+            "total_models": len(models), "expected_calls": len(models) * cases,
+            "token_cost": "unknown until provider responses; local token caps are reported per model",
+        }
+
     def save_config(updates: dict[str, str]) -> None:
         operator_config.parent.mkdir(parents=True, exist_ok=True)
         existing = operator_config.read_text() if operator_config.exists() else ""
@@ -310,6 +359,15 @@ def make_server(
                 self._send(200, readiness_snapshot())
                 return
             parsed_path = urlsplit(self.path)
+            if parsed_path.path == "/admin/provider/smoke-batch-plan":
+                try:
+                    query = parse_qs(parsed_path.query)
+                    max_models = int(query.get("max_models", ["12"])[0])
+                    cases = int(query.get("cases", ["3"])[0])
+                    self._send(200, smoke_batch_plan(max_models=max_models, cases=cases))
+                except (TypeError, ValueError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                return
             if parsed_path.path == "/admin/discover-models":
                 slug = parse_qs(parsed_path.query).get("slug", [""])[0]
                 provider = next((item for item in catalog if item.slug == slug), None)

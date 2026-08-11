@@ -272,6 +272,19 @@ or the operator's environment.
 - Hugging Face's All Access token is now accepted through the shared `HF_TOKEN`
   field for every catalog model. The operator observed 27 Qwen3-8B requests
   costing $0.27, so Hugging Face is not currently treated as free compute.
+- Google AI Studio is now modeled as an OpenAI-compatible provider using
+  Google's documented `/v1beta/openai/` base path; its saved family key can load
+  the current Gemini model cards. The Interactions API remains a future adapter
+  choice because it has different state and retention semantics.
+- Cerebras metadata was corrected from stale model names and an unofficial
+  source. Its current public catalog is centered on `gpt-oss-120b`, `gemma-4-31b`,
+  and `zai-glm-4.7`; the official docs say the trial requires verified payment
+  setup and expiring credits, with no permanent free tier, so it is not free
+  recurring compute. Groq's official reference also confirms its existing
+  OpenAI-compatible chat endpoint.
+- Added a no-network `/admin/provider/smoke-batch-plan` endpoint. It selects a
+  bounded representative set, reports expected calls and quota headroom, and
+  requires later human approval before any batch execution.
 
 ## Non-negotiable design decisions
 
