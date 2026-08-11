@@ -18,10 +18,10 @@ send model requests, validate credentials, or prove that a tier is free.
 | NVIDIA NIM hosted API | `integrate.api.nvidia.com/v1` / OpenAI-compatible | shape verified | NVIDIA’s NIM API is OpenAI-compatible; hosted build.nvidia.com model IDs still require live discovery before testing. |
 | Mistral AI | `api.mistral.ai/v1` / OpenAI-compatible | verified | Official docs use `/v1/chat/completions`. |
 | SambaNova Cloud | `api.sambanova.ai/v1` / OpenAI-compatible | verified | Official API-key docs show `/v1/chat/completions`; current free availability remains account-dependent. |
-| Aion Labs | `api.aionlabs.ai/v1` / OpenAI-compatible | verified | Official documentation confirms OpenAI-compatible chat completions and a `/v1/models` discovery endpoint. |
+| Aion Labs | `api.aionlabs.ai/v1` / OpenAI-compatible | verified | Official API reference confirms OpenAI-compatible chat completions and a no-auth `/v1/models` discovery endpoint; the catalog IDs match the current model table. |
 | Kilo Gateway | `api.kilo.ai/api/gateway` / OpenAI-compatible | verified, model availability pending | Official Kilo docs confirm `/chat/completions`, `/models`, Bearer authentication, and anonymous free-model access. The catalog now uses the documented `minimax/minimax-m2.1:free` and `z-ai/glm-5:free` IDs; a no-generation `/models` check must confirm they remain available. |
 | Ollama Cloud | `ollama.com/v1` / OpenAI-compatible | verified | Official Ollama compatibility material documents this cloud base URL. |
-| BazaarLink | `bazaarlink.ai/api/v1` / OpenAI-compatible | verified, model discovery pending | Official documentation confirms the OpenAI-compatible base path and says full provider/model IDs are required; catalog IDs still need a no-generation `/models` check. |
+| BazaarLink | `bazaarlink.ai/api/v1` / OpenAI-compatible | verified, model discovery pending | Official documentation confirms the OpenAI-compatible base path, `auto:free`, and current free limits. The catalog is restricted to documented free routes; a no-generation `/models` check must confirm current availability. |
 | xAI | `api.x.ai/v1` / OpenAI-compatible | verified | Official xAI docs use `/v1/chat/completions`. |
 
 ## Test gate
