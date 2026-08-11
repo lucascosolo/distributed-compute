@@ -7,6 +7,7 @@ import json
 import time
 from dataclasses import replace
 
+from .benchmark import BenchmarkCase, BenchmarkResult, run_benchmark
 from .domain import ProviderState, Strategy, TaskEnvelope, TaskOutcome
 from .health import HealthManager
 from .providers import ProviderRegistry
@@ -27,6 +28,16 @@ class Coordinator:
         if task.strategy == Strategy.CONSENSUS:
             return self._submit_consensus(task)
         return self._submit_single(task)
+
+    def benchmark_provider(
+        self,
+        provider_id: str,
+        cases: tuple[BenchmarkCase, ...] | None = None,
+    ) -> BenchmarkResult:
+        """Run a bounded capability probe and persist its evidence for future routing."""
+        result = run_benchmark(self.registry.get(provider_id), cases)
+        self.store.record_benchmark(result)
+        return result
 
     def _submit_single(self, task: TaskEnvelope, excluded: frozenset[str] = frozenset()) -> TaskOutcome:
         profiles = [

@@ -6,6 +6,7 @@ import sqlite3
 import threading
 from pathlib import Path
 
+from .benchmark import BenchmarkResult
 from .domain import ProviderProfile, ProviderState, Strategy, TaskOutcome
 
 
@@ -64,20 +65,44 @@ class Store:
                 )
             self.connection.commit()
 
-    def observation(self, provider_id: str, capability: str) -> tuple[int, int]:
+    def record_benchmark(self, result: BenchmarkResult) -> None:
+        """Persist one bounded benchmark score per capability as provider evidence."""
+        provider_id = str(result.provider_id)
+        with self._lock:
+            for capability, score in result.scores.items():
+                self.connection.execute(
+                    """INSERT INTO observations(provider_id, capability, attempts, successes) VALUES (?, ?, 1, ?)
+                    ON CONFLICT(provider_id, capability) DO UPDATE SET
+                    attempts = attempts + 1, successes = successes + excluded.successes""",
+                    (provider_id, str(capability), float(score)),
+                )
+            self.connection.commit()
+
+    def observation(self, provider_id: str, capability: str) -> tuple[int, float]:
         with self._lock:
             row = self.connection.execute(
                 "SELECT attempts, successes FROM observations WHERE provider_id = ? AND capability = ?",
                 (provider_id, capability),
             ).fetchone()
-        return (int(row["attempts"]), int(row["successes"])) if row else (0, 0)
+        return (int(row["attempts"]), float(row["successes"])) if row else (0, 0.0)
 
     def learned_capabilities(self, provider: ProviderProfile, *, prior_weight: float = 3.0) -> dict[str, float]:
         """Blend declared capability with observed outcomes using a conservative prior."""
         learned: dict[str, float] = {}
-        for capability, declared in provider.capabilities.items():
+        with self._lock:
+            observed = {
+                str(row["capability"])
+                for row in self.connection.execute(
+                    "SELECT capability FROM observations WHERE provider_id = ?", (provider.id,)
+                ).fetchall()
+            }
+        for capability in set(provider.capabilities) | observed:
             attempts, successes = self.observation(provider.id, capability)
-            learned[capability] = ((declared * prior_weight) + successes) / (prior_weight + attempts)
+            if capability not in provider.capabilities:
+                learned[capability] = successes / attempts if attempts else 0.0
+            else:
+                declared = float(provider.capabilities[capability])
+                learned[capability] = ((declared * prior_weight) + successes) / (prior_weight + attempts)
         return learned
 
     def ensure_health(self, provider: ProviderProfile) -> None:

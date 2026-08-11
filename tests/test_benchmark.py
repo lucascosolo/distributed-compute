@@ -35,6 +35,13 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result.valid, 0)
         self.assertEqual(result.scores["classification"], 0.0)
 
+    def test_json_benchmarks_record_structured_output_capability(self) -> None:
+        profile = ProviderProfile("json", "JSON", "fixture", state=ProviderState.HEALTHY)
+        result = run_benchmark(FixtureAdapter(profile, lambda _: '{"name":"Ada"}'), default_cases()[:2])
+        self.assertEqual(result.scores["classification"], 1.0)
+        self.assertEqual(result.scores["extraction"], 1.0)
+        self.assertEqual(result.scores["structured_json"], 1.0)
+
 
 if __name__ == "__main__":
     unittest.main()

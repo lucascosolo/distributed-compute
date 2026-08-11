@@ -1,6 +1,7 @@
 import unittest
 
 from aipool.domain import ProviderProfile, ProviderState, TaskEnvelope
+from aipool.benchmark import BenchmarkResult
 from aipool.providers import FixtureAdapter, ProviderRegistry
 from aipool.service import Coordinator
 from aipool.storage import Store
@@ -55,6 +56,34 @@ class ReputationTests(unittest.TestCase):
             task="classification", input_ref="artifact:x", requirements={"output": "json"}, local_estimate=1,
         ))
         self.assertEqual(outcome.provider_id, "strong")
+
+    def test_benchmark_evidence_can_add_an_undeclared_capability(self) -> None:
+        store = Store()
+        self.addCleanup(store.close)
+        provider = ProviderProfile("p", "P", "fixture", capabilities={}, state=ProviderState.HEALTHY)
+        store.record_benchmark(BenchmarkResult("p", {"extraction": 1.0}, 1, 1))
+        self.assertEqual(store.learned_capabilities(provider)["extraction"], 1.0)
+
+    def test_partial_benchmark_score_is_not_truncated(self) -> None:
+        store = Store()
+        self.addCleanup(store.close)
+        provider = ProviderProfile("p", "P", "fixture", capabilities={}, state=ProviderState.HEALTHY)
+        store.record_benchmark(BenchmarkResult("p", {"extraction": 0.5}, 1, 0))
+        self.assertEqual(store.observation("p", "extraction"), (1, 0.5))
+        self.assertEqual(store.learned_capabilities(provider)["extraction"], 0.5)
+
+    def test_coordinator_probe_teaches_routing_new_capability(self) -> None:
+        provider = ProviderProfile("p", "P", "fixture", state=ProviderState.HEALTHY)
+        adapter = FixtureAdapter(provider, lambda task: '{"name":"Ada"}')
+        store = Store()
+        self.addCleanup(store.close)
+        coordinator = Coordinator(ProviderRegistry({"p": adapter}), store)
+        before = coordinator.submit(TaskEnvelope(task="extraction", input_ref="artifact:before", requirements={"output": "json"}, local_estimate=1))
+        self.assertTrue(before.native_fallback)
+        coordinator.benchmark_provider("p")
+        after = coordinator.submit(TaskEnvelope(task="extraction", input_ref="artifact:after", requirements={"output": "json"}, local_estimate=1))
+        self.assertTrue(after.valid)
+        self.assertEqual(after.provider_id, "p")
 
 
 if __name__ == "__main__":

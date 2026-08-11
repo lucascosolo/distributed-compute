@@ -48,7 +48,9 @@ def default_cases() -> tuple[BenchmarkCase, ...]:
 
 def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | None = None) -> BenchmarkResult:
     selected = tuple(cases or default_cases())
-    scores: dict[str, float] = {}
+    if not selected or len(selected) > 32:
+        raise ValueError("benchmark must contain between 1 and 32 cases")
+    observations: dict[str, list[float]] = {}
     valid = 0
     for case in selected:
         result = adapter.complete(case.task)
@@ -60,7 +62,13 @@ def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | Non
         passed = bool(report and report.valid and case.accepts(result.output))
         if passed:
             valid += 1
-        scores[case.capability] = scores.get(case.capability, 0.0) + float(passed)
-    for capability in scores:
-        scores[capability] /= sum(1 for case in selected if case.capability == capability)
+        capabilities = [case.capability]
+        if case.task.requirements.get("output") == "json":
+            capabilities.append("structured_json")
+        for capability in capabilities:
+            observations.setdefault(capability, []).append(float(passed))
+    scores = {
+        capability: sum(values) / len(values)
+        for capability, values in observations.items()
+    }
     return BenchmarkResult(adapter.profile.id, scores, len(selected), valid)
