@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `1370da8`
+- Last pushed commit: `b7e6bcb`
 - Working tree at the last checkpoint: clean
 - Verification for the current implementation: `182 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -309,8 +309,9 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `1370da8`; working tree is clean; VPS service is
-  active and healthy.
+- Current deployed commit: `1370da8`; docs-only audit checkpoint `b7e6bcb` is
+  pushed but does not change the deployed runtime; working tree is clean; VPS
+  service is active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
   Hugging Face chat endpoint have documented endpoint shapes. Cohere was fixed
@@ -331,13 +332,15 @@ new batch plan. No provider calls were made during the endpoint audit.
   loaded/quarantined. Do not infer free usage from key presence; Google limits
   are project/model/account dependent, and Hugging Face already demonstrated
   paid usage.
-- Next session: resume with the remaining-provider integration audit, keep all
-  changes scoped and tested, and pause again before any external model calls.
-- First implementation task after compaction is deployed: the panel now accepts
-  the Cloudflare account ID, explains where to find it, never echoes the API
-  token, and keeps the family unloaded until both values are present. The VPS
-  no-network readiness check confirms the token is already saved but the account
-  ID is missing; no provider calls were made.
+- Next session: resume with the remaining-provider integration audit, starting
+  with the Cloudflare account-ID configuration check. Keep all changes scoped
+  and tested, and pause again before any external model calls.
+- Cloudflare follow-up after compaction: verify the panel's account-ID field and
+  save/reload behavior against the deployed service, then have the operator
+  enter the non-secret account ID if it is still missing. The panel explains
+  where to find it, never echoes the API token, and keeps the family unloaded
+  until both values are present. This is a no-generation configuration step;
+  do not call Cloudflare model endpoints yet.
 - Cloudflare's catalog was also refreshed to current documented text models
   (`@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3-30b-a3b-fp8`) instead of the
   deprecated Llama/Qwen entries. This metadata change has fixture coverage and
