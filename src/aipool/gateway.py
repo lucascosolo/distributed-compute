@@ -597,6 +597,48 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     "retry_after_seconds": result.retry_after_seconds, "state": state,
                 })
                 return
+            if path == "/admin/provider/smoke-batch":
+                try:
+                    payload = self._read_json()
+                    if not isinstance(payload, dict) or payload.get("operator_approved") is not True:
+                        raise ValueError("explicit operator approval is required before a provider smoke batch")
+                    slugs = payload.get("slugs")
+                    if not isinstance(slugs, list) or not slugs or len(slugs) > 12 or any(not isinstance(slug, str) or not slug.strip() for slug in slugs):
+                        raise ValueError("smoke batch must contain 1 to 12 model slugs")
+                    if len(set(slugs)) != len(slugs):
+                        raise ValueError("smoke batch slugs must be unique")
+                    readiness = {str(row["slug"]): row for row in readiness_snapshot()["providers"]}
+                    providers = []
+                    for slug in slugs:
+                        row = readiness.get(slug)
+                        if row is None:
+                            raise LookupError(f"unknown_catalog_model: {slug}")
+                        if not row["loaded"] or not row["enabled"] or row["state"] not in {"healthy", "quarantined"}:
+                            raise RuntimeError(f"provider_not_ready: {slug} ({row['state']})")
+                        if row["request_limit"] and row["requests_used"] + 3 > row["request_limit"]:
+                            raise RuntimeError(f"request_quota_headroom_insufficient: {slug}")
+                        providers.append(f"catalog:{slug}")
+                    results = coordinator.benchmark_providers(tuple(providers))
+                except LookupError as exc:
+                    self._send(404, {"error": str(exc)})
+                    return
+                except RuntimeError as exc:
+                    self._send(409, {"error": str(exc)})
+                    return
+                except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                    return
+                self._send(200, {
+                    "operator_approved": True, "sequential": True,
+                    "results": [
+                        {"provider_id": result.provider_id, "attempts": result.attempts,
+                         "valid": result.valid, "scores": result.scores,
+                         "stopped_error": result.stopped_error,
+                         "retry_after_seconds": result.retry_after_seconds}
+                        for result in results.values()
+                    ],
+                })
+                return
             if path == "/queue":
                 try:
                     payload = self._read_json()

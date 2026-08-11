@@ -283,6 +283,33 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 400)
         self.assertIn("max_models", data["error"])
 
+    def test_smoke_batch_requires_approval_and_runs_selected_models_sequentially(self) -> None:
+        from aipool.benchmark import BenchmarkResult
+        from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix
+        provider = load_catalog()[0]
+        profile = ProviderProfile(
+            "catalog:" + provider.slug, provider.name, provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+            quota_weight=provider.quota_weight,
+        )
+        coordinator = self.server.aipool_coordinator  # type: ignore[attr-defined]
+        coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))
+        Path(self.config_directory.name, ".aipool.local").write_text(
+            f"{config_prefix(provider)}_API_KEY=key\n{model_config_prefix(provider)}_ENABLED=1\n"
+        )
+        status, data = self.request("POST", "/admin/provider/smoke-batch", {"slugs": [provider.slug]})
+        self.assertEqual(status, 400)
+        self.assertIn("explicit operator approval", data["error"])
+        with patch.object(coordinator, "benchmark_providers", return_value={
+            "catalog:" + provider.slug: BenchmarkResult("catalog:" + provider.slug, {"classification": 1.0}, 1, 1),
+        }) as benchmark:
+            status, data = self.request("POST", "/admin/provider/smoke-batch", {
+                "operator_approved": True, "slugs": [provider.slug],
+            })
+        self.assertEqual(status, 200)
+        self.assertTrue(data["sequential"])
+        benchmark.assert_called_once_with(("catalog:" + provider.slug,))
+
     def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
         status, config = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)

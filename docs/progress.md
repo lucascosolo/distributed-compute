@@ -285,6 +285,10 @@ or the operator's environment.
 - Added a no-network `/admin/provider/smoke-batch-plan` endpoint. It selects a
   bounded representative set, reports expected calls and quota headroom, and
   requires later human approval before any batch execution.
+- Added `/admin/provider/smoke-batch`, which accepts only an explicit approved
+  list from the plan, enforces a 12-model/three-case request budget and known
+  request headroom, then runs sequentially. It never selects extra models or
+  calls providers without the approval flag.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
