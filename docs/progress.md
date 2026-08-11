@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `d0f55f5`
+- Last pushed commit: `aa96798`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `73 tests passed` with
+- Verification for this chunk: `82 tests passed` with
   `-W error::ResourceWarning`
 - No VPS deployment has been performed.
 
@@ -50,6 +50,11 @@ or the operator's environment.
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and
   requires explicit operator approval before activation.
+- Candidate records now persist in SQLite, including quarantine state and
+  probe evidence. The bounded quarantine probe pipeline executes only an
+  injected, operator-authorized probe, never fetches arbitrary endpoints, and
+  promotes a candidate to `PROBED` only when availability, authorization,
+  context, output, restrictions, cost, and automation checks all pass.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -72,10 +77,12 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Persist candidate records and add a bounded, policy-filtered quarantine probe
-pipeline. Preserve the usage/backoff
-invariant: no provider call is attempted after a known request/token window is
-exhausted, and no 429 provider is retried before its hold expires.
+Add provider-neutral context packets and artifact references so an authorized
+public web chatbot or other constrained provider receives enough bounded,
+reconstructable task context without receiving secrets or untrusted control
+instructions. Public UI access must remain subject to each provider's terms,
+automation rules, and rate limits; no-key access is not treated as automatic
+authorization.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

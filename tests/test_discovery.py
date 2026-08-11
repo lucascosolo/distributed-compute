@@ -1,6 +1,15 @@
 import unittest
+import tempfile
+from pathlib import Path
 
-from aipool.discovery import CandidateProvider, CandidateRegistry, CandidateState
+from aipool.discovery import (
+    CandidateProvider,
+    CandidateRegistry,
+    CandidateState,
+    ProbeResult,
+    QuarantineProbePipeline,
+)
+from aipool.storage import Store
 
 
 class DiscoveryTests(unittest.TestCase):
@@ -24,6 +33,8 @@ class DiscoveryTests(unittest.TestCase):
         self.assertEqual(registry.get(candidate.id).state, CandidateState.QUARANTINED)
         with self.assertRaisesRegex(ValueError, "explicit operator approval"):
             registry.activate(candidate.id)
+        registry.mark_probed(candidate.id, self.passed_probe(candidate.id))
+        self.assertEqual(registry.get(candidate.id).state, CandidateState.PROBED)
         registry.activate(candidate.id, operator_approved=True)
         self.assertEqual(registry.get(candidate.id).state, CandidateState.APPROVED)
 
@@ -43,6 +54,83 @@ class DiscoveryTests(unittest.TestCase):
         registry.add(self.candidate())
         with self.assertRaisesRegex(ValueError, "already exists"):
             registry.add(self.candidate())
+
+    def passed_probe(self, candidate_id: str) -> ProbeResult:
+        return ProbeResult(
+            candidate_id=candidate_id,
+            available=True,
+            authorized=True,
+            context_length=4096,
+            output_valid=True,
+            latency_ms=120.0,
+            restrictions_clear=True,
+            cost_known=True,
+            automation_supported=True,
+        )
+
+    def test_persistent_registry_survives_reopen(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "candidates.sqlite"
+            first = Store(path)
+            registry = CandidateRegistry(first)
+            registry.add(self.candidate())
+            first.close()
+
+            second = Store(path)
+            reopened = CandidateRegistry(second)
+            self.assertEqual(reopened.get("catalog:model-a").state, CandidateState.QUARANTINED)
+            second.close()
+
+    def test_persistent_probe_evidence_survives_reopen(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "candidates.sqlite"
+            first = Store(path)
+            registry = CandidateRegistry(first)
+            candidate = self.candidate()
+            registry.add(candidate)
+            registry.mark_probed(candidate.id, self.passed_probe(candidate.id))
+            first.close()
+
+            second = Store(path)
+            reopened = CandidateRegistry(second)
+            self.assertEqual(reopened.get(candidate.id).state, CandidateState.PROBED)
+            self.assertTrue(reopened.probe_result(candidate.id).passed)
+            second.close()
+
+    def test_probe_pipeline_is_bounded_and_successful_candidates_need_approval(self) -> None:
+        registry = CandidateRegistry()
+        first = self.candidate()
+        second = self.candidate(id="catalog:model-b")
+        registry.add(first)
+        registry.add(second)
+        calls: list[str] = []
+
+        def probe(candidate):
+            calls.append(candidate.id)
+            return self.passed_probe(candidate.id)
+
+        reports = QuarantineProbePipeline(registry, probe, max_candidates=1).run()
+        self.assertEqual(calls, [first.id])
+        self.assertEqual(len(reports), 1)
+        self.assertEqual(registry.get(first.id).state, CandidateState.PROBED)
+        self.assertEqual(registry.get(second.id).state, CandidateState.QUARANTINED)
+        with self.assertRaisesRegex(ValueError, "explicit operator approval"):
+            registry.activate(first.id)
+        registry.activate(first.id, operator_approved=True)
+
+    def test_failed_probe_never_promotes_candidate(self) -> None:
+        registry = CandidateRegistry()
+        candidate = self.candidate()
+        registry.add(candidate)
+
+        def probe(_candidate):
+            raise RuntimeError("temporary outage")
+
+        reports = QuarantineProbePipeline(registry, probe).run()
+        self.assertFalse(reports[0].passed)
+        self.assertEqual(registry.get(candidate.id).state, CandidateState.QUARANTINED)
+        with self.assertRaisesRegex(ValueError, "successful probe"):
+            registry.activate(candidate.id, operator_approved=True)
 
 
 if __name__ == "__main__":

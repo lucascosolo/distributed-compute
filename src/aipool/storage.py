@@ -51,6 +51,12 @@ class Store:
                 requests INTEGER NOT NULL, tokens INTEGER NOT NULL,
                 PRIMARY KEY (provider_id, window_start)
             );
+            CREATE TABLE IF NOT EXISTS provider_candidates (
+                candidate_id TEXT PRIMARY KEY, name TEXT NOT NULL, source TEXT NOT NULL,
+                transport TEXT NOT NULL, endpoint TEXT NOT NULL, terms_url TEXT NOT NULL,
+                authorization TEXT NOT NULL, state TEXT NOT NULL,
+                rejection_reason TEXT, probe_json TEXT, updated_at REAL NOT NULL
+            );
             """
         )
         self.connection.commit()
@@ -198,6 +204,46 @@ class Store:
                 (max(0, tokens), provider_id, window_start),
             )
             self.connection.commit()
+
+    def save_candidate(self, candidate: object, *, updated_at: float = 0.0) -> None:
+        """Persist validated candidate metadata; never stores an endpoint credential."""
+        with self._lock:
+            self.connection.execute(
+                """INSERT OR REPLACE INTO provider_candidates
+                (candidate_id, name, source, transport, endpoint, terms_url,
+                 authorization, state, rejection_reason, probe_json, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        COALESCE((SELECT probe_json FROM provider_candidates WHERE candidate_id = ?), NULL), ?)""",
+                (candidate.id, candidate.name, candidate.source, candidate.transport,
+                 candidate.endpoint, candidate.terms_url, candidate.authorization,
+                 candidate.state.value, candidate.rejection_reason, candidate.id,
+                 updated_at),
+            )
+            self.connection.commit()
+
+    def candidate_rows(self) -> list[sqlite3.Row]:
+        with self._lock:
+            return self.connection.execute(
+                """SELECT candidate_id, name, source, transport, endpoint, terms_url,
+                authorization, state, rejection_reason FROM provider_candidates
+                ORDER BY candidate_id"""
+            ).fetchall()
+
+    def save_candidate_probe(self, candidate_id: str, probe_json: str) -> None:
+        with self._lock:
+            self.connection.execute(
+                "UPDATE provider_candidates SET probe_json = ? WHERE candidate_id = ?",
+                (probe_json, candidate_id),
+            )
+            self.connection.commit()
+
+    def candidate_probe(self, candidate_id: str) -> str | None:
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT probe_json FROM provider_candidates WHERE candidate_id = ?",
+                (candidate_id,),
+            ).fetchone()
+        return str(row["probe_json"]) if row and row["probe_json"] is not None else None
 
     def stats(self) -> dict[str, object]:
         with self._lock:
