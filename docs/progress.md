@@ -398,6 +398,9 @@ new batch plan. No provider calls were made during the endpoint audit.
   providers such as Kilo that document anonymous model listing. A human still
   initiates each discovery request from the panel; no automatic probing was
   added.
+- The second read-only pass verified Z.AI, OpenRouter, and Aion model catalogs;
+  it exposed stale Z.AI/OpenRouter IDs, which were refreshed. xAI returned HTTP
+  403 from `/models` and remains paused. No generation requests were made.
 - Groq's catalog was refreshed away from model IDs scheduled for deprecation
   to the current `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, and
   `qwen/qwen3.6-27b` entries.

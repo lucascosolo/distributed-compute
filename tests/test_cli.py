@@ -130,7 +130,7 @@ class CliTests(unittest.TestCase):
     def test_zai_catalog_uses_current_official_model_ids(self) -> None:
         from aipool.provider_catalog import load_catalog
         providers = [item for item in load_catalog() if item.provider_name == "Z.AI GLM API"]
-        self.assertEqual({item.model for item in providers}, {"glm-4.7-flash", "glm-4.7"})
+        self.assertEqual({item.model for item in providers}, {"glm-5", "glm-4.7"})
         self.assertTrue(all(item.source_url.startswith("https://docs.z.ai/") for item in providers))
 
     def test_catalog_exposes_preflight_gate_for_unverified_contracts(self) -> None:
@@ -201,6 +201,18 @@ class CliTests(unittest.TestCase):
             "nvidia/nemotron-3-ultra-550b-a55b",
             "nvidia/nemotron-3-super-120b-a12b",
             "nvidia/nemotron-3-nano-30b-a3b",
+        })
+
+    def test_openrouter_catalog_uses_current_observed_free_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        models = {
+            item.model for item in load_catalog()
+            if item.provider_name == "OpenRouter Free Models"
+        }
+        self.assertEqual(models, {
+            "openai/gpt-oss-20b:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
         })
 
     def test_sambanova_catalog_records_free_tier_guardrail(self) -> None:
