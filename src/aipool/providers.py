@@ -151,8 +151,17 @@ class AgentCommandAdapter:
         started = time.monotonic()
         if not self.command:
             return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, "agent command is not configured", 0)
+        chain = tuple(task.delegation_chain)
+        if self.profile.id not in chain:
+            chain = (*chain, self.profile.id)
+        delegated_task = TaskEnvelope(
+            task=task.task, input_ref=task.input_ref, requirements=task.requirements,
+            importance=task.importance, strategy=task.strategy, max_cost=task.max_cost,
+            local_estimate=task.local_estimate, origin_provider_id=self.profile.id,
+            delegation_chain=chain,
+        )
         payload = json.dumps({
-            "task": task.to_dict(),
+            "task": delegated_task.to_dict(),
             "bridge": {"provider_id": self.profile.id, "transport": self.profile.transport},
         }, sort_keys=True, separators=(",", ":")).encode()
         try:
@@ -396,10 +405,11 @@ class OpenAICompatibleAdapter:
     api_key_env: str
     timeout_seconds: float = 30.0
     opener: Callable[..., object] = request.urlopen
+    static_api_key: str = ""
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = time.monotonic()
-        api_key = os.environ.get(self.api_key_env)
+        api_key = self.static_api_key or os.environ.get(self.api_key_env)
         if not api_key:
             return _failure(self.profile.id, ProviderErrorKind.AUTH, "configured API key is unavailable", 0)
         body = json.dumps(

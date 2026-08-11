@@ -73,6 +73,15 @@ def _positive_float(value: str | None, default: float) -> float:
         return default
 
 
+def _apply_origin(task: TaskEnvelope) -> TaskEnvelope:
+    """Stamp top-level native callers without allowing them to overwrite a hop."""
+    origin = os.environ.get("AIPOOL_ORIGIN_PROVIDER_ID", "").strip()
+    if not origin or task.origin_provider_id:
+        return task
+    chain = task.delegation_chain if origin in task.delegation_chain else (*task.delegation_chain, origin)
+    return replace(task, origin_provider_id=origin, delegation_chain=chain)
+
+
 def _cloudflare_access_headers() -> dict[str, str]:
     """Return optional Access service-token headers without exposing their values."""
     client_id = os.environ.get("AIPOOL_CF_ACCESS_CLIENT_ID", "")
@@ -148,6 +157,26 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             profile, hf_model, endpoint=os.environ.get(
                 "AIPOOL_HF_ENDPOINT", "https://router.huggingface.co/v1/chat/completions"
             ),
+        ))
+    ollama_model = os.environ.get("AIPOOL_OLLAMA_MODEL")
+    if ollama_model:
+        ollama_power = os.environ.get("AIPOOL_OLLAMA_POWER", "medium").casefold()
+        ollama_complexity = 1 if ollama_power == "light" else 2 if ollama_power == "medium" else 3 if ollama_power == "strong" else 4
+        capabilities = {
+            "classification": 0.7, "structured_json": 0.7,
+            "extraction": 0.7, "summarization": 0.7,
+        }
+        if ollama_complexity >= 3:
+            capabilities.update({"coding": 0.7, "instruction_following": 0.7})
+        registry.register(OpenAICompatibleAdapter(
+            ProviderProfile(
+                "ollama-local", "Ollama (local)", "ollama",
+                capabilities=capabilities, reliability=0.5,
+                state=ProviderState.HEALTHY, max_complexity=ollama_complexity,
+                quota_group="ollama-local",
+            ),
+            os.environ.get("AIPOOL_OLLAMA_ENDPOINT", "http://127.0.0.1:11434/v1/chat/completions"),
+            ollama_model, "", static_api_key="ollama",
         ))
     for catalog_provider in load_catalog():
         provider_prefix = config_prefix(catalog_provider)
@@ -426,7 +455,7 @@ def main(argv: list[str] | None = None) -> int:
         token = os.environ.get("AIPOOL_TOKEN") or None
         if args.queue_action == "submit":
             try:
-                task = TaskEnvelope.from_dict(json.loads(args.task_json))
+                task = _apply_origin(TaskEnvelope.from_dict(json.loads(args.task_json)))
             except (ValueError, TypeError, json.JSONDecodeError, KeyError) as exc:
                 print(json.dumps({"success": False, "error": f"invalid task envelope: {exc}"}, separators=(",", ":")))
                 return 2
@@ -563,7 +592,7 @@ def main(argv: list[str] | None = None) -> int:
             store.close()
         return 0
     try:
-        task = TaskEnvelope.from_dict(json.loads(args.task_json))
+        task = _apply_origin(TaskEnvelope.from_dict(json.loads(args.task_json)))
     except (ValueError, TypeError, json.JSONDecodeError, KeyError) as exc:
         print(json.dumps({"success": False, "error": f"invalid task envelope: {exc}"}, separators=(",", ":")))
         return 2

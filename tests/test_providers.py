@@ -166,8 +166,8 @@ class ProvidersTests(unittest.TestCase):
         ))
         payload = json.loads(result.output)
         self.assertTrue(result.success)
-        self.assertEqual(payload["task"]["origin_provider_id"], "agent:claude")
-        self.assertEqual(payload["task"]["delegation_chain"], ["agent:claude"])
+        self.assertEqual(payload["task"]["origin_provider_id"], "agent:codex")
+        self.assertEqual(payload["task"]["delegation_chain"], ["agent:claude", "agent:codex"])
         self.assertNotIn("secret", result.output.casefold())
 
     def test_candidate_command_adapter_sends_candidate_and_task_metadata(self) -> None:
@@ -201,6 +201,28 @@ class ProvidersTests(unittest.TestCase):
             result = adapter.complete(task())
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+
+    def test_openai_compatible_adapter_accepts_static_local_placeholder_key(self) -> None:
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self):
+                return json.dumps({"choices": [{"message": {"content": "local"}}]}).encode()
+
+        requests = []
+        def opener(req, timeout):
+            requests.append(req)
+            return Response()
+
+        adapter = OpenAICompatibleAdapter(
+            ProviderProfile("ollama", "Ollama", "ollama", state=ProviderState.HEALTHY),
+            "http://127.0.0.1:11434/v1/chat/completions", "qwen3:8b", "",
+            opener=opener, static_api_key="ollama",
+        )
+        result = adapter.complete(task())
+        self.assertTrue(result.success)
+        self.assertEqual(result.output, "local")
+        self.assertEqual(requests[0].get_header("Authorization"), "Bearer ollama")
 
     def test_huggingface_adapter_uses_router_and_hf_token(self) -> None:
         class Response:

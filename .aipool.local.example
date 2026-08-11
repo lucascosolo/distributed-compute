@@ -7,6 +7,9 @@ AIPOOL_BASE_URL=http://127.0.0.1:8765
 AIPOOL_HOST=127.0.0.1
 AIPOOL_PORT=8765
 AIPOOL_TOKEN=
+# Optional identity of the native caller. Use agent:claude for Claude or
+# agent:codex for Codex so the coordinator cannot route back to that runtime.
+# AIPOOL_ORIGIN_PROVIDER_ID=agent:claude
 AIPOOL_DB=.aipool-data/aipool.sqlite
 AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
 # Optional operator-owned command worker. It receives one JSON task envelope
@@ -22,6 +25,21 @@ AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
 # AIPOOL_HF_MODEL=openai/gpt-oss-20b
 # HF_TOKEN=hf_your_token_here
 # AIPOOL_HF_ENDPOINT=https://router.huggingface.co/v1/chat/completions
+# Optional local Ollama model. Ollama's local OpenAI-compatible endpoint needs
+# no real API key; the adapter sends the documented ignored placeholder.
+# AIPOOL_OLLAMA_MODEL=gpt-oss:20b
+# AIPOOL_OLLAMA_POWER=strong
+# AIPOOL_OLLAMA_ENDPOINT=http://127.0.0.1:11434/v1/chat/completions
+# Ollama Cloud is separate from local Ollama and requires an Ollama account
+# API key. Treat its limits and model availability as unknown until verified.
+# AIPOOL_OLLAMA_CLOUD_MODEL=gpt-oss:120b
+# OLLAMA_API_KEY=ollama_key_here
+# AIPOOL_OLLAMA_CLOUD_ENDPOINT=https://ollama.com/v1/chat/completions
 # Optional no-key browser-chat wrapper. The wrapper must read the rendered
 # prompt from stdin and write only the chatbot's text response to stdout.
 # AIPOOL_BROWSER_COMMAND=/path/to/authorized-browser-wrapper
+# Optional local agent bridges. These commands receive a JSON envelope on stdin
+# and must write only the bounded result on stdout. Keep credentials in each
+# command's local environment; never put them in this file.
+# AIPOOL_CLAUDE_COMMAND=/path/to/authorized-claude-wrapper
+# AIPOOL_CODEX_COMMAND=/path/to/authorized-codex-wrapper

@@ -12,6 +12,18 @@ from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
+    def test_task_stamps_native_origin_from_operator_environment(self) -> None:
+        task = json.dumps({"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
+        output = io.StringIO()
+        with patch.dict(os.environ, {
+            "AIPOOL_FIXTURE_OUTPUT": '{"label":"docs"}',
+            "AIPOOL_ORIGIN_PROVIDER_ID": "agent:claude",
+        }, clear=True), contextlib.redirect_stdout(output):
+            code = main(["task", "--json", task])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(result["provider_id"], "fixture")
+
     def test_agent_commands_register_as_separate_native_runtime_providers(self) -> None:
         command = f"{os.sys.executable} -c \"import sys; print('agent result')\""
         with patch.dict(os.environ, {
@@ -23,6 +35,16 @@ class CliTests(unittest.TestCase):
             {adapter.profile.id for adapter in registry.all() if adapter.profile.transport == "agent-command"},
             {"agent:claude", "agent:codex"},
         )
+
+    def test_local_ollama_registers_without_an_api_key(self) -> None:
+        with patch.dict(os.environ, {
+            "AIPOOL_OLLAMA_MODEL": "qwen3:8b",
+            "AIPOOL_OLLAMA_POWER": "strong",
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        profile = registry.get("ollama-local").profile
+        self.assertEqual(profile.transport, "ollama")
+        self.assertEqual(profile.max_complexity, 3)
 
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({

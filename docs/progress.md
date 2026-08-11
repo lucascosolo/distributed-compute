@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `685877f`
+- Last pushed commit: `a57ee28` (working changes below are not yet released)
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `157 tests passed` with
+- Verification for the previous chunk: `157 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -238,6 +238,12 @@ or the operator's environment.
   $0/forever tier with default free models, but publishes no numeric free-tier
   request/token caps; free model availability may change, so it is not yet
   treated as proven useful compute.
+- Added first-class local Ollama configuration through the documented local
+  OpenAI-compatible endpoint. It requires only an operator-selected model,
+  defaults to loopback, and uses no real API key. Added a separate Ollama Cloud
+  candidate with the current model names observed from its public `/api/tags`
+  endpoint; cloud authentication, quotas, and model retirement remain distinct
+  from local inference and are not assumed free.
 
 ## Non-negotiable design decisions
 
