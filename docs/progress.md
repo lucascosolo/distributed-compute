@@ -139,6 +139,10 @@ or the operator's environment.
   sequentially across up to three discovered worker bots, persists per-bot
   capability observations, and sends failures through the normal health hold
   logic. It requires no per-worker IDs.
+- Discord task messages now render the shared bounded `ContextPacket`, including
+  configured artifact contents when available, instead of sending an opaque
+  task reference that a remote worker could not reconstruct. Context remains
+  explicitly untrusted and is truncated to the Discord message budget.
 
 ## Non-negotiable design decisions
 

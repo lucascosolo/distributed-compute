@@ -1,7 +1,10 @@
 import json
+import tempfile
 import unittest
+from pathlib import Path
 from urllib.request import Request
 
+from aipool.artifacts import ArtifactStore
 from aipool.discord_api import DiscordApiClient, DiscordChannelAdapter
 from aipool.domain import ProviderProfile, ProviderState, TaskEnvelope
 
@@ -116,6 +119,34 @@ class DiscordApiTests(unittest.TestCase):
         self.assertLessEqual(len(sent["content"]), 2000)
         self.assertNotIn("controller-secret", requests[0].full_url)
         self.assertIn("after=controller-message", requests[-1].full_url)
+
+    def test_channel_adapter_transfers_bounded_artifact_context(self) -> None:
+        requests: list[Request] = []
+        responses = iter((
+            Response({"id": "controller-message"}),
+            Response([{"id": "reply", "author": {"id": "worker-bot"}, "content": "ok"}]),
+        ))
+
+        def opener(req, timeout):
+            requests.append(req)
+            return next(responses)
+
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = ArtifactStore(Path(directory))
+            reference = artifacts.put(b"def add(a, b):\n    return a + b\n")
+            adapter = DiscordChannelAdapter(
+                ProviderProfile("discord-worker", "Discord worker", "discord", state=ProviderState.HEALTHY),
+                token="secret", channel_id="channel", target_bot_id="worker-bot",
+                artifacts=artifacts, opener=opener, sleep=lambda _: None,
+            )
+            result = adapter.complete(TaskEnvelope(
+                "review", reference, requirements={"objective": "Review this code"},
+            ))
+        self.assertTrue(result.success)
+        content = json.loads(requests[0].data)["content"]
+        self.assertIn("Review this code", content)
+        self.assertIn("def add(a, b)", content)
+        self.assertIn("CONTEXT_DATA", content)
 
     def test_channel_adapter_does_not_use_selected_controller_as_worker(self) -> None:
         with self.assertRaisesRegex(ValueError, "different"):

@@ -116,6 +116,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
         if not isinstance(discovered, list):
             discovered = []
         controller_id = os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", "")
+        artifacts = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts"))
         for bot in discovered:
             bot_id = bot["id"]
             if bot_id == controller_id:
@@ -129,6 +130,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
                 profile, discord_token, discord_channel, bot_id,
                 controller_bot_id=controller_id,
                 message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
+                artifacts=artifacts,
             ))
     return registry
 
@@ -383,6 +385,7 @@ def main(argv: list[str] | None = None) -> int:
                     os.environ["AIPOOL_DISCORD_CHANNEL_ID"], bot_id,
                     controller_bot_id=controller_id,
                     message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
+                    artifacts=ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
                 ))
             coordinator = Coordinator(registry, store)
             results = []

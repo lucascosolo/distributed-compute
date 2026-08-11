@@ -287,6 +287,11 @@ configured channel, polls for its exact bot, and turns Discord
 Start with harmless synthetic prompts and keep workers at complexity level 1
 until benchmark evidence says otherwise.
 
+Discord workers receive the same bounded `ContextPacket` format as the other
+constrained transports. Artifact-backed inputs are rendered into explicitly
+marked, untrusted context data; the coordinator does not ask a worker to fetch
+local paths or hidden endpoints.
+
 To run the first bounded capability test against up to three discovered worker
 bots, use:
 

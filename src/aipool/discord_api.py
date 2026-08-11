@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import Callable
 from urllib import error, parse, request
 
+from .artifacts import ArtifactStore
+from .context import ContextPacket
 from .domain import ProviderErrorKind, ProviderProfile, ProviderResult, TaskEnvelope
 
 
@@ -137,6 +139,7 @@ class DiscordChannelAdapter:
     poll_seconds: float = 1.0
     max_wait_seconds: float = 30.0
     message_prefix: str = ""
+    artifacts: ArtifactStore | None = None
     opener: Callable[..., object] = request.urlopen
     sleep: Callable[[float], None] = time.sleep
     clock: Callable[[], float] = time.monotonic
@@ -152,7 +155,15 @@ class DiscordChannelAdapter:
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = self.clock()
-        content = self.message_prefix + json.dumps(task.to_dict(), sort_keys=True, separators=(",", ":"))
+        try:
+            packet_limit = self.max_prompt_chars - len(self.message_prefix)
+            if packet_limit < 256:
+                raise ValueError("Discord message prefix leaves too little room for context")
+            content = self.message_prefix + ContextPacket.from_task(
+                task, self.artifacts, max_chars=packet_limit,
+            ).render()
+        except (TypeError, ValueError, OSError) as exc:
+            return _discord_failure(self.profile.id, ProviderErrorKind.INVALID_REQUEST, str(exc), started, self.clock)
         if len(content) > self.max_prompt_chars:
             return _discord_failure(self.profile.id, ProviderErrorKind.INVALID_REQUEST, "Discord task envelope exceeds message limit", started, self.clock)
         try:
