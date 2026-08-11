@@ -8,7 +8,7 @@ import time
 from dataclasses import replace
 
 from .benchmark import BenchmarkCase, BenchmarkResult, run_benchmark
-from .domain import ProviderState, Strategy, TaskEnvelope, TaskOutcome
+from .domain import ProviderErrorKind, ProviderState, Strategy, TaskEnvelope, TaskOutcome
 from .health import HealthManager
 from .providers import ProviderRegistry
 from .quality import validate_output
@@ -35,9 +35,26 @@ class Coordinator:
         cases: tuple[BenchmarkCase, ...] | None = None,
     ) -> BenchmarkResult:
         """Run a bounded capability probe and persist its evidence for future routing."""
-        result = run_benchmark(self.registry.get(provider_id), cases)
+        adapter = self.registry.get(provider_id)
+        self.health.profiles([adapter.profile])
+        result = run_benchmark(adapter, cases)
         self.store.record_benchmark(result)
+        if result.valid:
+            self.health.success(adapter.profile)
+        else:
+            self.health.failure(adapter.profile, ProviderErrorKind.INTERNAL, "benchmark produced no valid results")
         return result
+
+    def benchmark_providers(
+        self,
+        provider_ids: tuple[str, ...] | None = None,
+        cases: tuple[BenchmarkCase, ...] | None = None,
+    ) -> dict[str, BenchmarkResult]:
+        """Probe a bounded set of registered providers sequentially."""
+        ids = provider_ids if provider_ids is not None else tuple(adapter.profile.id for adapter in self.registry.all())
+        if not ids or len(ids) > 32 or len(set(ids)) != len(ids):
+            raise ValueError("provider probe set must contain 1 to 32 unique providers")
+        return {provider_id: self.benchmark_provider(provider_id, cases) for provider_id in ids}
 
     def _submit_single(self, task: TaskEnvelope, excluded: frozenset[str] = frozenset()) -> TaskOutcome:
         profiles = [

@@ -1,7 +1,7 @@
 import unittest
 
-from aipool.domain import ProviderProfile, ProviderState, TaskEnvelope
-from aipool.benchmark import BenchmarkResult
+from aipool.benchmark import BenchmarkCase, BenchmarkResult
+from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvelope, ProviderResult
 from aipool.providers import FixtureAdapter, ProviderRegistry
 from aipool.service import Coordinator
 from aipool.storage import Store
@@ -84,6 +84,25 @@ class ReputationTests(unittest.TestCase):
         after = coordinator.submit(TaskEnvelope(task="extraction", input_ref="artifact:after", requirements={"output": "json"}, local_estimate=1))
         self.assertTrue(after.valid)
         self.assertEqual(after.provider_id, "p")
+
+    def test_coordinator_can_probe_all_registered_providers(self) -> None:
+        case = BenchmarkCase(
+            "classification", "classification",
+            TaskEnvelope(task="classification", input_ref="benchmark:one", requirements={"output": "json"}),
+            lambda output: output.startswith("{"),
+        )
+        adapters = {
+            "good": FixtureAdapter(ProviderProfile("good", "Good", "fixture", state=ProviderState.HEALTHY), lambda _: '{"label":"ok"}'),
+            "bad": FixtureAdapter(ProviderProfile("bad", "Bad", "fixture", state=ProviderState.HEALTHY), lambda _: ProviderResult("bad", success=False, error_kind=ProviderErrorKind.UNAVAILABLE)),
+        }
+        store = Store()
+        self.addCleanup(store.close)
+        results = Coordinator(ProviderRegistry(adapters), store).benchmark_providers(cases=(case,))
+        self.assertEqual(set(results), {"good", "bad"})
+        self.assertEqual(results["good"].valid, 1)
+        self.assertEqual(results["bad"].valid, 0)
+        self.assertEqual(store.health("good")["state"], ProviderState.HEALTHY.value)
+        self.assertEqual(store.health("bad")["state"], ProviderState.DEGRADED.value)
 
 
 if __name__ == "__main__":
