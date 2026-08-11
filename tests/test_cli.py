@@ -181,6 +181,13 @@ class CliTests(unittest.TestCase):
             "nvidia/nemotron-3-nano-30b-a3b",
         })
 
+    def test_sambanova_catalog_records_free_tier_guardrail(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        providers = [item for item in load_catalog() if item.provider_name == "SambaNova Cloud"]
+        self.assertEqual(providers[0].quota_status, "documented")
+        self.assertIn("20 RPM", providers[0].quota_summary)
+        self.assertIn("200,000 TPD", providers[0].quota_summary)
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog

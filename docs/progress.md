@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: `a125417`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `181 tests passed` with
+- Verification for the current implementation: `182 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -374,6 +374,9 @@ new batch plan. No provider calls were made during the endpoint audit.
 - NVIDIA NIM's catalog was refreshed away from stale Meta/experimental entries
   to current free-endpoint IDs shown in NVIDIA's model directory, including
   GPT-OSS 20B/120B and Nemotron 3 variants.
+- SambaNova's free-tier guardrails are now recorded as 20 RPM, 20 RPD, and
+  200,000 TPD for the selected models when no payment method is linked. Its
+  family remains disabled pending operator confirmation of the account tier.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
