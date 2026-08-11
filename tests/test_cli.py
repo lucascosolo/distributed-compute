@@ -73,6 +73,50 @@ class CliTests(unittest.TestCase):
         self.assertEqual(make.call_args.kwargs["token"], "token")
         server.serve_forever.assert_called_once()
 
+    def test_queue_submit_status_and_cancel_use_local_queue(self) -> None:
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/queue.sqlite"
+            task = json.dumps({"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
+            submitted = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(submitted):
+                self.assertEqual(main(["queue", "submit", "--db", database, "--json", task, "--idempotency-key", "operator-1"]), 0)
+            record = json.loads(submitted.getvalue())
+            self.assertEqual(record["status"], "queued")
+            self.assertEqual(record["idempotency_key"], "operator-1")
+
+            status = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(status):
+                self.assertEqual(main(["queue", "status", "--db", database, record["task_id"]]), 0)
+            self.assertEqual(json.loads(status.getvalue())["task_id"], record["task_id"])
+
+            cancelled = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(cancelled):
+                self.assertEqual(main(["queue", "cancel", "--db", database, record["task_id"]]), 0)
+            self.assertEqual(json.loads(cancelled.getvalue())["status"], "cancelled")
+
+    def test_queue_commands_forward_to_remote_gateway(self) -> None:
+        task = json.dumps({"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
+        with patch.dict(os.environ, {"AIPOOL_MODE": "remote", "AIPOOL_BASE_URL": "http://gateway", "AIPOOL_TOKEN": "token"}, clear=True), \
+             patch("aipool.cli.enqueue_remote", return_value={"task_id": "t1", "status": "queued"}) as enqueue, \
+             patch("aipool.cli.get_remote_queue", return_value={"task_id": "t1", "status": "running"}) as get_queue, \
+             patch("aipool.cli.cancel_remote", return_value={"task_id": "t1", "status": "cancelled"}) as cancel:
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                self.assertEqual(main(["queue", "submit", "--json", task, "--idempotency-key", "k1"]), 0)
+                self.assertEqual(main(["queue", "status", "t1"]), 0)
+                self.assertEqual(main(["queue", "cancel", "t1"]), 0)
+        self.assertEqual(enqueue.call_args.kwargs["idempotency_key"], "k1")
+        self.assertEqual(get_queue.call_args.args[1], "t1")
+        self.assertEqual(cancel.call_args.args[1], "t1")
+
+    def test_queue_status_missing_task_returns_not_found(self) -> None:
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = io.StringIO()
+            with contextlib.redirect_stdout(output):
+                code = main(["queue", "status", "--db", directory + "/queue.sqlite", "missing"])
+        self.assertEqual(code, 1)
+        self.assertEqual(json.loads(output.getvalue())["error"], "queue task not found")
+
 
 if __name__ == "__main__":
     unittest.main()

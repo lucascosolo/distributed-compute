@@ -6,6 +6,7 @@ import threading
 import time
 
 from .queue import TaskQueue
+from .domain import Strategy, TaskOutcome
 from .service import Coordinator
 
 
@@ -38,7 +39,15 @@ class QueueWorker:
         if latest is not None and latest.cancel_requested:
             self.queue.cancel_claimed(record.task_id, record.lease_id or "", now=self.clock())
             return True
-        outcome = self.coordinator.submit(record.task)
+        try:
+            outcome = self.coordinator.submit(record.task)
+        except Exception:
+            # Keep one bad invocation from killing supervision or hiding the
+            # task until its lease expires.
+            outcome = TaskOutcome(
+                task_id=record.task_id, strategy=Strategy.SINGLE, provider_id=None,
+                output=None, success=False, valid=False, reason="worker_exception",
+            )
         self.queue.complete(record.task_id, record.lease_id or "", outcome, now=self.clock())
         return True
 

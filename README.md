@@ -17,8 +17,8 @@ local LLM orchestration, and heterogeneous model routing.
 
 > **Project status:** early local MVP. The core contracts, adapters, routing,
 > validation, persistence, capability probing, verification, consensus, map, and
-> map-reduce paths are implemented. VPS control-plane operation, automatic
-> provider discovery, and a stable remote client remain roadmap work. Do not
+> map-reduce paths are implemented. Automatic provider discovery and production
+> VPS operation remain roadmap work. Do not
 > treat this repository as production-ready infrastructure yet.
 
 ## Why this project exists
@@ -48,6 +48,8 @@ providers.
   capabilities not present in a provider's initial declaration.
 - Bounded `verify` and three-provider `consensus` strategies.
 - Explicit-scope `map` and bounded `map_reduce` strategies.
+- Durable, bounded queueing with idempotent enqueue, inspection, cancellation,
+  expiring worker leases, and a supervised background worker.
 - Native-model fallback when no capable provider exists, quality validation
   fails, a composite subtask cannot be delegated, or delegation is not cheaper.
 - Content-addressed artifact storage and a concise Claude/Codex skill under
@@ -58,7 +60,7 @@ providers.
 The current MVP is a local Python package. It assumes Python 3.13 or newer.
 
 ```bash
-git clone git@github.com:lucascosolo/distributed-compute.git
+git clone https://github.com/lucascosolo/distributed-compute.git
 cd distributed-compute
 python3.13 -m venv .venv
 source .venv/bin/activate
@@ -92,6 +94,15 @@ Useful inspection commands:
 aipool providers
 aipool status
 aipool stats --db .aipool-data/aipool.sqlite
+```
+
+For asynchronous work, enqueue a task and inspect it later:
+
+```bash
+aipool queue submit --db .aipool-data/aipool.sqlite --json \
+  '{"task":"classification","input_ref":"artifact:example","local_estimate":1.0}'
+aipool queue status --db .aipool-data/aipool.sqlite TASK_ID
+aipool queue cancel --db .aipool-data/aipool.sqlite TASK_ID
 ```
 
 To run the HTTP gateway on the same computer, keep it loopback-only by default:
@@ -145,11 +156,19 @@ because it is free, popular, or fast.
 
 ## Claude and Codex integration
 
-The reusable skill is included in the repository so other users can import it:
+The reusable skill is included in the repository so other users can import it.
+For Claude Code, copy it into Claude's normal per-user skills directory:
 
 ```bash
-mkdir -p ~/.agents/skills/distributed-compute
-cp skills/distributed-compute/SKILL.md ~/.agents/skills/distributed-compute/SKILL.md
+mkdir -p ~/.claude/skills/distributed-compute
+cp skills/distributed-compute/SKILL.md ~/.claude/skills/distributed-compute/SKILL.md
+```
+
+For Codex, use its configured skills directory (normally `~/.codex/skills`):
+
+```bash
+mkdir -p ~/.codex/skills/distributed-compute
+cp skills/distributed-compute/SKILL.md ~/.codex/skills/distributed-compute/SKILL.md
 ```
 
 The skill deliberately tells the primary agent to retain responsibility for
@@ -161,8 +180,8 @@ and final synthesis. It also explains how to locate the ignored operator config.
 The repository reserves `.aipool.local` for deployment-specific values such as
 the coordinator host, database path, artifact root, and authentication token.
 Those values must never appear in tracked files, documentation, tests, or skill
-files. The standard-library gateway and thin remote client are available now;
-service supervision, TLS termination, durable queueing, and the production VPS
+files. The standard-library gateway, durable queue, worker supervision, and
+thin remote client are available now; TLS termination and the production VPS
 deployment workflow remain roadmap work. Do not infer a production VPS address
 or token from this repository. A generic, placeholder-only systemd example is in
 [`deploy/aipool.service.example`](deploy/aipool.service.example).

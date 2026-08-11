@@ -59,7 +59,9 @@ remote-node providers without adding transport assumptions to routing.
 ## Integration
 
 Install or symlink the canonical repository skill at
-`skills/distributed-compute` into `~/.agents/skills/distributed-compute`. The
+`skills/distributed-compute` into the native skill directory for the user's
+agent (for example `~/.claude/skills/distributed-compute` or
+`~/.codex/skills/distributed-compute`). The
 concise skill teaches when not to
 delegate, how to call `aipool task`, and when to request `verify`, `consensus`, or
 `cascade`. Heavy design and operations material remains in this repository.

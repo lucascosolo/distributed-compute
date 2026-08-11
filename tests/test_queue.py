@@ -1,3 +1,5 @@
+import threading
+import time
 import unittest
 
 from aipool.domain import Strategy, TaskEnvelope, TaskOutcome
@@ -78,6 +80,26 @@ class QueueTests(unittest.TestCase):
         worker = QueueWorker(self.queue, Coordinator(), worker_id="w", clock=lambda: 11.0)
         self.assertFalse(worker.run_once(now=11.0))
         self.assertEqual(submitted, [])
+
+    def test_worker_run_forever_stops_without_leaking_thread(self) -> None:
+        worker = QueueWorker(self.queue, unittest.mock.Mock(), poll_seconds=0.01)
+        stop = threading.Event()
+        thread = threading.Thread(target=worker.run_forever, args=(stop,))
+        thread.start()
+        time.sleep(0.03)
+        stop.set()
+        thread.join(timeout=1)
+        self.assertFalse(thread.is_alive())
+
+    def test_worker_records_provider_exception_as_failed_outcome(self) -> None:
+        self.queue.enqueue(self.task)
+        coordinator = unittest.mock.Mock()
+        coordinator.submit.side_effect = RuntimeError("coordinator unavailable")
+        worker = QueueWorker(self.queue, coordinator, clock=lambda: 10.0)
+        self.assertTrue(worker.run_once(now=10.0))
+        record = self.queue.get(self.task.task_id)
+        self.assertEqual(record.status, "failed")
+        self.assertEqual(record.outcome.reason, "worker_exception")
 
 
 if __name__ == "__main__":

@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `39975b8`
+- Last pushed commit: pending (this checkpoint)
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `68 tests passed` with
+- Verification for this chunk: `73 tests passed` with
   `-W error::ResourceWarning`
 - No VPS deployment has been performed.
 
@@ -38,6 +38,14 @@ or the operator's environment.
 - Provider usage windows now support configured request/token limits with
   persistent SQLite accounting. Exhausted providers enter `RATE_LIMITED` hold
   until the window ends; HTTP 429 `Retry-After` values extend health backoff.
+- Operator queue commands now support local and authenticated remote
+  `submit`, `status`, and `cancel` operations. The supervised worker records a
+  bounded failure outcome when a coordinator invocation raises, and exits
+  cleanly when its stop event is set.
+- Public setup instructions use HTTPS cloning and native per-agent skill
+  directories (`~/.claude/skills` or `~/.codex/skills`); CLI config discovery
+  supports matching per-agent operator environment files while retaining the
+  legacy shared operator path for compatibility.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -60,8 +68,8 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Add service-supervision integration tests and operator-facing queue commands,
-then harden provider registration and discovery. Preserve the usage/backoff
+Add deeper service-supervision integration tests and harden provider
+registration and discovery. Preserve the usage/backoff
 invariant: no provider call is attempted after a known request/token window is
 exhausted, and no 429 provider is retried before its hold expires.
 

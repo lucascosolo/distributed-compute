@@ -11,8 +11,9 @@ delegate secrets, irreversible actions, tool permissions, or work whose compact
 delegation envelope costs more than doing it directly.
 
 Locate the operator-local configuration before invoking the coordinator. The
-project uses `.aipool.local` in the repository, `AIPOOL_CONFIG_FILE`, or
-`~/.agents/distributed-compute.env`; these files are gitignored/operator-local
+project uses `.aipool.local` in the repository, `AIPOOL_CONFIG_FILE`, or an
+operator-local environment file such as `~/.claude/distributed-compute.env` or
+`~/.codex/distributed-compute.env`; these files are gitignored/operator-local
 and contain the local or authorized remote coordinator URL and token.
 
 Use the stable CLI from the project environment for local mode:

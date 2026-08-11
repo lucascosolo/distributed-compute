@@ -10,10 +10,10 @@ import sys
 import threading
 from pathlib import Path
 
-from .client import RemoteCoordinatorError, submit_remote
+from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
-from .queue import TaskQueue
+from .queue import QueueFull, TaskQueue, record_to_dict
 from .providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .service import Coordinator
 from .storage import Store
@@ -26,7 +26,12 @@ def _load_local_config() -> None:
     configured = os.environ.get("AIPOOL_CONFIG_FILE")
     if configured:
         candidates.append(Path(configured).expanduser())
-    candidates.extend((Path.cwd() / ".aipool.local", Path.home() / ".agents" / "distributed-compute.env"))
+    candidates.extend((
+        Path.cwd() / ".aipool.local",
+        Path.home() / ".claude" / "distributed-compute.env",
+        Path.home() / ".codex" / "distributed-compute.env",
+        Path.home() / ".agents" / "distributed-compute.env",
+    ))
     for path in candidates:
         if not path.is_file():
             continue
@@ -85,6 +90,18 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--host", default=os.environ.get("AIPOOL_HOST", "127.0.0.1"))
     serve.add_argument("--port", type=int, default=int(os.environ.get("AIPOOL_PORT", "8765")))
     serve.add_argument("--no-worker", action="store_true", help="serve HTTP without processing queued tasks")
+    queue = subparsers.add_parser("queue", help="enqueue, inspect, or cancel durable tasks")
+    queue_subparsers = queue.add_subparsers(dest="queue_action", required=True)
+    queue_submit = queue_subparsers.add_parser("submit", help="enqueue one task without waiting for completion")
+    queue_submit.add_argument("--json", required=True, dest="task_json")
+    queue_submit.add_argument("--idempotency-key")
+    queue_submit.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    queue_status = queue_subparsers.add_parser("status", help="show one queued task")
+    queue_status.add_argument("task_id")
+    queue_status.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    queue_cancel = queue_subparsers.add_parser("cancel", help="cancel one queued or running task")
+    queue_cancel.add_argument("task_id")
+    queue_cancel.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     return parser
 
 
@@ -92,6 +109,57 @@ def main(argv: list[str] | None = None) -> int:
     _load_local_config()
     args = _parser().parse_args(argv)
     registry = _build_registry(args)
+    if args.command == "queue":
+        mode = os.environ.get("AIPOOL_MODE", "local").lower()
+        base_url = os.environ.get("AIPOOL_BASE_URL", "")
+        token = os.environ.get("AIPOOL_TOKEN") or None
+        if args.queue_action == "submit":
+            try:
+                task = TaskEnvelope.from_dict(json.loads(args.task_json))
+            except (ValueError, TypeError, json.JSONDecodeError, KeyError) as exc:
+                print(json.dumps({"success": False, "error": f"invalid task envelope: {exc}"}, separators=(",", ":")))
+                return 2
+            try:
+                if mode == "remote":
+                    result = enqueue_remote(base_url, task, token=token, idempotency_key=args.idempotency_key)
+                else:
+                    store = Store(args.db)
+                    try:
+                        result = record_to_dict(TaskQueue(store, max_pending=int(os.environ.get("AIPOOL_MAX_PENDING", "1000"))).enqueue(task, idempotency_key=args.idempotency_key))
+                    finally:
+                        store.close()
+            except (QueueFull, RemoteCoordinatorError, ValueError) as exc:
+                print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+                return 1
+            print(json.dumps(result, separators=(",", ":")))
+            return 0
+        try:
+            if mode == "remote":
+                operation = get_remote_queue if args.queue_action == "status" else cancel_remote
+                result = operation(base_url, args.task_id, token=token)
+            else:
+                store = Store(args.db)
+                try:
+                    queue = TaskQueue(store)
+                    if args.queue_action == "status":
+                        record = queue.get(args.task_id)
+                        if record is None:
+                            print(json.dumps({"error": "queue task not found"}, separators=(",", ":")))
+                            return 1
+                    else:
+                        queue.cancel(args.task_id)
+                        record = queue.get(args.task_id)
+                        if record is None:
+                            print(json.dumps({"error": "queue task not found"}, separators=(",", ":")))
+                            return 1
+                    result = record_to_dict(record)
+                finally:
+                    store.close()
+        except RemoteCoordinatorError as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 1
+        print(json.dumps(result, separators=(",", ":")))
+        return 0
     if args.command == "serve":
         store = Store(args.db)
         stop_event = threading.Event()
