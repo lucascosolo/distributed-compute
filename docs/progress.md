@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: `982d4e8`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `169 tests passed` with
+- Verification for the current implementation: `170 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -338,6 +338,10 @@ new batch plan. No provider calls were made during the endpoint audit.
   token, and keeps the family unloaded until both values are present. The VPS
   no-network readiness check confirms the token is already saved but the account
   ID is missing; no provider calls were made.
+- Cloudflare's catalog was also refreshed to current documented text models
+  (`@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3-30b-a3b-fp8`) instead of the
+  deprecated Llama/Qwen entries. This metadata change has fixture coverage and
+  still requires deployment before it appears on the VPS.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the

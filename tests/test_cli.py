@@ -104,6 +104,17 @@ class CliTests(unittest.TestCase):
         self.assertEqual(adapter.profile.transport, "cloudflare-workers-ai")
         self.assertEqual(adapter.endpoint, provider.endpoint)
 
+    def test_cloudflare_catalog_uses_current_documented_model_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        models = {
+            item.model for item in load_catalog()
+            if item.provider_name == "Cloudflare Workers AI"
+        }
+        self.assertEqual(models, {
+            "@cf/zai-org/glm-4.7-flash",
+            "@cf/qwen/qwen3-30b-a3b-fp8",
+        })
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog
