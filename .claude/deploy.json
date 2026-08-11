@@ -1,0 +1,8 @@
+{
+  "app": "distributed-compute",
+  "strategy": "git-systemd",
+  "target": "/srv/distributed-compute",
+  "branch": "main",
+  "unit": "distributed-compute",
+  "healthcheck": "/usr/bin/python3 -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8876/status\", timeout=3).read()'"
+}
