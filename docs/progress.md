@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `63bdba6`
+- Last pushed commit: `987a2ed`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `160 tests passed` with
+- Verification for the current implementation: `164 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -294,6 +294,51 @@ or the operator's environment.
   native `/v1` endpoint to the documented `/compatibility/v1` OpenAI-compatible
   endpoint; several operator-supplied endpoints remain quarantine-only until
   their own documentation confirms them.
+
+## Immediate user requirement
+
+Do not run another provider smoke batch until every current catalog provider is
+either operational through a verified adapter or explicitly removed/quarantined
+with a concrete reason. Endpoint correctness alone is not enough: each provider
+needs correct authentication mapping, account metadata, current model IDs,
+request/response translation, rate-limit handling, and a cheap verification path.
+The next implementation chunk must make the remaining current providers work,
+starting with Cloudflare Workers AI's account-aware native adapter and any other
+provider currently marked `not_loaded`; only then should the operator review a
+new batch plan. No provider calls were made during the endpoint audit.
+
+## Compact continuation record
+
+- Current deployed commit: `987a2ed`; working tree is clean; VPS service is
+  active and healthy.
+- The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
+  Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
+  Hugging Face chat endpoint have documented endpoint shapes. Cohere was fixed
+  to `/compatibility/v1`. Cloudflare still needs an account-aware native
+  adapter. TokenRouter and Z.AI have endpoint documentation but still require
+  model-catalog/access confirmation; Kilo still requires primary documentation.
+- The deployed read-only plan endpoint reports 12 selected models and 36
+  expected calls, but the new requirement supersedes that plan: do not execute
+  it yet. The approval-gated sequential endpoint is implemented but intentionally
+  unused after the audit.
+- Current readiness is 68 model cards: 52 quarantined, 5 healthy, 6
+  auth-required, 1 degraded, and 4 not-loaded. The four not-loaded cards are
+  Cloudflare Workers AI (2 cards) and SambaNova (2 cards disabled by operator
+  state). The dashboard now explains that a saved key can still require an
+  adapter, account metadata, endpoint, or model-ID fix.
+- User supplied current Google AI Studio, Cerebras, Groq, and Gemini documentation
+  links during research. The Google key is recognized and four Gemini cards are
+  loaded/quarantined. Do not infer free usage from key presence; Google limits
+  are project/model/account dependent, and Hugging Face already demonstrated
+  paid usage.
+- Next session: resume with the remaining-provider integration audit, keep all
+  changes scoped and tested, and pause again before any external model calls.
+- First implementation task after compaction: add the Cloudflare account ID and
+  any other required non-secret fields to the panel. If the deployment already
+  contains the value in operator configuration, inspect and reuse it rather than
+  asking for duplicate input; otherwise present a clear human checkpoint telling
+  the operator where to find and save it. Keep the adapter unloaded until its
+  required configuration is complete.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the

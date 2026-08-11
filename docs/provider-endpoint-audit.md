@@ -13,22 +13,33 @@ send model requests, validate credentials, or prove that a tier is free.
 | Cohere | `api.cohere.ai/compatibility/v1` / OpenAI-compatible | corrected | The catalog previously pointed at the native `/v1` API while claiming a generic adapter. Official docs show the compatibility path; model metadata was refreshed. |
 | Cloudflare Workers AI | `api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}` / native REST | verified, not loaded | The path requires an account ID and Cloudflare-specific request/response handling. It is not eligible for the generic OpenAI adapter yet. |
 | OpenRouter | `openrouter.ai/api/v1` / OpenAI-compatible | verified | Official docs show `/api/v1/chat/completions`. |
-| Z.AI GLM | `api.z.ai/api/paas/v4` / OpenAI-compatible | cataloged, primary-doc check pending | Keep quarantined until the official endpoint/model documentation is captured. |
-| TokenRouter | `api.tokenrouter.com/v1` / OpenAI-compatible | operator-supplied, primary-doc check pending | Do not spend quota until the provider’s own API docs confirm the base path and model IDs. |
+| Z.AI GLM | `api.z.ai/api/paas/v4` / OpenAI-compatible | endpoint verified, model access pending | Z.AI’s official SDK documentation confirms the overseas base path. Model IDs and account-region access still need confirmation before testing. |
+| TokenRouter | `api.tokenrouter.com/v1` / OpenAI-compatible | base path provisionally verified, model access pending | The provider’s official site/console references this base URL; the separate `.io` documentation uses a different host, so model IDs and the applicable documentation must be reconciled before testing. |
 | NVIDIA NIM hosted API | `integrate.api.nvidia.com/v1` / OpenAI-compatible | shape verified | NVIDIA’s NIM API is OpenAI-compatible; hosted build.nvidia.com model IDs still require live discovery before testing. |
 | Mistral AI | `api.mistral.ai/v1` / OpenAI-compatible | verified | Official docs use `/v1/chat/completions`. |
 | SambaNova Cloud | `api.sambanova.ai/v1` / OpenAI-compatible | verified | Official API-key docs show `/v1/chat/completions`; current free availability remains account-dependent. |
-| Aion Labs | `api.aionlabs.ai/v1` / OpenAI-compatible | operator-supplied, primary-doc check pending | Keep quarantined until official endpoint and model documentation are captured. |
+| Aion Labs | `api.aionlabs.ai/v1` / OpenAI-compatible | verified | Official documentation confirms OpenAI-compatible chat completions and a `/v1/models` discovery endpoint. |
 | Kilo Gateway | `api.kilo.ai/api/gateway` / OpenAI-compatible | operator-supplied, primary-doc check pending | Keep quarantined until the gateway’s own API documentation confirms the path. |
 | Ollama Cloud | `ollama.com/v1` / OpenAI-compatible | verified | Official Ollama compatibility material documents this cloud base URL. |
-| BazaarLink | `bazaarlink.ai/api/v1` / OpenAI-compatible | operator-supplied, primary-doc check pending | Keep quarantined until the provider’s own API documentation confirms the path. |
+| BazaarLink | `bazaarlink.ai/api/v1` / OpenAI-compatible | verified, model discovery pending | Official documentation confirms the OpenAI-compatible base path and says full provider/model IDs are required; catalog IDs still need a no-generation `/models` check. |
 | xAI | `api.x.ai/v1` / OpenAI-compatible | verified | Official xAI docs use `/v1/chat/completions`. |
 
 ## Test gate
 
 Do not run another multi-provider batch while any selected model is marked
-“primary-doc check pending.” A future batch plan should show the endpoint audit
-status, selected model IDs, expected calls, and quota headroom before the human
-approves it. Endpoint verification does not replace a one-call credential and
-response-shape check; it prevents wasting a full three-case benchmark on an
-obvious integration mismatch.
+“model access pending,” “primary-doc check pending,” or “not loaded.” A future
+batch plan should show the endpoint audit status, selected model IDs, expected
+calls, and quota headroom before the human approves it. Endpoint verification
+does not replace a one-call credential and response-shape check; it prevents
+wasting a full three-case benchmark on an obvious integration mismatch.
+
+## Next implementation chunk
+
+Add Cloudflare-specific configuration fields to the admin panel, at minimum the
+Cloudflare account ID alongside the existing secret field. The adapter must use
+the account-aware Workers AI REST path and translate its native response and
+rate-limit errors; it must not silently send Cloudflare through the generic
+OpenAI adapter. The panel should explain where the account ID comes from, show
+whether it is saved without revealing secrets, and keep the family unloaded
+until both required values are present. Verify with fixture tests before any
+live provider call.
