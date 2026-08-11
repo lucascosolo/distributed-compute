@@ -84,6 +84,8 @@ class GatewayTests(unittest.TestCase):
         status, data = self.request("GET", "/status")
         self.assertEqual(status, 200)
         self.assertEqual(data["provider_states"][0]["id"], "p")
+        self.assertEqual(data["provider_states"][0]["transport"], "fixture")
+        self.assertIn("classification", data["provider_states"][0]["capabilities"])
         self.assertEqual(data["provider_states"][0]["state"], "healthy")
         self.assertIn("stats", data)
         status, data = self.request("GET", "/stats")

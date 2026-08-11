@@ -139,7 +139,12 @@ def make_server(
             return {
                 "providers": len(profiles),
                 "provider_states": [
-                    {"id": profile.id, "state": profile.state.value}
+                    {
+                        "id": profile.id, "name": profile.name,
+                        "transport": profile.transport,
+                        "state": profile.state.value,
+                        "capabilities": dict(profile.capabilities),
+                    }
                     for profile in profiles
                 ],
                 "stats": coordinator.store.stats(),
