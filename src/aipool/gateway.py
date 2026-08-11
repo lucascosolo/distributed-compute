@@ -13,6 +13,8 @@ from urllib.parse import parse_qs, urlsplit
 from html import escape
 
 from .domain import TaskEnvelope
+from .benchmark import run_benchmark
+from .discovered import build_discovered_adapter
 from .model_discovery import classify_model, discover_models
 from .provider_catalog import CatalogProvider, config_prefix, load_catalog, model_config_prefix
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -125,6 +127,8 @@ def make_server(
                     "metadata_confidence": row["metadata_confidence"],
                     "state": row["state"], "last_seen": row["last_seen"],
                     "review_note": row["review_note"], "reviewed_at": row["reviewed_at"],
+                    "probe_status": row["probe_status"],
+                    "probe": json.loads(row["probe_json"]), "probed_at": row["probed_at"],
                 }
                 for row in coordinator.store.discovered_model_rows()
             ],
@@ -258,7 +262,8 @@ function card(p){let keyName=providerKey(p.provider_slug,'API_KEY');let keyState
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
 async function reviewModel(encoded,decision){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('[data-review-model]')).find(el=>el.dataset.reviewModel===key);let note=input?.value.trim()||'';if(!note){alert('Add a short review note before deciding.');return}let r=await fetch('/admin/discovered-model/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,decision,note})});let d=await r.json();if(!r.ok){alert(d.error||'Review failed');return}await load()}
-async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);for(let g of Object.values(groups))g.items.forEach((p,i)=>p.showLimits=i===0);let catalog=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('');let findings=c.discovered_models?.length?`<section><h3>Live findings — human review required</h3><div class="grid">${c.discovered_models.slice(0,96).map(m=>{let actions=m.state==='quarantined'?`<label>Review note<input data-review-model="${esc(m.model_key)}" placeholder="identity, capability, quota evidence"></label><button type="button" onclick="reviewModel('${encodeURIComponent(m.model_key)}','approve')">Approve for bounded smoke test</button> <button type="button" onclick="reviewModel('${encodeURIComponent(m.model_key)}','reject')">Reject</button>`:`<span class="status">${esc(m.state)} — review recorded</span>`;return `<article class="card"><h3>${esc(m.model_id)}</h3><span class="tag">${esc(m.power)} · quota ×${m.quota_weight} · ${esc(m.metadata_confidence)} confidence</span><p class="meta">${esc(m.provider_name)} · ${esc(m.state)} · capabilities: ${esc(m.capabilities.join(', '))}<br>heuristics never grant complex routing</p>${actions}</article>`}).join('')}</div></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
+async function smokeTestModel(encoded){let key=decodeURIComponent(encoded);let r=await fetch('/admin/discovered-model/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key})});let d=await r.json();if(!r.ok){alert(d.error||'Smoke test failed');return}await load()}
+async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);for(let g of Object.values(groups))g.items.forEach((p,i)=>p.showLimits=i===0);let catalog=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('');let findings=c.discovered_models?.length?`<section><h3>Live findings — human review required</h3><div class="grid">${c.discovered_models.slice(0,96).map(m=>{let actions=m.state==='quarantined'?`<label>Review note<input data-review-model="${esc(m.model_key)}" placeholder="identity, capability, quota evidence"></label><button type="button" onclick="reviewModel('${encodeURIComponent(m.model_key)}','approve')">Approve for bounded smoke test</button> <button type="button" onclick="reviewModel('${encodeURIComponent(m.model_key)}','reject')">Reject</button>`:m.state==='approved'?`<button type="button" onclick="smokeTestModel('${encodeURIComponent(m.model_key)}')">Run bounded smoke test</button>`:`<span class="status">${esc(m.state)} · ${esc(m.probe_status)} — activation still requires explicit approval</span>`;return `<article class="card"><h3>${esc(m.model_id)}</h3><span class="tag">${esc(m.power)} · quota ×${m.quota_weight} · ${esc(m.metadata_confidence)} confidence</span><p class="meta">${esc(m.provider_name)} · ${esc(m.state)} · capabilities: ${esc(m.capabilities.join(', '))}<br>heuristics never grant complex routing</p>${actions}</article>`}).join('')}</div></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
 form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.target;if(el.dataset.provider&&el.value){for(let box of form.querySelectorAll('input[type="checkbox"][data-provider="'+el.dataset.provider+'"]'))box.checked=true}});form.onsubmit=async e=>{e.preventDefault();let payload={};for(let el of form.querySelectorAll('[data-key],input[name]')){let k=el.dataset.key||el.name;if(el.type==='password'&&!el.value)continue;payload[k]=el.type==='checkbox'?(el.checked?'1':'0'):el.value}let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json();if(data.updated)savebar.classList.remove('is-dirty');out.textContent=data.updated?'Saved and applied immediately.':(data.error||'Save failed')};load();
 </script></body></html>""")
                 return
@@ -324,6 +329,61 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     "model_key": row["model_key"], "model_id": row["model_id"],
                     "state": row["state"], "review_note": row["review_note"],
                     "reviewed_at": row["reviewed_at"],
+                })
+                return
+            if path == "/admin/discovered-model/smoke-test":
+                try:
+                    payload = self._read_json()
+                    if not isinstance(payload, dict):
+                        raise ValueError("smoke test must be an object")
+                    model_key = str(payload.get("model_key", "")).strip()
+                    row = next((item for item in coordinator.store.discovered_model_rows() if item["model_key"] == model_key), None)
+                    if row is None:
+                        raise LookupError("unknown_discovered_model")
+                    if row["state"] != "approved":
+                        raise ValueError("discovered model must be approved before smoke testing")
+                    provider = next((item for item in catalog if item.provider_slug == row["provider_slug"]), None)
+                    if provider is None:
+                        raise ValueError("provider family is not in the current catalog")
+                    provider_prefix = config_prefix(provider)
+                    api_key_env = f"{provider_prefix}_API_KEY"
+                    if not os.environ.get(api_key_env):
+                        api_key = next((line.partition("=")[2] for line in operator_config.read_text().splitlines()
+                                        if line.partition("=")[0] == api_key_env), "") if operator_config.is_file() else ""
+                        if api_key:
+                            os.environ[api_key_env] = api_key
+                    if not os.environ.get(api_key_env) and row["transport"] == "huggingface-api":
+                        api_key_env = "HF_TOKEN"
+                    def limit(name: str, default: str) -> str:
+                        if os.environ.get(name):
+                            return os.environ[name]
+                        if operator_config.is_file():
+                            for line in operator_config.read_text().splitlines():
+                                key, separator, value = line.partition("=")
+                                if separator and key == name:
+                                    return value
+                        return default
+                    adapter = build_discovered_adapter(
+                        row, api_key_env=api_key_env,
+                        request_limit=max(0, int(limit(f"{provider_prefix}_REQUEST_LIMIT", "0"))),
+                        token_limit=max(0, int(limit(f"{provider_prefix}_TOKEN_LIMIT", "0"))),
+                        usage_window_seconds=max(0.001, float(limit(f"{provider_prefix}_USAGE_WINDOW_SECONDS", "60"))),
+                    )
+                    result = run_benchmark(adapter)
+                    coordinator.store.record_benchmark(result)
+                    if result.stopped_error is not None:
+                        coordinator.health.failure(adapter.profile, result.stopped_error, "discovered smoke test stopped", retry_after_seconds=result.retry_after_seconds)
+                    row = coordinator.store.record_discovered_probe(model_key, result, now=time.time())
+                except LookupError as exc:
+                    self._send(404, {"error": str(exc)})
+                    return
+                except (ValueError, TypeError, json.JSONDecodeError, OSError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                    return
+                self._send(200, {
+                    "model_key": row["model_key"], "model_id": row["model_id"],
+                    "provider_id": adapter.profile.id, "state": row["state"],
+                    "probe_status": row["probe_status"], "probe": json.loads(row["probe_json"]),
                 })
                 return
             if path == "/queue":

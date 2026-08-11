@@ -108,6 +108,7 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"No API key saved", body)
         self.assertIn(b"human review required", body)
         self.assertIn(b"Approve for bounded smoke test", body)
+        self.assertIn(b"Run bounded smoke test", body)
         self.assertIn(b"Requests per window", body)
         self.assertIn(b"Tokens per window", body)
         status, data = self.request("GET", "/admin/config")
@@ -233,6 +234,39 @@ class GatewayTests(unittest.TestCase):
     def test_discovered_model_review_does_not_activate_routing(self) -> None:
         status, data = self.request("POST", "/admin/discovered-model/review", {
             "model_key": "missing", "decision": "approve", "note": "not found",
+        })
+        self.assertEqual(status, 404)
+        self.assertEqual(data["error"], "unknown_discovered_model")
+
+    def test_approved_discovered_model_can_run_bounded_smoke_test_without_activation(self) -> None:
+        status, config = self.request("GET", "/admin/config")
+        slug = config["providers"][0]["slug"]
+        with patch("aipool.gateway.discover_models") as discover:
+            from aipool.model_discovery import ModelDiscovery
+            discover.return_value = ModelDiscovery(True, ("smoke-me",), "https://router.example/v1/models")
+            self.request("GET", f"/admin/discover-models?slug={slug}")
+        snapshot = self.request("GET", "/admin/config")[1]
+        finding = next(row for row in snapshot["discovered_models"] if row["model_id"] == "smoke-me")
+        self.request("POST", "/admin/discovered-model/review", {
+            "model_key": finding["model_key"], "decision": "approve", "note": "bounded smoke test is warranted",
+        })
+        from aipool.benchmark import BenchmarkResult
+        with patch("aipool.gateway.run_benchmark", return_value=BenchmarkResult(
+            "discovered-test", {"classification": 1.0}, 1, 1,
+        )):
+            status, data = self.request("POST", "/admin/discovered-model/smoke-test", {
+                "model_key": finding["model_key"],
+            })
+        self.assertEqual(status, 200)
+        self.assertEqual(data["state"], "smoke_tested")
+        self.assertNotIn(data["provider_id"], {adapter.profile.id for adapter in self.server.aipool_coordinator.registry.all()})
+        snapshot = self.request("GET", "/admin/config")[1]
+        finding = next(row for row in snapshot["discovered_models"] if row["model_id"] == "smoke-me")
+        self.assertEqual(finding["probe_status"], "passed")
+
+    def test_quarantined_discovered_model_cannot_be_smoke_tested(self) -> None:
+        status, data = self.request("POST", "/admin/discovered-model/smoke-test", {
+            "model_key": "missing", "note": "not found",
         })
         self.assertEqual(status, 404)
         self.assertEqual(data["error"], "unknown_discovered_model")

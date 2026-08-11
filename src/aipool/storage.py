@@ -73,6 +73,8 @@ class Store:
                 quota_weight REAL NOT NULL, capabilities_json TEXT NOT NULL,
                 metadata_confidence TEXT NOT NULL, state TEXT NOT NULL,
                 first_seen REAL NOT NULL, last_seen REAL NOT NULL,
+                probe_status TEXT NOT NULL DEFAULT 'not_run', probe_json TEXT NOT NULL DEFAULT '{}',
+                probed_at REAL,
                 UNIQUE(provider_slug, model_id)
             );
             CREATE TABLE IF NOT EXISTS discovered_model_reviews (
@@ -83,7 +85,11 @@ class Store:
             """
         )
         columns = {str(row["name"]) for row in self.connection.execute("PRAGMA table_info(discovered_models)")}
-        for name, definition in (("review_note", "TEXT"), ("reviewed_at", "REAL")):
+        for name, definition in (
+            ("review_note", "TEXT"), ("reviewed_at", "REAL"),
+            ("probe_status", "TEXT NOT NULL DEFAULT 'not_run'"),
+            ("probe_json", "TEXT NOT NULL DEFAULT '{}'"), ("probed_at", "REAL"),
+        ):
             if name not in columns:
                 self.connection.execute(f"ALTER TABLE discovered_models ADD COLUMN {name} {definition}")
         self.connection.commit()
@@ -258,6 +264,32 @@ class Store:
             self.connection.commit()
             return self.connection.execute(
                 "SELECT * FROM discovered_models WHERE model_key = ?", (model_key,)
+            ).fetchone()
+
+    def record_discovered_probe(self, model_key: str, result: BenchmarkResult, *, now: float) -> sqlite3.Row:
+        passed = result.stopped_error is None and result.attempts > 0 and result.valid == result.attempts
+        status = "passed" if passed else "failed"
+        payload = json.dumps({
+            "scores": result.scores, "attempts": result.attempts, "valid": result.valid,
+            "stopped_error": result.stopped_error.value if result.stopped_error else None,
+            "retry_after_seconds": result.retry_after_seconds,
+        }, separators=(",", ":"))
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT * FROM discovered_models WHERE model_key = ?", (str(model_key),)
+            ).fetchone()
+            if row is None:
+                raise LookupError("unknown_discovered_model")
+            if row["state"] != "approved":
+                raise ValueError("discovered model must be approved before smoke testing")
+            state = "smoke_tested" if passed else "approved"
+            self.connection.execute(
+                "UPDATE discovered_models SET state = ?, probe_status = ?, probe_json = ?, probed_at = ? WHERE model_key = ?",
+                (state, status, payload, now, str(model_key)),
+            )
+            self.connection.commit()
+            return self.connection.execute(
+                "SELECT * FROM discovered_models WHERE model_key = ?", (str(model_key),)
             ).fetchone()
 
     def cache_get(self, cache_key: str) -> sqlite3.Row | None:

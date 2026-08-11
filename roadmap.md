@@ -316,6 +316,10 @@ now records an authenticated approve/reject decision and review note; approval
 only makes a finding eligible for a later bounded smoke test and never activates
 routing by itself.
 
+Approved API findings can now run a bounded synthetic smoke test using the shared
+provider credential and quota group. Results are redacted benchmark evidence;
+passing changes the finding to `smoke_tested` but does not register it for routing.
+
 Provider-family quota controls are now available in the panel for request limits,
 token limits, and window duration. Model cards in one family share the same
 persistent usage bucket, so selecting a different model cannot evade the

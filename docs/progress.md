@@ -237,6 +237,10 @@ or the operator's environment.
   multi-opinion path preserves disagreements as explicitly untrusted input for
   the native fallback model, remains capped at three providers, and never creates
   provider-to-provider back-and-forth.
+- Approved discovered API models now have a bounded synthetic smoke-test action.
+  The adapter is constructed conservatively, benchmark evidence is persisted
+  without response text or credentials, and a passing test remains non-routing
+  until a later explicit activation decision.
 
 ## Non-negotiable design decisions
 
