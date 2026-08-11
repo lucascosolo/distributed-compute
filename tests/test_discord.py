@@ -69,6 +69,21 @@ class DiscordApiTests(unittest.TestCase):
         client = DiscordApiClient("token", "guild", "channel")
         with self.assertRaisesRegex(ValueError, "between 1 and 1000"):
             client.list_bots(1001)
+        with self.assertRaisesRegex(ValueError, "pages must be between"):
+            client.list_bots(max_pages=11)
+
+    def test_list_bots_follows_a_full_page_to_find_later_bots(self) -> None:
+        requests: list[Request] = []
+        first_page = [{"user": {"id": "100", "username": "first", "bot": True}}]
+        second_page = [{"user": {"id": "200", "username": "second", "bot": True}}]
+
+        def opener(req, timeout):
+            requests.append(req)
+            return Response(first_page if len(requests) == 1 else second_page)
+
+        result = DiscordApiClient("secret", "guild", "channel", opener=opener).list_bots(limit=1)
+        self.assertEqual([bot["id"] for bot in result], ["100", "200"])
+        self.assertIn("after=100", requests[1].full_url)
 
     def test_channel_adapter_sends_bounded_task_and_waits_for_selected_bot(self) -> None:
         requests: list[Request] = []

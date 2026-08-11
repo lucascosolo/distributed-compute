@@ -53,26 +53,41 @@ class DiscordApiClient:
         except (KeyError, TypeError) as exc:
             raise ValueError("Discord API returned an invalid resource response") from exc
 
-    def list_bots(self, limit: int = 1000) -> list[dict[str, str]]:
-        """Return bot members visible in the configured guild, without sending anything."""
+    def list_bots(self, limit: int = 1000, max_pages: int = 10) -> list[dict[str, str]]:
+        """Return visible bot members, paging without sending anything."""
         if not 1 <= limit <= 1000:
             raise ValueError("Discord member limit must be between 1 and 1000")
-        payload = self._get_raw(
-            f"/guilds/{self.guild_id}/members?{parse.urlencode({'limit': str(limit)})}",
-        )
-        if not isinstance(payload, list):
-            raise ValueError("Discord members response is not a list")
+        if not 1 <= max_pages <= 10:
+            raise ValueError("Discord member pages must be between 1 and 10")
         bots: list[dict[str, str]] = []
-        for member in payload:
-            if not isinstance(member, dict):
-                continue
-            user = member.get("user")
-            if not isinstance(user, dict) or not user.get("bot"):
-                continue
-            bot_id = user.get("id")
-            if not isinstance(bot_id, str) or not bot_id:
-                continue
-            bots.append({"id": bot_id, "username": str(user.get("username", ""))})
+        seen_bot_ids: set[str] = set()
+        after = "0"
+        for _ in range(max_pages):
+            query = {"limit": str(limit)}
+            if after != "0":
+                query["after"] = after
+            payload = self._get_raw(f"/guilds/{self.guild_id}/members?{parse.urlencode(query)}")
+            if not isinstance(payload, list):
+                raise ValueError("Discord members response is not a list")
+            for member in payload:
+                if not isinstance(member, dict):
+                    continue
+                user = member.get("user")
+                if not isinstance(user, dict) or not user.get("bot"):
+                    continue
+                bot_id = user.get("id")
+                if not isinstance(bot_id, str) or not bot_id:
+                    continue
+                if bot_id not in seen_bot_ids:
+                    seen_bot_ids.add(bot_id)
+                    bots.append({"id": bot_id, "username": str(user.get("username", ""))})
+            if len(payload) < limit:
+                break
+            last = payload[-1].get("user") if isinstance(payload[-1], dict) else None
+            next_after = last.get("id") if isinstance(last, dict) else None
+            if not isinstance(next_after, str) or not next_after or next_after == after:
+                break
+            after = next_after
         return bots
 
     def _get(self, path: str) -> dict[str, object]:
