@@ -104,20 +104,32 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             tuple(shlex.split(browser_command)),
             ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
         ))
-    discord_target = os.environ.get("AIPOOL_DISCORD_TARGET_BOT_ID")
     discord_token = os.environ.get("AIPOOL_DISCORD_BOT_TOKEN")
+    discord_guild = os.environ.get("AIPOOL_DISCORD_GUILD_ID")
     discord_channel = os.environ.get("AIPOOL_DISCORD_CHANNEL_ID")
-    if discord_target and discord_token and discord_channel:
-        profile = ProviderProfile(
-            "discord-worker", "Configured Discord worker", "discord",
-            capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
-            reliability=0.2, state=ProviderState.HEALTHY, max_complexity=1,
-        )
-        registry.register(DiscordChannelAdapter(
-            profile, discord_token, discord_channel, discord_target,
-            controller_bot_id=os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", ""),
-            message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
-        ))
+    if args.command != "discord" and discord_token and discord_guild and discord_channel:
+        try:
+            client = DiscordApiClient(discord_token, discord_guild, discord_channel)
+            discovered = client.list_bots()
+        except (ValueError, TypeError):
+            discovered = []
+        if not isinstance(discovered, list):
+            discovered = []
+        controller_id = os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", "")
+        for bot in discovered:
+            bot_id = bot["id"]
+            if bot_id == controller_id:
+                continue
+            profile = ProviderProfile(
+                f"discord-worker:{bot_id}", f"Discord worker {bot.get('username', bot_id)}", "discord",
+                capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
+                reliability=0.2, state=ProviderState.HEALTHY, max_complexity=1,
+            )
+            registry.register(DiscordChannelAdapter(
+                profile, discord_token, discord_channel, bot_id,
+                controller_bot_id=controller_id,
+                message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
+            ))
     return registry
 
 
@@ -131,6 +143,8 @@ def _parser() -> argparse.ArgumentParser:
     discord = subparsers.add_parser("discord", help="verify the configured Discord controller")
     discord_subparsers = discord.add_subparsers(dest="discord_action", required=True)
     discord_subparsers.add_parser("check", help="read-only bot/server/channel connectivity check")
+    discord_bots = discord_subparsers.add_parser("bots", help="list bot members visible in the configured server")
+    discord_bots.add_argument("--limit", type=int, default=1000)
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
     discover_input = discover.add_mutually_exclusive_group(required=True)
     discover_input.add_argument("--query")
@@ -325,6 +339,18 @@ def main(argv: list[str] | None = None) -> int:
                 os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
             ).check()
             print(json.dumps(result, separators=(",", ":")))
+            return 0
+        except (ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+    if args.command == "discord" and args.discord_action == "bots":
+        try:
+            client = DiscordApiClient(
+                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
+                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
+                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
+            )
+            print(json.dumps({"bots": client.list_bots(args.limit)}, separators=(",", ":")))
             return 0
         except (ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))

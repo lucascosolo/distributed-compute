@@ -50,6 +50,21 @@ class DiscordApiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "guild_id"):
             DiscordApiClient("token", "", "channel")
 
+    def test_list_bots_returns_only_bot_members_and_never_tokens(self) -> None:
+        requests: list[Request] = []
+
+        def opener(req, timeout):
+            requests.append(req)
+            return Response([
+                {"user": {"id": "human", "username": "human", "bot": False}},
+                {"user": {"id": "worker", "username": "worker-bot", "bot": True}},
+            ])
+
+        result = DiscordApiClient("bot-secret", "guild", "channel", opener=opener).list_bots()
+        self.assertEqual(result, [{"id": "worker", "username": "worker-bot"}])
+        self.assertIn("/guilds/guild/members?limit=1000", requests[0].full_url)
+        self.assertNotIn("bot-secret", requests[0].full_url)
+
     def test_channel_adapter_sends_bounded_task_and_waits_for_selected_bot(self) -> None:
         requests: list[Request] = []
         responses = iter((

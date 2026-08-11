@@ -260,6 +260,12 @@ and `applications.commands` scopes. Grant only `View Channel`, `Send Messages`,
 `Read Message History`, and `Use Application Commands`; do not grant
 Administrator or `Manage Server`.
 
+In the application's **Bot → Privileged Gateway Intents** settings, enable
+**Server Members Intent** so the coordinator can enumerate installed bots, and
+enable **Message Content Intent** so it can read ordinary worker replies. These
+are application intents, not additional server permissions; re-adding the
+controller bot is unnecessary.
+
 Copy the application ID, server ID, channel ID, and bot token into the `/admin`
 panel. The token is stored masked in the gitignored config and must never be
 sent through chat or committed. The server should contain synthetic test data
@@ -273,13 +279,13 @@ aipool discord check
 ```
 
 This checks the bot identity and access to the configured server and channel;
-it does not install other bots. Sending is disabled until an operator enters an
-exact approved worker bot ID (`AIPOOL_DISCORD_TARGET_BOT_ID`). The resulting
-`discord-worker` provider sends only bounded task envelopes to the configured
-channel, polls for that exact bot, and turns Discord 401/403/429/timeouts into
-normal provider failures so routing can pause it. Start with harmless synthetic
-prompts and keep the worker at complexity level 1 until benchmark evidence says
-otherwise.
+it does not install other bots. Worker bots are enumerated automatically from
+the configured server, excluding the controller itself; no per-bot IDs are
+required. Each resulting provider sends only bounded task envelopes to the
+configured channel, polls for its exact bot, and turns Discord
+401/403/429/timeouts into normal provider failures so routing can pause it.
+Start with harmless synthetic prompts and keep workers at complexity level 1
+until benchmark evidence says otherwise.
 
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an

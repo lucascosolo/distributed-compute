@@ -53,7 +53,35 @@ class DiscordApiClient:
         except (KeyError, TypeError) as exc:
             raise ValueError("Discord API returned an invalid resource response") from exc
 
+    def list_bots(self, limit: int = 1000) -> list[dict[str, str]]:
+        """Return bot members visible in the configured guild, without sending anything."""
+        if not 1 <= limit <= 1000:
+            raise ValueError("Discord member limit must be between 1 and 1000")
+        payload = self._get_raw(
+            f"/guilds/{self.guild_id}/members?{parse.urlencode({'limit': str(limit)})}",
+        )
+        if not isinstance(payload, list):
+            raise ValueError("Discord members response is not a list")
+        bots: list[dict[str, str]] = []
+        for member in payload:
+            if not isinstance(member, dict):
+                continue
+            user = member.get("user")
+            if not isinstance(user, dict) or not user.get("bot"):
+                continue
+            bot_id = user.get("id")
+            if not isinstance(bot_id, str) or not bot_id:
+                continue
+            bots.append({"id": bot_id, "username": str(user.get("username", ""))})
+        return bots
+
     def _get(self, path: str) -> dict[str, object]:
+        payload = self._get_raw(path)
+        if not isinstance(payload, dict):
+            raise ValueError("Discord API returned a non-object response")
+        return payload
+
+    def _get_raw(self, path: str) -> object:
         req = request.Request(
             self.api_base_url.rstrip("/") + path,
             headers={"Authorization": f"Bot {self.token}", "User-Agent": "aipool/0.1"},
@@ -68,8 +96,6 @@ class DiscordApiClient:
             raise ValueError("Discord API is unavailable") from exc
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             raise ValueError("Discord API returned invalid JSON") from exc
-        if not isinstance(payload, dict):
-            raise ValueError("Discord API returned a non-object response")
         return payload
 
 

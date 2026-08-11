@@ -1,9 +1,11 @@
 import json
+import os
 import threading
 import unittest
 import tempfile
 from pathlib import Path
 from http.client import HTTPConnection
+from unittest.mock import patch
 
 from aipool.domain import ProviderProfile, ProviderState
 from aipool.gateway import make_server
@@ -14,14 +16,25 @@ from aipool.storage import Store
 
 class GatewayTests(unittest.TestCase):
     def setUp(self) -> None:
+        self._secret_env = patch.dict(os.environ, {
+            "HF_TOKEN": "", "AIPOOL_OPENAI_API_KEY": "", "AIPOOL_TOKEN": "",
+            "AIPOOL_DISCORD_BOT_TOKEN": "",
+        }, clear=False)
+        self._secret_env.start()
+        self.addCleanup(self._secret_env.stop)
         profile = ProviderProfile(
             "p", "P", "fixture", capabilities={"classification": 0.9, "structured_json": 0.9},
             reliability=0.9, state=ProviderState.HEALTHY,
         )
         self.store = Store()
         self.addCleanup(self.store.close)
+        self.config_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.config_directory.cleanup)
         coordinator = Coordinator(ProviderRegistry({"p": FixtureAdapter(profile, lambda _: '{"label":"docs"}')}), self.store)
-        self.server = make_server(coordinator, port=0, token="test-token")
+        self.server = make_server(
+            coordinator, port=0, token="test-token",
+            config_path=Path(self.config_directory.name) / ".aipool.local",
+        )
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         self.host, self.port = self.server.server_address[:2]

@@ -126,11 +126,15 @@ or the operator's environment.
   rate-limit responses preserve `Retry-After` for the existing provider hold
   logic; no browser profile rotation or quota bypass is supported.
 - Discord now has a guarded worker adapter: after a read-only setup check, an
-  operator must configure one exact third-party bot ID. It sends one bounded
-  task envelope to the configured channel, polls only after its own message for
-  that bot's reply, and maps authentication, rate-limit, network, and timeout
-  failures into the normal provider result/hold path. It never installs bots,
-  uses user tokens, or retries a 429 automatically.
+  worker sends one bounded task envelope to the configured channel, polls only
+  after its own message for the selected bot's reply, and maps authentication,
+  rate-limit, network, and timeout failures into the normal provider result/hold
+  path. It never installs bots, uses user tokens, or retries a 429 automatically.
+- Discord worker discovery now lists bot members from the configured guild and
+  creates one low-complexity provider per bot automatically, excluding the
+  controller. No per-worker IDs are stored in operator configuration. The
+  Discord Developer Portal must enable Server Members Intent for enumeration and
+  Message Content Intent for ordinary reply content.
 
 ## Non-negotiable design decisions
 
@@ -153,12 +157,13 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Create the dedicated synthetic Discord test channel, manually invite one
-operator-approved worker bot, configure its exact bot ID, and run the first
-end-to-end bounded response test. Record whether it replies without login,
-whether its output is usable, its observed limits, and whether its capability
-score warrants promotion. Do not add any bot to the default pool merely because
-the transport works.
+Create the dedicated synthetic Discord test channel, manually invite the
+operator-approved worker bots, restart the coordinator, and run the first
+end-to-end bounded response tests against the automatically discovered pool.
+Record which bots reply without login, whether output is usable, observed
+limits, and capability evidence. Do not route complex work merely because a bot
+is present; keep every discovered worker at complexity level 1 until benchmark
+evidence warrants promotion.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

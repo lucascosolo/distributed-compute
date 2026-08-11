@@ -20,8 +20,8 @@ CONFIG_KEYS = frozenset({
     "AIPOOL_HF_MODEL", "AIPOOL_HF_ENDPOINT", "AIPOOL_OPENAI_ENDPOINT",
     "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND",
     "AIPOOL_DISCORD_APPLICATION_ID", "AIPOOL_DISCORD_GUILD_ID",
-    "AIPOOL_DISCORD_CHANNEL_ID", "AIPOOL_DISCORD_TARGET_BOT_ID",
-    "AIPOOL_DISCORD_MESSAGE_PREFIX", "AIPOOL_DISCORD_BOT_TOKEN", "HF_TOKEN",
+    "AIPOOL_DISCORD_CHANNEL_ID", "AIPOOL_DISCORD_MESSAGE_PREFIX",
+    "AIPOOL_DISCORD_BOT_TOKEN", "HF_TOKEN",
     "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN",
 })
 SECRET_KEYS = frozenset({
@@ -168,7 +168,7 @@ def make_server(
 <label>Discord application ID <input name=AIPOOL_DISCORD_APPLICATION_ID></label><br>
 <label>Discord guild/server ID <input name=AIPOOL_DISCORD_GUILD_ID></label><br>
 <label>Discord test-channel ID <input name=AIPOOL_DISCORD_CHANNEL_ID></label><br>
-<label>Approved worker bot ID <input name=AIPOOL_DISCORD_TARGET_BOT_ID></label><br>
+<p>Worker bots are discovered automatically from the configured server; no per-bot IDs are required. Optional prefix:</p>
 <label>Worker message prefix <input name=AIPOOL_DISCORD_MESSAGE_PREFIX></label><br>
 <label>Discord bot token <input name=AIPOOL_DISCORD_BOT_TOKEN type=password autocomplete=new-password></label><br>
 <label>OpenAI key <input name=AIPOOL_OPENAI_API_KEY type=password autocomplete=new-password></label><br>
