@@ -160,6 +160,15 @@ class CliTests(unittest.TestCase):
         adapter = registry.get(f"catalog:{provider.slug}")
         self.assertEqual(adapter.headers_extra["X-Free-Fallback"], "false")
 
+    def test_groq_catalog_avoids_deprecated_model_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        models = {
+            item.model for item in load_catalog() if item.provider_name == "Groq API"
+        }
+        self.assertEqual(models, {
+            "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b",
+        })
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog

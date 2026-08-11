@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `1148a6f`
+- Last pushed commit: `43b5591`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `179 tests passed` with
+- Verification for the current implementation: `180 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -309,14 +309,15 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `982d4e8`; working tree is clean; VPS service is
+- Current deployed commit: `43b5591` before the current Groq catalog edit;
+  working tree contains only the current uncommitted audit chunk. VPS service is
   active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
   Hugging Face chat endpoint have documented endpoint shapes. Cohere was fixed
-  to `/compatibility/v1`. Cloudflare still needs an account-aware native
-  adapter. TokenRouter and Z.AI have endpoint documentation but still require
-  model-catalog/access confirmation; Kilo still requires primary documentation.
+  to `/compatibility/v1`. Cloudflare's account-aware native adapter is deployed;
+  its account ID is still missing. TokenRouter remains host-contract pending;
+  Kilo's contract is verified but its live model catalog is unconfirmed.
 - The deployed read-only plan endpoint reports 12 selected models and 36
   expected calls, but the new requirement supersedes that plan: do not execute
   it yet. The approval-gated sequential endpoint is implemented but intentionally
@@ -368,6 +369,9 @@ new batch plan. No provider calls were made during the endpoint audit.
   providers such as Kilo that document anonymous model listing. A human still
   initiates each discovery request from the panel; no automatic probing was
   added.
+- Groq's catalog was refreshed away from model IDs scheduled for deprecation
+  to the current `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, and
+  `qwen/qwen3.6-27b` entries.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
