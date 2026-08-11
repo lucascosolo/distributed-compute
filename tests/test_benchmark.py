@@ -1,7 +1,7 @@
 import unittest
 
 from aipool.benchmark import default_cases, run_benchmark
-from aipool.domain import ProviderProfile, ProviderState, ProviderResult
+from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderState, ProviderResult
 from aipool.providers import FixtureAdapter
 
 
@@ -40,6 +40,23 @@ class BenchmarkTests(unittest.TestCase):
         result = run_benchmark(adapter, default_cases()[:1])
         self.assertEqual(result.attempts, 1)
         self.assertEqual(result.valid, 0)
+
+    def test_rate_limit_stops_remaining_cases_and_preserves_retry(self) -> None:
+        profile = ProviderProfile("limited", "Limited", "fixture", state=ProviderState.HEALTHY)
+        calls = []
+
+        def handler(task):
+            calls.append(task.task)
+            return ProviderResult(
+                "limited", success=False, error_kind=ProviderErrorKind.RATE_LIMITED,
+                retry_after_seconds=37,
+            )
+
+        result = run_benchmark(FixtureAdapter(profile, handler))
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result.stopped_error, ProviderErrorKind.RATE_LIMITED)
+        self.assertEqual(result.retry_after_seconds, 37)
         self.assertEqual(result.scores["classification"], 0.0)
 
     def test_json_benchmarks_record_structured_output_capability(self) -> None:

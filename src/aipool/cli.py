@@ -394,6 +394,8 @@ def main(argv: list[str] | None = None) -> int:
                 results.append({
                     "provider_id": result.provider_id, "scores": result.scores,
                     "attempts": result.attempts, "valid": result.valid,
+                    "stopped_error": result.stopped_error.value if result.stopped_error else None,
+                    "retry_after_seconds": result.retry_after_seconds,
                 })
             print(json.dumps({"workers": results}, separators=(",", ":")))
             return 0

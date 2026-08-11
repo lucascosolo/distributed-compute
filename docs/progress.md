@@ -156,6 +156,9 @@ or the operator's environment.
 - Automatically discovered Discord workers now begin in `QUARANTINED` state;
   only the bounded benchmark can establish health and make their observed
   capabilities eligible for routing.
+- Discord benchmarking now stops immediately on authentication or rate-limit
+  responses and preserves `Retry-After` for the provider health hold, preventing
+  the benchmark itself from consuming a limited worker's remaining quota.
 
 ## Non-negotiable design decisions
 

@@ -49,10 +49,15 @@ class Coordinator:
         self.health.profiles([adapter.profile])
         result = run_benchmark(adapter, cases)
         self.store.record_benchmark(result)
-        if result.valid:
+        if result.valid and result.stopped_error is None:
             self.health.success(adapter.profile)
         else:
-            self.health.failure(adapter.profile, ProviderErrorKind.INTERNAL, "benchmark produced no valid results")
+            self.health.failure(
+                adapter.profile,
+                result.stopped_error or ProviderErrorKind.INTERNAL,
+                "benchmark stopped before completion" if result.stopped_error else "benchmark produced no valid results",
+                retry_after_seconds=result.retry_after_seconds,
+            )
         return result
 
     def benchmark_providers(

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Iterable
 
-from .domain import TaskEnvelope
+from .domain import ProviderErrorKind, TaskEnvelope
 from .providers import ProviderAdapter
 from .quality import validate_output
 
@@ -24,6 +24,8 @@ class BenchmarkResult:
     scores: dict[str, float]
     attempts: int
     valid: int
+    stopped_error: ProviderErrorKind | None = None
+    retry_after_seconds: float | None = None
 
 
 def default_cases() -> tuple[BenchmarkCase, ...]:
@@ -70,7 +72,11 @@ def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | Non
         raise ValueError("benchmark must contain between 1 and 32 cases")
     observations: dict[str, list[float]] = {}
     valid = 0
+    stopped_error: ProviderErrorKind | None = None
+    retry_after_seconds: float | None = None
+    attempts = 0
     for case in selected:
+        attempts += 1
         result = adapter.complete(case.task)
         report = validate_output(
             result.output,
@@ -85,8 +91,15 @@ def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | Non
             capabilities.append("structured_json")
         for capability in capabilities:
             observations.setdefault(capability, []).append(float(passed))
+        if result.error_kind in {ProviderErrorKind.RATE_LIMITED, ProviderErrorKind.AUTH}:
+            stopped_error = result.error_kind
+            retry_after_seconds = result.retry_after_seconds
+            break
     scores = {
         capability: sum(values) / len(values)
         for capability, values in observations.items()
     }
-    return BenchmarkResult(adapter.profile.id, scores, len(selected), valid)
+    return BenchmarkResult(
+        adapter.profile.id, scores, attempts, valid,
+        stopped_error=stopped_error, retry_after_seconds=retry_after_seconds,
+    )
