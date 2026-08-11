@@ -242,6 +242,14 @@ class GatewayTests(unittest.TestCase):
             status, data = self.request("POST", "/admin/provider/smoke-test", {
                 "slug": catalog_provider.slug,
             })
+        self.assertEqual(status, 400)
+        self.assertIn("explicit operator approval", data["error"])
+        with patch.object(coordinator, "benchmark_provider", return_value=BenchmarkResult(
+            profile.id, {"classification": 1.0}, 1, 1,
+        )) as benchmark:
+            status, data = self.request("POST", "/admin/provider/smoke-test", {
+                "slug": catalog_provider.slug, "operator_approved": True,
+            })
         self.assertEqual(status, 200)
         self.assertEqual(data["provider_id"], profile.id)
         self.assertEqual(data["valid"], 1)
