@@ -12,7 +12,7 @@ individual and batch smoke-test endpoints until their contract is verified.
 | Family | Endpoint / transport | Preflight result | Notes |
 | --- | --- | --- | --- |
 | Hugging Face Inference Providers | `router.huggingface.co/v1/chat/completions` / HF chat API | verified | Official docs show this exact endpoint. The account has already shown paid usage, so it is quarantined as non-free. |
-| Google AI Studio | `generativelanguage.googleapis.com/v1beta/openai/` / OpenAI-compatible | verified | Official OpenAI-compatibility docs show this base path. |
+| Google AI Studio | `generativelanguage.googleapis.com/v1beta/openai/` / OpenAI-compatible | read-only access verified, catalog refreshed | Official OpenAI-compatibility docs show this base path; the saved key returned `/models`, whose exact IDs include the `models/` prefix now preserved in the catalog. |
 | Cerebras | `api.cerebras.ai/v1` / OpenAI-compatible | verified | Official quickstart uses `/v1/chat/completions`; current public models and non-permanent-free status are recorded in the catalog. |
 | Groq | `api.groq.com/openai/v1` / OpenAI-compatible | verified, catalog refreshed | Official API reference uses `/openai/v1/chat/completions`; the catalog now avoids IDs scheduled for deprecation and uses current GPT-OSS/Qwen entries. |
 | Cohere | `api.cohere.ai/compatibility/v1` / OpenAI-compatible | corrected, quota clarified | The catalog previously pointed at the native `/v1` API while claiming a generic adapter. Official docs show the compatibility path; Command A+ is documented as free until rate limits, while Command A publishes paid prices, so the family remains account-dependent until verified. |

@@ -408,6 +408,9 @@ new batch plan. No provider calls were made during the endpoint audit.
   clears that provider's stale health hold without clearing other providers'
   rate-limit or failure state. This makes credential repair immediately
   retryable while preserving unrelated quota protection.
+- A six-provider read-only pass verified Google, Groq, Cohere, Mistral, Ollama,
+  and Cerebras. Google exposed a `models/` prefix in its live IDs; the catalog
+  now preserves those exact identifiers. No generation requests were made.
 - Groq's catalog was refreshed away from model IDs scheduled for deprecation
   to the current `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, and
   `qwen/qwen3.6-27b` entries.

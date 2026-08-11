@@ -89,6 +89,19 @@ class CliTests(unittest.TestCase):
         self.assertEqual(adapter.profile.transport, "openai-compatible")
         self.assertIn("/v1beta/openai/", adapter.endpoint)
 
+    def test_google_catalog_uses_exact_live_model_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        models = {
+            item.model for item in load_catalog()
+            if item.provider_name == "Google AI Studio API"
+        }
+        self.assertEqual(models, {
+            "models/gemini-3.6-flash",
+            "models/gemini-3.5-flash",
+            "models/gemini-3.5-flash-lite",
+            "models/gemini-2.5-flash",
+        })
+
     def test_cloudflare_requires_account_id_and_registers_native_adapter(self) -> None:
         from aipool.provider_catalog import config_prefix, load_catalog
         provider = next(item for item in load_catalog() if item.provider_name == "Cloudflare Workers AI")
