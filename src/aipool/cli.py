@@ -181,7 +181,13 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
     for catalog_provider in load_catalog():
         provider_prefix = config_prefix(catalog_provider)
         model_prefix = model_config_prefix(catalog_provider)
-        if os.environ.get(f"{model_prefix}_ENABLED", "").casefold() not in {"1", "true", "yes", "on"}:
+        enabled_setting = os.environ.get(f"{model_prefix}_ENABLED", "")
+        family_key_present = bool(os.environ.get(f"{provider_prefix}_API_KEY"))
+        if not family_key_present and catalog_provider.transport == "huggingface-api":
+            family_key_present = bool(os.environ.get("HF_TOKEN"))
+        if enabled_setting and enabled_setting.casefold() not in {"1", "true", "yes", "on"}:
+            continue
+        if not enabled_setting and not family_key_present:
             continue
         api_key_env = f"{provider_prefix}_API_KEY"
         if not os.environ.get(api_key_env) and catalog_provider.transport == "huggingface-api":

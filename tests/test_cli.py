@@ -83,7 +83,6 @@ class CliTests(unittest.TestCase):
         provider = next(item for item in load_catalog() if item.provider_name == "Google AI Studio API")
         with patch.dict(os.environ, {
             f"{config_prefix(provider)}_API_KEY": "google-key",
-            f"{model_config_prefix(provider)}_ENABLED": "1",
         }, clear=True):
             registry = _build_registry(__import__("argparse").Namespace(command="providers"))
         adapter = registry.get(f"catalog:{provider.slug}")

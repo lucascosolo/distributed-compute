@@ -285,6 +285,10 @@ or the operator's environment.
 - Added a no-network `/admin/provider/smoke-batch-plan` endpoint. It selects a
   bounded representative set, reports expected calls and quota headroom, and
   requires later human approval before any batch execution.
+- Catalog models without an explicit per-model toggle now inherit enabled state
+  from a saved family key, while explicit `0`/false settings still disable a
+  model. This keeps newly refreshed model IDs from appearing enabled in the
+  panel but silently failing to load.
 
 ## Non-negotiable design decisions
 
