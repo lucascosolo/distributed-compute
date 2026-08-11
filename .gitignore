@@ -1,0 +1,21 @@
+# Deployment and operator-specific configuration
+.aipool.local
+.env
+.env.*
+!.env.example
+
+# Local runtime state
+.aipool-data/
+.aipool-artifacts/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Python tooling
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+dist/
+build/
+*.egg-info/

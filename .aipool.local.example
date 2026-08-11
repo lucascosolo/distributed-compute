@@ -1,0 +1,9 @@
+# Copy to .aipool.local and keep that file uncommitted.
+# All values below are placeholders; deployment-specific values belong only in
+# the ignored file or in the environment.
+AIPOOL_PROJECT_ROOT=/path/to/distributed-compute
+AIPOOL_MODE=local
+AIPOOL_BASE_URL=http://127.0.0.1:8765
+AIPOOL_TOKEN=
+AIPOOL_DB=.aipool-data/aipool.sqlite
+AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
