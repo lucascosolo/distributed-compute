@@ -2,14 +2,28 @@ import contextlib
 import io
 import json
 import os
+import tempfile
 import unittest
 from unittest.mock import patch
 
-from aipool.cli import main
+from aipool.cli import _build_registry, main
+from aipool.domain import ProviderState
 from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
+    def test_discovered_discord_workers_start_quarantined_until_benchmark(self) -> None:
+        fake = __import__("unittest").mock.Mock()
+        fake.return_value.list_bots.return_value = [{"id": "worker", "username": "worker"}]
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.dict(os.environ, {
+                "AIPOOL_DISCORD_BOT_TOKEN": "secret", "AIPOOL_DISCORD_GUILD_ID": "guild",
+                "AIPOOL_DISCORD_CHANNEL_ID": "channel", "AIPOOL_DISCORD_APPLICATION_ID": "controller",
+                "AIPOOL_ARTIFACT_ROOT": directory,
+            }, clear=True), patch("aipool.cli.DiscordApiClient", fake):
+                registry = _build_registry(__import__("argparse").Namespace(command="task"))
+        self.assertEqual(registry.get("discord-worker:worker").profile.state, ProviderState.QUARANTINED)
+
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
             "task": "classification",

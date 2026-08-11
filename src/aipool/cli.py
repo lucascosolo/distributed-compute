@@ -124,7 +124,7 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             profile = ProviderProfile(
                 f"discord-worker:{bot_id}", f"Discord worker {bot.get('username', bot_id)}", "discord",
                 capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
-                reliability=0.2, state=ProviderState.HEALTHY, max_complexity=1,
+                reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=1,
             )
             registry.register(DiscordChannelAdapter(
                 profile, discord_token, discord_channel, bot_id,
@@ -378,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
                 profile = ProviderProfile(
                     f"discord-worker:{bot_id}", f"Discord worker {bot.get('username', bot_id)}", "discord",
                     capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
-                    reliability=0.2, state=ProviderState.HEALTHY, max_complexity=1,
+                    reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=1,
                 )
                 registry.register(DiscordChannelAdapter(
                     profile, os.environ["AIPOOL_DISCORD_BOT_TOKEN"],

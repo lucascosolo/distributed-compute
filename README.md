@@ -286,7 +286,8 @@ required. Each resulting provider sends only bounded task envelopes to the
 configured channel, polls for its exact bot, and turns Discord
 401/403/429/timeouts into normal provider failures so routing can pause it.
 Start with harmless synthetic prompts and keep workers at complexity level 1
-until benchmark evidence says otherwise.
+until benchmark evidence says otherwise. Newly discovered workers remain
+quarantined and are not routed until `aipool discord benchmark` succeeds.
 Each worker is mentioned automatically; a custom message prefix is only needed
 for a bot that requires a nonstandard command format.
 

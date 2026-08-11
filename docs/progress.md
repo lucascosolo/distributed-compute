@@ -153,6 +153,9 @@ or the operator's environment.
   which removes another per-bot configuration requirement for common
   mention-triggered bots; the optional prefix remains available for nonstandard
   command formats.
+- Automatically discovered Discord workers now begin in `QUARANTINED` state;
+  only the bounded benchmark can establish health and make their observed
+  capabilities eligible for routing.
 
 ## Non-negotiable design decisions
 
