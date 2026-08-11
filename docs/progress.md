@@ -499,3 +499,18 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
 - This proves the end-to-end path works, but does not yet prove the selected
   backend's long-term quota or economic value. Those require an operator-
   reviewed comparison against the native model.
+
+## 2026-08-11 — capability-aware OmniRoute aliases
+
+- The OpenAI-compatible adapter now selects a configured model alias by task
+  type instead of sending every task to one static model. The deployed
+  OmniRoute configuration keeps `auto/best-free` for ordinary work, routes
+  coding and code review to `auto/best-coding`, and routes reasoning and
+  planning to `auto/best-reasoning`.
+- The change is covered by the full 200-test suite and deployed at commit
+  `787384a`. The VPS systemd service is active, its local status endpoint is
+  healthy, and the Cloudflare Access service-token handshake returns HTTP 200.
+- OmniRoute currently reports 11 imported provider connections passing health
+  checks and one Z.AI connection in error. Health checks are not generation
+  proof; provider-specific generation remains separately quarantined until
+  the operator finishes importing providers and approves a bounded test batch.
