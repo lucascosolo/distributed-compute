@@ -49,6 +49,19 @@ class HealthTests(unittest.TestCase):
         manager.failure(provider, ProviderErrorKind.AUTH, "missing key")
         self.assertEqual(manager.profiles([provider])[0].state, ProviderState.AUTH_REQUIRED)
 
+    def test_reset_clears_auth_hold_after_configuration_change(self) -> None:
+        store = Store()
+        self.addCleanup(store.close)
+        manager = HealthManager(store, clock=lambda: 100.0)
+        provider = ProviderProfile("p", "P", "fixture", state=ProviderState.QUARANTINED)
+        manager.failure(provider, ProviderErrorKind.AUTH, "HTTP 401")
+        manager.reset(provider)
+        record = store.health("p")
+        self.assertEqual(record["state"], ProviderState.QUARANTINED.value)
+        self.assertEqual(record["failure_streak"], 0)
+        self.assertEqual(record["next_probe_at"], 0)
+        self.assertIsNone(record["last_failure_reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

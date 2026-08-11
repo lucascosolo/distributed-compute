@@ -43,6 +43,17 @@ class HealthManager:
             last_failure_reason=None,
         )
 
+    def reset(self, provider: ProviderProfile) -> None:
+        """Clear a stale hold after the operator changes provider configuration."""
+        self.store.ensure_health(provider)
+        self.store.set_health(
+            provider.id,
+            state=provider.state,
+            failure_streak=0,
+            next_probe_at=0,
+            last_failure_reason=None,
+        )
+
     def failure(
         self,
         provider: ProviderProfile,

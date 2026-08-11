@@ -142,6 +142,25 @@ class GatewayTests(unittest.TestCase):
         row = next(item for item in data["providers"] if item["slug"] == provider.slug)
         self.assertEqual(row["last_failure_reason"], "HTTP 401")
 
+    def test_saving_provider_credentials_clears_that_provider_hold(self) -> None:
+        from aipool.provider_catalog import config_prefix, load_catalog
+        provider = load_catalog()[0]
+        profile = ProviderProfile(
+            "catalog:" + provider.slug, provider.name, provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+        )
+        coordinator = self.server.aipool_coordinator  # type: ignore[attr-defined]
+        coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))
+        coordinator.health.failure(profile, ProviderErrorKind.AUTH, "HTTP 401")
+        status, data = self.request("POST", "/admin/config", {
+            f"{config_prefix(provider)}_API_KEY": "replacement-key",
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(data["reloaded"])
+        row = next(item for item in self.request("GET", "/admin/readiness")[1]["providers"] if item["slug"] == provider.slug)
+        self.assertEqual(row["state"], "quarantined")
+        self.assertEqual(row["last_failure_reason"], "")
+
     def test_admin_panel_is_authenticated_and_does_not_echo_secret_values(self) -> None:
         status, _, _ = self.raw_request("GET", "/admin", token=None)
         self.assertEqual(status, 401)

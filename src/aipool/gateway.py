@@ -482,6 +482,17 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     if reload_callback is not None:
                         reload_callback()
                         reloaded = True
+                    for provider in catalog:
+                        provider_reset_keys = {
+                            f"{config_prefix(provider)}_API_KEY",
+                            f"{config_prefix(provider)}_ENDPOINT",
+                            f"{model_config_prefix(provider)}_MODEL",
+                            *(provider_config_name(provider, field) for field in provider.required_config),
+                        }
+                        if any(key in updates for key in provider_reset_keys):
+                            adapter = next((item for item in coordinator.registry.all() if item.profile.id == f"catalog:{provider.slug}"), None)
+                            if adapter is not None:
+                                coordinator.health.reset(adapter.profile)
                 except (ValueError, TypeError, KeyError, json.JSONDecodeError, OSError) as exc:
                     self._send(400, {"updated": False, "error": str(exc)[:300]})
                     return
