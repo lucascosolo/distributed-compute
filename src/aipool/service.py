@@ -22,6 +22,11 @@ class Coordinator:
         self.health = health or HealthManager(store)
 
     def submit(self, task: TaskEnvelope) -> TaskOutcome:
+        if task.strategy == Strategy.VERIFY:
+            return self._submit_verified(task)
+        return self._submit_single(task)
+
+    def _submit_single(self, task: TaskEnvelope, excluded: frozenset[str] = frozenset()) -> TaskOutcome:
         profiles = [
             replace(profile, capabilities=self.store.learned_capabilities(profile))
             for profile in self.health.profiles(adapter.profile for adapter in self.registry.all())
@@ -38,7 +43,7 @@ class Coordinator:
         attempted: set[str] = set()
         candidates = [decision.provider] + [profile for profile in profiles if profile.id != decision.provider.id]
         for profile in candidates:
-            if profile.id in attempted or profile.state not in {ProviderState.HEALTHY, ProviderState.DEGRADED}:
+            if profile.id in excluded or profile.id in attempted or profile.state not in {ProviderState.HEALTHY, ProviderState.DEGRADED}:
                 continue
             attempted.add(profile.id)
             cache_key = self._cache_key(task, profile.id)
@@ -80,6 +85,42 @@ class Coordinator:
         )
         self.store.record_outcome(outcome)
         return outcome
+
+    def _submit_verified(self, task: TaskEnvelope) -> TaskOutcome:
+        first = self._submit_single(task)
+        if not first.success or not first.valid or first.provider_id is None or first.output is None:
+            return first
+        second = self._submit_single(replace(task, strategy=Strategy.SINGLE), frozenset({first.provider_id}))
+        if not second.success or not second.valid or second.output is None:
+            return TaskOutcome(
+                task.task_id, Strategy.VERIFY, first.provider_id, None, True, False,
+                "verification_provider_unavailable", native_fallback=True,
+            )
+        if self._normalized_output(task, first.output) != self._normalized_output(task, second.output):
+            outcome = TaskOutcome(
+                task.task_id, Strategy.VERIFY, None, None, True, False,
+                "verification_disagreement", native_fallback=True,
+            )
+            self.store.record_outcome(outcome)
+            return outcome
+        outcome = replace(
+            first,
+            strategy=Strategy.VERIFY,
+            reason="verified",
+            orchestration_cost=first.orchestration_cost + second.orchestration_cost,
+            delegated_compute_saved=max(0.0, task.local_estimate - first.orchestration_cost - second.orchestration_cost),
+        )
+        self.store.record_outcome(outcome)
+        return outcome
+
+    @staticmethod
+    def _normalized_output(task: TaskEnvelope, output: str) -> object:
+        if task.requirements.get("output") == "json":
+            try:
+                return json.loads(output)
+            except json.JSONDecodeError:
+                return output.strip()
+        return " ".join(output.split())
 
     @staticmethod
     def _cache_key(task: TaskEnvelope, provider_id: str) -> str:

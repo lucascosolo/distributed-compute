@@ -34,6 +34,14 @@ _CAPABILITIES = {
     TaskKind.RESEARCH.value: ("research", "long_context"),
 }
 _COMPLEXITY = {"inventory": 1, "classification": 1, "extraction": 1, "summarization": 2, "coding": 3, "review": 4, "research": 4}
+_STRATEGY_MULTIPLIER = {
+    Strategy.SINGLE: 1.0,
+    Strategy.CASCADE: 1.25,
+    Strategy.VERIFY: 2.0,
+    Strategy.CONSENSUS: 3.0,
+    Strategy.MAP: 1.0,
+    Strategy.MAP_REDUCE: 2.0,
+}
 
 
 def assess(task: TaskEnvelope) -> TaskAssessment:
@@ -41,7 +49,9 @@ def assess(task: TaskEnvelope) -> TaskAssessment:
     capabilities = _CAPABILITIES.get(kind, (kind,))
     complexity = _COMPLEXITY.get(kind, 3)
     input_units = max(1, len(task.input_ref) // 64)
-    delegation_cost = 0.05 + (0.01 * input_units) + (0.02 * complexity)
+    base_cost = 0.05 + (0.01 * input_units) + (0.02 * complexity)
+    strategy = task.strategy if task.strategy != Strategy.NO_DELEGATION else Strategy.SINGLE
+    delegation_cost = base_cost * _STRATEGY_MULTIPLIER.get(strategy, 1.0)
     return TaskAssessment(kind, capabilities, complexity, delegation_cost)
 
 

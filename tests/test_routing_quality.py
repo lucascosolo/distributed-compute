@@ -36,6 +36,11 @@ class RoutingQualityTests(unittest.TestCase):
         decision = choose_provider(task, [profile("cheap", cost=0.0, classification=0.9)])
         self.assertEqual(decision.reason, "native_work_estimate_required")
 
+    def test_verification_budget_is_compared_with_native_work(self) -> None:
+        task = TaskEnvelope(task="classification", input_ref="artifact:x", strategy=Strategy.VERIFY, local_estimate=0.1)
+        decision = choose_provider(task, [profile("cheap", cost=0.0, classification=0.9)])
+        self.assertEqual(decision.reason, "delegation_cost_not_lower_than_local_estimate")
+
     def test_low_complexity_provider_cannot_receive_complex_implementation(self) -> None:
         task = TaskEnvelope(task="coding", input_ref="artifact:x", local_estimate=10.0)
         helper = profile("helper", cost=0.0, coding=1.0, max_complexity=1)

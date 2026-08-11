@@ -1,6 +1,6 @@
 import unittest
 
-from aipool.domain import ProviderProfile, ProviderState, TaskEnvelope
+from aipool.domain import ProviderProfile, ProviderState, Strategy, TaskEnvelope
 from aipool.providers import FixtureAdapter, ProviderRegistry
 from aipool.service import Coordinator
 from aipool.storage import Store
@@ -44,6 +44,34 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(outcome.success)
         self.assertIsNone(outcome.provider_id)
         self.assertTrue(outcome.native_fallback)
+
+    def test_verify_requires_independent_matching_result(self) -> None:
+        first_calls = [0]
+        second_calls = [0]
+        first = FixtureAdapter(profile("first", classification=0.9, structured_json=0.9), lambda _: (first_calls.__setitem__(0, first_calls[0] + 1) or '{"label":"docs"}'))
+        second = FixtureAdapter(profile("second", classification=0.9, structured_json=0.9), lambda _: (second_calls.__setitem__(0, second_calls[0] + 1) or '{"label":"docs"}'))
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"first": first, "second": second}), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:verify", requirements={"output": "json"}, strategy=Strategy.VERIFY, local_estimate=2)
+        )
+        self.assertTrue(outcome.success)
+        self.assertTrue(outcome.valid)
+        self.assertEqual(outcome.reason, "verified")
+        self.assertEqual(first_calls[0], 1)
+        self.assertEqual(second_calls[0], 1)
+
+    def test_verify_disagreement_falls_back_to_native_model(self) -> None:
+        first = FixtureAdapter(profile("first", classification=0.9, structured_json=0.9), lambda _: '{"label":"docs"}')
+        second = FixtureAdapter(profile("second", classification=0.9, structured_json=0.9), lambda _: '{"label":"code"}')
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"first": first, "second": second}), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:disagree", requirements={"output": "json"}, strategy=Strategy.VERIFY, local_estimate=2)
+        )
+        self.assertTrue(outcome.native_fallback)
+        self.assertFalse(outcome.valid)
+        self.assertEqual(outcome.reason, "verification_disagreement")
 
 
 if __name__ == "__main__":
