@@ -9,6 +9,8 @@ Type=simple
 User=REPLACE_WITH_OPERATOR_USER
 WorkingDirectory=REPLACE_WITH_PROJECT_ROOT
 EnvironmentFile=%h/.agents/distributed-compute.env
+# Keep mutable operator settings outside the read-only project tree.
+Environment=AIPOOL_CONFIG_FILE=%h/.aipool-data/.aipool.local
 ExecStart=REPLACE_WITH_PROJECT_ROOT/.venv/bin/aipool serve --db REPLACE_WITH_PROJECT_ROOT/.aipool-data/aipool.sqlite
 Restart=on-failure
 RestartSec=5

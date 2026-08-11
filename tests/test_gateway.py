@@ -146,6 +146,12 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
 
+    def test_root_redirects_to_admin_panel(self) -> None:
+        status, content_type, body = self.raw_request("GET", "/")
+        self.assertEqual(status, 302)
+        self.assertIsNone(content_type)
+        self.assertEqual(body, b"")
+
     def test_admin_panel_persists_allowlisted_values_with_restricted_permissions(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config_path = Path(directory) / ".aipool.local"

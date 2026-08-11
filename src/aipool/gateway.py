@@ -249,6 +249,12 @@ def make_server(
             self.end_headers()
             self.wfile.write(encoded)
 
+        def _redirect(self, location: str) -> None:
+            self.send_response(302)
+            self.send_header("Location", location)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
         def _authorized(self) -> bool:
             return token is None or self.headers.get("Authorization") == f"Bearer {token}"
 
@@ -277,6 +283,9 @@ def make_server(
         def do_GET(self) -> None:  # noqa: N802
             if not self._authorized():
                 self._send(401, {"error": "unauthorized"})
+                return
+            if self.path == "/":
+                self._redirect("/admin")
                 return
             if self.path == "/status":
                 self._send(200, self._operational_status())
