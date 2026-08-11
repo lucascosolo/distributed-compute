@@ -21,15 +21,15 @@ class ServiceTests(unittest.TestCase):
                 return ProviderResult(provider_id, success=False, error_kind=ProviderErrorKind.RATE_LIMITED)
             return handler
 
-        def discord_profile(provider_id: str) -> ProviderProfile:
+        def worker_profile(provider_id: str) -> ProviderProfile:
             return ProviderProfile(
-                provider_id, provider_id, "discord",
+                provider_id, provider_id, "fixture",
                 capabilities={"classification": 0.9, "structured_json": 0.9},
                 reliability=0.9, state=ProviderState.HEALTHY,
             )
 
-        first = FixtureAdapter(discord_profile("first"), limited("first"))
-        second = FixtureAdapter(discord_profile("second"), limited("second"))
+        first = FixtureAdapter(worker_profile("first"), limited("first"))
+        second = FixtureAdapter(worker_profile("second"), limited("second"))
         store = Store()
         self.addCleanup(store.close)
         outcome = Coordinator(ProviderRegistry({"first": first, "second": second}), store).submit(

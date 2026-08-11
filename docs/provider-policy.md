@@ -14,7 +14,7 @@ by itself, a determination that every use is lawful or risk-free. The operator
 must retain whatever authorization the provider requires and is responsible for
 the legal interpretation of the terms.
 
-Community bots on Telegram, Discord, or similar platforms are not exempt from
+Community bots on messaging or social platforms are not exempt from
 this boundary. Informal ownership or the absence of an obvious contract does
 not establish permission to message a bot, use a group resource, or send
 private data. Platform Terms of Service, bot instructions, server rules,
@@ -23,20 +23,15 @@ matter. Treat these as quarantined candidates until an authorized integration
 path is confirmed; do not spam, impersonate users, or infer permission from a
 lack of enforcement.
 
-An operator-owned Discord server or Telegram group can provide a cleaner test
-environment, but it does not automatically authorize every invited bot. Invite
-only bots with an explicit permitted integration path, use a dedicated test
-channel, send harmless synthetic prompts first, respect bot and platform rate
-limits, and do not use ordinary members' private messages or data as compute.
+An operator-owned test workspace can provide a cleaner environment, but it
+does not automatically authorize every invited bot. Use only documented
+integration paths, a dedicated synthetic test area, harmless prompts, and the
+provider and platform rate limits.
 
-The coordinator does not autonomously join third-party servers or send
-unsolicited direct messages to bots or members in them. A bot being present in a
-public server, or accepting a human's manual message, is not authorization for
-our controller to use it as a compute endpoint. Discord's developer guidance
-also says DMs should generally be initiated by a user action. A cross-server
-bot is eligible only through a documented integration path or explicit owner
-authorization, with the operator responsible for the server's rules and the
-bot's terms.
+The coordinator does not autonomously join third-party spaces or send
+unsolicited direct messages to bots or members. A bot in a public space, or one
+that accepts a human message, is not automatically authorized as a compute
+endpoint.
 
 ## Prohibited implementation goals
 

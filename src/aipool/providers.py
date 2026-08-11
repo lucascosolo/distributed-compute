@@ -138,8 +138,8 @@ class CandidateCommandAdapter:
     """Run an operator-owned wrapper for one approved candidate.
 
     The wrapper receives candidate metadata and a task envelope as JSON. This
-    supports authorized community-bot bridges without making Discord,
-    Telegram, or another platform part of the coordinator core.
+    supports authorized community-bot bridges without making any platform
+    part of the coordinator core.
     """
 
     profile: ProviderProfile

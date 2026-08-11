@@ -137,8 +137,7 @@ marketing claims are not evidence that a chatbot is available, capable, or
 permitted to automate.
 
 The repository also contains `providers/candidate-catalog.json`, a
-quarantine-only seed list assembled from operator-supplied and Discord-directory
-leads. Import it
+quarantine-only seed list assembled from operator-supplied leads. Import it
 into local discovery state with:
 
 ```bash
@@ -164,18 +163,10 @@ Use `--terms-prohibited` when the reviewed terms contain an explicit binding
 prohibition on the intended external use. Promotion never activates a provider;
 successful probes and separate operator approval are still required.
 
-Community Telegram and Discord bots follow the same rule: being informal or
-publicly reachable is not permission to automate or send private data. This
-project does not autonomously join other servers or send unsolicited DMs to
-bots. A private message could be a useful transport only when the platform,
-bot owner, and applicable server rules explicitly authorize the integration;
-otherwise keep the lead quarantined.
-
-An operator-owned Discord server can be used as a controlled testbed for
-explicitly authorized bots. Configure an approved wrapper through
-`AIPOOL_COMMAND` in the admin panel, isolate it to a test channel, begin with
-synthetic prompts, and keep each bot's rate limits and integration permission
-under review. Inviting a bot is not blanket permission to automate it.
+Community-platform candidates follow the same rule: being informal or
+publicly reachable is not permission to automate or send private data. Keep
+these candidates quarantined unless the platform, owner, and applicable rules
+explicitly authorize the integration.
 
 Inspect candidate state with `aipool candidate list`; approve a passing probe
 only with `aipool candidate activate ID --operator-approved`. Approval records
@@ -257,79 +248,6 @@ existing secret values, writes the gitignored `.aipool.local` file with mode
 `0600`, and requires a coordinator restart before changes take effect. Provider
 model discovery will prefer a live `/models` response, then curated catalog
 metadata, then an explicit operator-supplied model.
-
-### Minimal Discord controller setup
-
-For a controlled Discord testbed, create a private server and a dedicated test
-channel. In the [Discord Developer Portal](https://discord.com/developers/applications),
-create an application and bot, then install it to that server with the `bot`
-and `applications.commands` scopes. Grant only `View Channel`, `Send Messages`,
-`Read Message History`, and `Use Application Commands`; do not grant
-Administrator or `Manage Server`.
-
-In the application's **Bot → Privileged Gateway Intents** settings, enable
-**Server Members Intent** so the coordinator can enumerate installed bots, and
-enable **Message Content Intent** so it can read ordinary worker replies. These
-are application intents, not additional server permissions; re-adding the
-controller bot is unnecessary.
-
-Copy the application ID, server ID, channel ID, and bot token into the `/admin`
-panel. The token is stored masked in the gitignored config and must never be
-sent through chat or committed. The server should contain synthetic test data
-only. Third-party bots still require their own authorized invite/integration
-path; the controller bot does not silently install or operate them.
-
-After restarting the coordinator, verify the read-only connection with:
-
-```bash
-aipool discord check
-```
-
-This checks the bot identity and access to the configured server and channel;
-it does not install other bots. Worker bots are enumerated automatically from
-the configured server, excluding the controller itself; no per-bot IDs are
-required. Each resulting provider sends only bounded task envelopes to the
-configured channel, polls for its exact bot, and turns Discord
-401/403/429/timeouts into normal provider failures so routing can pause it.
-Start with harmless synthetic prompts and keep workers at complexity level 1
-until benchmark evidence says otherwise. Newly discovered workers remain
-quarantined and are not routed until `aipool discord benchmark` succeeds.
-Each worker is mentioned automatically; a custom message prefix is only needed
-for a bot that requires a nonstandard command format.
-
-Discord workers receive the same bounded `ContextPacket` format as the other
-constrained transports. Artifact-backed inputs are rendered into explicitly
-marked, untrusted context data; the coordinator does not ask a worker to fetch
-local paths or hidden endpoints.
-
-To run the first bounded capability test against up to three discovered worker
-bots, use:
-
-```bash
-aipool discord benchmark --db .aipool-data/aipool.sqlite
-```
-
-This sends only the built-in synthetic benchmark cases, records per-bot
-capability evidence, and leaves weak or failing bots out of capable routing.
-Increase `--max-bots` only when the test channel and provider limits support it.
-
-For a human-authored diagnostic, inspect the recent synthetic-channel messages
-with `aipool discord recent --limit 20`. If a bot answers a human but ignores
-the controller, leave it disabled as `bot_to_bot_unsupported`; do not provide
-user OAuth or automate a personal Discord account to work around that behavior.
-
-If a discovered bot requires a slash command or other human interaction, hold it
-without sending another probe:
-
-```bash
-aipool discord hold --username Hana \
-  --reason "bot requires a user slash-command interaction" \
-  --db .aipool-data/aipool.sqlite
-```
-
-The controller can send ordinary messages as a bot, but it cannot impersonate a
-human user to invoke another application's slash command. A held worker is skipped
-by future Discord benchmarks and routing.
 
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an

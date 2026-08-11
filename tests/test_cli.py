@@ -12,18 +12,6 @@ from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
-    def test_discovered_discord_workers_start_quarantined_until_benchmark(self) -> None:
-        fake = __import__("unittest").mock.Mock()
-        fake.return_value.list_bots.return_value = [{"id": "worker", "username": "worker"}]
-        with tempfile.TemporaryDirectory() as directory:
-            with patch.dict(os.environ, {
-                "AIPOOL_DISCORD_BOT_TOKEN": "secret", "AIPOOL_DISCORD_GUILD_ID": "guild",
-                "AIPOOL_DISCORD_CHANNEL_ID": "channel", "AIPOOL_DISCORD_APPLICATION_ID": "controller",
-                "AIPOOL_ARTIFACT_ROOT": directory,
-            }, clear=True), patch("aipool.cli.DiscordApiClient", fake):
-                registry = _build_registry(__import__("argparse").Namespace(command="task"))
-        self.assertEqual(registry.get("discord-worker:worker").profile.state, ProviderState.QUARANTINED)
-
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
             "task": "classification",
@@ -82,45 +70,6 @@ class CliTests(unittest.TestCase):
         self.assertIn("baseline_valid_rate", result)
         self.assertIn("distributed_cheaper_count", result)
         self.assertEqual(len(result["records"]), 3)
-
-    def test_discord_check_uses_operator_config_without_printing_token(self) -> None:
-        output = io.StringIO()
-        fake = __import__("unittest").mock.Mock()
-        fake.return_value.check.return_value = {
-            "bot": {"id": "bot", "username": "aipool"},
-            "guild": {"id": "guild", "name": "Test"},
-            "channel": {"id": "channel", "name": "aipool-test", "type": 0},
-        }
-        with patch.dict(os.environ, {
-            "AIPOOL_DISCORD_BOT_TOKEN": "secret",
-            "AIPOOL_DISCORD_GUILD_ID": "guild",
-            "AIPOOL_DISCORD_CHANNEL_ID": "channel",
-        }, clear=True), patch("aipool.cli.DiscordApiClient", fake), contextlib.redirect_stdout(output):
-            code = main(["discord", "check"])
-        self.assertEqual(code, 0)
-        self.assertNotIn("secret", output.getvalue())
-        fake.assert_called_once_with("secret", "guild", "channel")
-
-    def test_discord_hold_disables_exact_discovered_username_without_sending(self) -> None:
-        output = io.StringIO()
-        fake = __import__("unittest").mock.Mock()
-        fake.return_value.list_bots.return_value = [{"id": "hana", "username": "Hana"}]
-        with tempfile.TemporaryDirectory() as directory:
-            database = directory + "/discord.sqlite"
-            with patch.dict(os.environ, {
-                "AIPOOL_DISCORD_BOT_TOKEN": "secret", "AIPOOL_DISCORD_GUILD_ID": "guild",
-                "AIPOOL_DISCORD_CHANNEL_ID": "channel",
-            }, clear=True), patch("aipool.cli.DiscordApiClient", fake), contextlib.redirect_stdout(output):
-                code = main([
-                    "discord", "hold", "--username", "Hana",
-                    "--reason", "bot requires a user slash-command interaction", "--db", database,
-            ])
-            self.assertEqual(code, 0)
-            self.assertEqual(json.loads(output.getvalue())["state"], "disabled")
-            store = Store(database)
-            self.assertEqual(store.health("discord-worker:hana")["state"], "disabled")
-            store.close()
-        fake.assert_called_once_with("secret", "guild", "channel")
 
     def test_task_can_use_an_operator_supplied_browser_wrapper_without_api_key(self) -> None:
         task = json.dumps({
@@ -269,7 +218,7 @@ class CliTests(unittest.TestCase):
             registry = CandidateRegistry(store)
             candidate = CandidateProvider(
                 id="candidate:bench", name="Candidate", source="https://source.example/",
-                transport="discord-bot", endpoint="https://discord.example/bot", terms_url="",
+                transport="community-bot", endpoint="https://bot.example/", terms_url="",
                 authorization="operator reviewed",
             )
             registry.add(candidate)

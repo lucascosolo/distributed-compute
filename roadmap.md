@@ -23,9 +23,8 @@ useful, authorized, and cheaper than existing options.
    must stop for email, phone, CAPTCHA, terms acceptance, payment, or final
    account/key creation; it must never create accounts or evade provider limits
    autonomously.
-4. Remove the Discord transport completely in a dedicated cleanup chunk. Discord
-   lessons remain in the ledger, but Discord code, commands, panel fields, tests,
-   candidate seeds, and docs should not remain in the shipped project.
+4. Keep the retired community-platform transport out of the shipped project;
+   generic candidate probing remains available for documented integrations.
 
 ## Phase 0 — Foundations and contracts
 
@@ -273,13 +272,9 @@ adapter proposal with tests. Never auto-write arbitrary executable provider code
 and explicitly promote a candidate to `HEALTHY`.
 
 The candidate-aware command adapter is the initial known-transport path for
-authorized Discord/Telegram wrappers; `candidate benchmark` records evidence,
+authorized external wrappers; `candidate benchmark` records evidence,
 but approval and routing configuration remain separate actions.
 
-The Discord controller begins with a read-only connectivity check. Its optional
-message adapter requires an operator-selected worker bot ID and never installs
-other bots, uses user tokens, retries a rate limit, or rotates state to evade a
-limit.
 
 ### Chunk 5.4a: Free-LLM directory ingestion
 
@@ -367,17 +362,15 @@ and quota warning.
 without collecting credentials in logs or making accounts on the operator's
 behalf.
 
-### Chunk 5.4d: Remove Discord transport
+### Chunk 5.4d: Retire unsupported community transports
 
-Delete the Discord adapter, API client, CLI subcommands, panel fields, Discord
-candidate seeds, Discord-specific tests, and Discord-only documentation. Retain
-only generic transport, health, rate-limit, and candidate-policy behavior that is
-used by other providers. Remove any Discord-specific ignored configuration from
-operator-local deployment files separately; never commit or print those values.
+The earlier platform-specific transport experiment is retired. Generic
+quarantine candidates and operator-owned wrappers remain available only for
+documented, authorized integrations.
 
-**Exit gate:** repository search finds no Discord implementation or user-facing
-configuration, the full test suite passes, the panel contains no Discord fields,
-and the Hugging Face/API/browser paths remain functional.
+**Exit gate:** no platform-specific transport code, commands, panel fields,
+provider seeds, or setup documentation remain; generic API/browser paths and
+the full test suite remain functional.
 
 ## Phase 6 — Semi-autonomous provider maintenance
 

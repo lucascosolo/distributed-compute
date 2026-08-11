@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `eedaa6b`
+- Last pushed commit: `bd87d43`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `162 tests passed` with
+- Verification for this chunk: `148 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - No VPS deployment has been performed.
 
@@ -59,27 +59,20 @@ or the operator's environment.
 - Added `providers/candidate-catalog.json` and `LocalCatalogSource` so supplied
   chatbot leads can be imported reproducibly as unverified quarantine records;
   the catalog is explicitly not an active provider list.
-- Added several current Discord-directory chatbot leads to that same quarantine
-  catalog. They remain unverified until the operator reviews terms, invites
-  them manually, and the bounded Discord benchmark records usable output.
+- Added several public chatbot leads to the quarantine catalog. They remain
+  unverified until terms, login behavior, capability, and rate limits are
+  reviewed with a bounded synthetic probe.
 - Added explicit CLI visibility and approval gates with `candidate list` and
-  `candidate activate --operator-approved`. Community Telegram/Discord bots
+  `candidate activate --operator-approved`. Community-platform bots
   remain candidates only when an authorized integration path is established;
   informal reachability is not treated as permission.
 - The admin panel can now configure an operator-owned command worker via
-  `AIPOOL_COMMAND`, which supports authorized Discord/Telegram wrappers while
+  `AIPOOL_COMMAND`, which supports authorized community-platform wrappers while
   keeping the existing non-shell, rate-limit, and synthetic-test constraints.
 - Approved candidates can now be benchmarked through
   `aipool candidate benchmark`; the candidate-aware command adapter passes
   metadata and task envelopes to an operator wrapper and persists capability
   observations without auto-activating the provider.
-- The secure panel now has Discord controller fields for application, guild,
-  channel, and masked bot-token configuration, with a least-privilege setup
-  documented for a private synthetic test server.
-- Added `DiscordApiClient` and `aipool discord check`, a read-only bot API
-  health check. The configured controller successfully identified itself and
-  accessed the configured server/channel during live verification; it has not
-  sent messages or installed other bots.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and
@@ -135,71 +128,10 @@ or the operator's environment.
   `huggingface-inference` adapter using `HF_TOKEN` and a selected model. API
   rate-limit responses preserve `Retry-After` for the existing provider hold
   logic; no browser profile rotation or quota bypass is supported.
-- Discord now has a guarded worker adapter: after a read-only setup check, an
-  worker sends one bounded task envelope to the configured channel, polls only
-  after its own message for the selected bot's reply, and maps authentication,
-  rate-limit, network, and timeout failures into the normal provider result/hold
-  path. It never installs bots, uses user tokens, or retries a 429 automatically.
-- Discord worker discovery now lists bot members from the configured guild and
-  creates one low-complexity provider per bot automatically, excluding the
-  controller. No per-worker IDs are stored in operator configuration. The
-  Discord Developer Portal must enable Server Members Intent for enumeration and
-  Message Content Intent for ordinary reply content.
-- `aipool discord benchmark` now runs the existing three-case bounded benchmark
-  sequentially across up to three discovered worker bots, persists per-bot
-  capability observations, and sends failures through the normal health hold
-  logic. It requires no per-worker IDs.
-- Discord task messages now render the shared bounded `ContextPacket`, including
-  configured artifact contents when available, instead of sending an opaque
-  task reference that a remote worker could not reconstruct. Context remains
-  explicitly untrusted and is truncated to the Discord message budget.
-- The built-in Discord benchmark cases now contain explicit synthetic objectives
-  and input text, so a response is tested against a reconstructable task rather
-  than an empty `benchmark:*` reference.
-- Discord workers are now mentioned automatically before each bounded task,
-  which removes another per-bot configuration requirement for common
-  mention-triggered bots; the optional prefix remains available for nonstandard
-  command formats.
-- Automatically discovered Discord workers now begin in `QUARANTINED` state;
-  only the bounded benchmark can establish health and make their observed
-  capabilities eligible for routing.
-- Discord benchmarking now stops immediately on authentication or rate-limit
-  responses and preserves `Retry-After` for the provider health hold, preventing
-  the benchmark itself from consuming a limited worker's remaining quota.
-- First live Discord run found `CommunityOne` and `Quickchat AI`. Both returned
-  rate-limit behavior before producing a valid benchmark result; the database
-  recorded their observations and health holds, and a follow-up task returned
-  the required native fallback (`no_healthy_capable_provider`). The benchmark
-  now reports held/degraded workers as skipped rather than probing them again.
-- A Discord rate-limit now blocks immediate retries against other Discord
-  workers during the same routed task and stops the remainder of a benchmark
-  batch. Other provider transports can still be considered when available.
-- Operator verification showed `CommunityOne` responds to a human-authored
-  prompt but not to the controller bot's prompt. It is therefore a
-  `bot_to_bot_unsupported` candidate, not usable Discord compute; do not keep
-  retrying it or attempt to solve that limitation with user OAuth.
-- Added the read-only `aipool discord recent` diagnostic. The live channel
-  confirmed the human-vs-bot distinction, and CommunityOne was marked disabled
-  in the ignored local database with the reason
-  `bot_to_bot_unsupported`; no repository secret or account OAuth was used.
-- Live discovery later found `Hana`. The operator confirmed that it requires the
-  user-invoked `/ask-hana` slash command rather than responding to a bot mention.
-  Discord application commands are user-invoked interactions; the controller must
-  not impersonate a user or use account OAuth to trigger one. Added
-  `aipool discord hold --username ... --reason ...` so this evidence can be
-  recorded without another probe; Hana remains held locally and is not compute.
-- A bounded benchmark of the newly discovered `Learning LLM` bot sent the three
-  synthetic cases but received no usable response (`valid: 0/3`). Its persistent
-  state is now `degraded`, and the panel was restarted and verified with all four
-  discovered workers represented: two disabled and two degraded. No Discord worker
-  currently qualifies for routing.
-- Discord is paused as an active transport. Hugging Face Inference Providers is
-  configured only in the ignored operator config with model
-  `Qwen/Qwen3-8B:cheapest`; a bounded live classification smoke test returned valid
-  JSON, used 710 reported worker tokens, and produced an internal delegation cost
-  of `0.08` versus a local estimate of `1.0`. This proves the adapter works, but
-  does not prove the request was free; Hugging Face billing/credit status remains
-  an operator concern and the router's `:cheapest` policy is not a free guarantee.
+- A previously explored community-platform transport was retired after
+  live testing showed bot-to-bot limitations, rate limits, and human-only
+  interaction requirements. Those experiments are not part of the active
+  provider registry or shipped transport surface.
 - Added Character.AI and Free LLM Playground as browser-chat quarantine candidates.
   Character.AI was only inspected as a public landing page; Free LLM Playground's
   public page claims no signup/API key and a daily free cap, but neither candidate
@@ -208,11 +140,8 @@ or the operator's environment.
   model separates permanent free tiers, renewable credits, one-time trials, and
   local/self-hosted tools, while recording card requirements, rate limits, model
   IDs, and OpenAI-compatible endpoints. Added API leads such as Groq, Cerebras,
-  OpenRouter, Z.AI, and Inference.net to the quarantine catalog; none is active
-  merely because it appears in that list.
-- The operator requested removing Discord entirely. That removal is recorded as
-  roadmap chunk 5.4d rather than being mixed into the current provider pivot;
-  no Discord code has been deleted in this checkpoint.
+  OpenRouter, Z.AI, TokenRouter, NVIDIA NIM, Mistral, and SambaNova to the
+  quarantine catalog; none is active merely because it appears in that list.
 - The admin-panel chunk now expands catalog entries with model metadata into
   separate model cards. Cards show a capability tier and `quota_weight`, meaning
   expected consumption from a provider's free allowance rather than dollars;
@@ -263,6 +192,17 @@ or the operator's environment.
   families, with separate general, coding, and stronger model cards. Their free
   or trial status and limits remain operator-verified metadata, not an activation
   claim.
+- Added NVIDIA NIM's `z-ai/glm-5.2` and
+  `nvidia/nemotron-3-ultra-550b-a55b` free-endpoint candidates as very-strong
+  model cards, based on the official Build.NVIDIA catalog. They remain
+  quarantine-only until live model discovery and an explicit smoke test.
+- Added the operator-supplied NVIDIA NIM `muse-glimmer-30b` candidate as a
+  provisional strong model entry; live `/models` discovery must confirm its
+  exact identifier before it can be considered for routing.
+- Retired the unsupported platform-specific transport completely: removed its
+  adapter, CLI commands, panel configuration, catalog seeds, tests, setup docs,
+  and ignored local configuration. Generic candidate wrappers remain available
+  only for documented, authorized integrations.
 - Added the repository-local `scripts/aipool` launcher so the distributed-compute
   skill works before editable package installation. The panel now exposes an
   explicit bounded smoke-test button for configured catalog models.
@@ -293,7 +233,7 @@ probes. Verify actual cost/credit behavior before treating Hugging Face as free,
 and keep candidates quarantined until a probe proves usable context transfer,
 valid output, acceptable terms, and a cheaper total cost. The next implementation
 chunk is human-reviewed promotion and quota accounting for persisted model
-findings; Discord removal follows as roadmap chunk 5.4d.
+findings; retired transports are not reintroduced.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

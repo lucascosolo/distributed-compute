@@ -20,9 +20,8 @@ from .comparison import run_comparison
 from .context import ContextPacket
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
-from .discord_api import DiscordApiClient, DiscordChannelAdapter
 from .discovered import build_discovered_adapter
-from .domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvelope
+from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
 from .providers import BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
@@ -197,34 +196,6 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             tuple(shlex.split(browser_command)),
             ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
         ))
-    discord_token = os.environ.get("AIPOOL_DISCORD_BOT_TOKEN")
-    discord_guild = os.environ.get("AIPOOL_DISCORD_GUILD_ID")
-    discord_channel = os.environ.get("AIPOOL_DISCORD_CHANNEL_ID")
-    if args.command != "discord" and discord_token and discord_guild and discord_channel:
-        try:
-            client = DiscordApiClient(discord_token, discord_guild, discord_channel)
-            discovered = client.list_bots()
-        except (ValueError, TypeError):
-            discovered = []
-        if not isinstance(discovered, list):
-            discovered = []
-        controller_id = os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", "")
-        artifacts = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts"))
-        for bot in discovered:
-            bot_id = bot["id"]
-            if bot_id == controller_id:
-                continue
-            profile = ProviderProfile(
-                f"discord-worker:{bot_id}", f"Discord worker {bot.get('username', bot_id)}", "discord",
-                capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
-                reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=1,
-            )
-            registry.register(DiscordChannelAdapter(
-                profile, discord_token, discord_channel, bot_id,
-                controller_bot_id=controller_id,
-                message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
-                artifacts=artifacts,
-            ))
     return registry
 
 
@@ -235,21 +206,6 @@ def _parser() -> argparse.ArgumentParser:
     task.add_argument("--json", required=True, dest="task_json")
     task.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("providers", help="list configured providers")
-    discord = subparsers.add_parser("discord", help="verify the configured Discord controller")
-    discord_subparsers = discord.add_subparsers(dest="discord_action", required=True)
-    discord_subparsers.add_parser("check", help="read-only bot/server/channel connectivity check")
-    discord_bots = discord_subparsers.add_parser("bots", help="list bot members visible in the configured server")
-    discord_bots.add_argument("--limit", type=int, default=1000)
-    discord_recent = discord_subparsers.add_parser("recent", help="read recent diagnostic messages from the configured test channel")
-    discord_recent.add_argument("--limit", type=int, default=50)
-    discord_hold = discord_subparsers.add_parser("hold", help="disable one discovered worker without sending a message")
-    discord_hold.add_argument("--username", required=True, help="exact discovered Discord bot username")
-    discord_hold.add_argument("--reason", required=True, help="operator evidence for holding this worker")
-    discord_hold.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
-    discord_benchmark = discord_subparsers.add_parser("benchmark", help="run bounded capability cases against discovered worker bots")
-    discord_benchmark.add_argument("--max-bots", type=int, default=3)
-    discord_benchmark.add_argument("--include-degraded", action="store_true", help="retest workers already showing failures")
-    discord_benchmark.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
     discover_input = discover.add_mutually_exclusive_group(required=True)
     discover_input.add_argument("--query")
@@ -435,142 +391,6 @@ def main(argv: list[str] | None = None) -> int:
                 "provider_id": result.provider_id, "scores": result.scores,
                 "attempts": result.attempts, "valid": result.valid,
             }, separators=(",", ":")))
-            return 0
-        except (KeyError, ValueError, TypeError) as exc:
-            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
-            return 2
-        finally:
-            store.close()
-    if args.command == "discord" and args.discord_action == "check":
-        try:
-            result = DiscordApiClient(
-                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
-                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
-                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
-            ).check()
-            print(json.dumps(result, separators=(",", ":")))
-            return 0
-        except (ValueError, TypeError) as exc:
-            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
-            return 2
-    if args.command == "discord" and args.discord_action == "bots":
-        try:
-            client = DiscordApiClient(
-                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
-                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
-                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
-            )
-            print(json.dumps({"bots": client.list_bots(args.limit)}, separators=(",", ":")))
-            return 0
-        except (ValueError, TypeError) as exc:
-            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
-            return 2
-    if args.command == "discord" and args.discord_action == "recent":
-        try:
-            client = DiscordApiClient(
-                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
-                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
-                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
-            )
-            print(json.dumps({"messages": client.recent_messages(args.limit)}, separators=(",", ":")))
-            return 0
-        except (ValueError, TypeError) as exc:
-            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
-            return 2
-    if args.command == "discord" and args.discord_action == "hold":
-        store = Store(args.db)
-        try:
-            username = args.username.strip()
-            reason = args.reason.strip()
-            if not username or not reason:
-                raise ValueError("username and reason are required")
-            client = DiscordApiClient(
-                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
-                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
-                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
-            )
-            matches = [bot for bot in client.list_bots() if bot.get("username") == username]
-            if len(matches) != 1:
-                raise ValueError(f"expected exactly one discovered bot named {username!r}, found {len(matches)}")
-            bot = matches[0]
-            provider_id = f"discord-worker:{bot['id']}"
-            profile = ProviderProfile(
-                provider_id, f"Discord worker {username}", "discord",
-                capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
-                reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=1,
-            )
-            store.ensure_health(profile)
-            store.set_health(
-                provider_id, state=ProviderState.DISABLED, next_probe_at=0,
-                last_failure_reason=reason[:500],
-            )
-            print(json.dumps({"provider_id": provider_id, "username": username, "state": "disabled"}, separators=(",", ":")))
-            return 0
-        except (KeyError, ValueError, TypeError) as exc:
-            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
-            return 2
-        finally:
-            store.close()
-    if args.command == "discord" and args.discord_action == "benchmark":
-        store = Store(args.db)
-        try:
-            if not 1 <= args.max_bots <= 32:
-                raise ValueError("max-bots must be between 1 and 32")
-            client = DiscordApiClient(
-                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
-                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
-                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
-            )
-            controller_id = os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", "")
-            workers = [bot for bot in client.list_bots() if bot["id"] != controller_id][:args.max_bots]
-            registry = ProviderRegistry()
-            for bot in workers:
-                bot_id = bot["id"]
-                profile = ProviderProfile(
-                    f"discord-worker:{bot_id}", f"Discord worker {bot.get('username', bot_id)}", "discord",
-                    capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
-                    reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=1,
-                )
-                registry.register(DiscordChannelAdapter(
-                    profile, os.environ["AIPOOL_DISCORD_BOT_TOKEN"],
-                    os.environ["AIPOOL_DISCORD_CHANNEL_ID"], bot_id,
-                    controller_bot_id=controller_id,
-                    message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
-                    artifacts=ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
-                ))
-            coordinator = Coordinator(_build_registry(args, store), store)
-            results = []
-            skipped = []
-            shared_rate_limited = False
-            effective_profiles = {
-                profile.id: profile for profile in coordinator.health.profiles(
-                    adapter.profile for adapter in registry.all()
-                )
-            }
-            for adapter in registry.all():
-                if shared_rate_limited:
-                    skipped.append({"provider_id": adapter.profile.id, "state": "shared_rate_limited"})
-                    continue
-                state = effective_profiles[adapter.profile.id].state
-                held_states = {
-                    ProviderState.RATE_LIMITED, ProviderState.AUTH_REQUIRED,
-                    ProviderState.BROKEN, ProviderState.DISABLED,
-                }
-                if not args.include_degraded:
-                    held_states.add(ProviderState.DEGRADED)
-                if state in held_states:
-                    skipped.append({"provider_id": adapter.profile.id, "state": state.value})
-                    continue
-                result = coordinator.benchmark_provider(adapter.profile.id)
-                results.append({
-                    "provider_id": result.provider_id, "scores": result.scores,
-                    "attempts": result.attempts, "valid": result.valid,
-                    "stopped_error": result.stopped_error.value if result.stopped_error else None,
-                    "retry_after_seconds": result.retry_after_seconds,
-                })
-                if result.stopped_error == ProviderErrorKind.RATE_LIMITED:
-                    shared_rate_limited = True
-            print(json.dumps({"workers": results, "skipped": skipped}, separators=(",", ":")))
             return 0
         except (KeyError, ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))

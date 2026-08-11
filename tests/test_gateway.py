@@ -18,7 +18,6 @@ class GatewayTests(unittest.TestCase):
     def setUp(self) -> None:
         self._secret_env = patch.dict(os.environ, {
             "HF_TOKEN": "", "AIPOOL_OPENAI_API_KEY": "", "AIPOOL_TOKEN": "",
-            "AIPOOL_DISCORD_BOT_TOKEN": "",
         }, clear=False)
         self._secret_env.start()
         self.addCleanup(self._secret_env.stop)
@@ -131,11 +130,7 @@ class GatewayTests(unittest.TestCase):
             status, data = self.request("POST", "/admin/config", {
                 "AIPOOL_HF_MODEL": "openai/gpt-oss-20b",
                 "AIPOOL_BROWSER_COMMAND": "/usr/local/bin/authorized-browser-wrapper",
-                "AIPOOL_COMMAND": "/usr/local/bin/authorized-discord-wrapper",
-                "AIPOOL_DISCORD_APPLICATION_ID": "123456789012345678",
-                "AIPOOL_DISCORD_GUILD_ID": "234567890123456789",
-                "AIPOOL_DISCORD_CHANNEL_ID": "345678901234567890",
-                "AIPOOL_DISCORD_BOT_TOKEN": "discord-secret",
+                "AIPOOL_COMMAND": "/usr/local/bin/authorized-command-wrapper",
                 "HF_TOKEN": "hf-secret",
                 "AIPOOL_MODEL_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_ENABLED": "1",
                 "AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_API_KEY": "model-secret",
@@ -146,19 +141,15 @@ class GatewayTests(unittest.TestCase):
             text = config_path.read_text()
             self.assertIn("AIPOOL_HF_MODEL=openai/gpt-oss-20b", text)
             self.assertIn("AIPOOL_BROWSER_COMMAND=/usr/local/bin/authorized-browser-wrapper", text)
-            self.assertIn("AIPOOL_COMMAND=/usr/local/bin/authorized-discord-wrapper", text)
-            self.assertIn("AIPOOL_DISCORD_APPLICATION_ID=123456789012345678", text)
-            self.assertIn("AIPOOL_DISCORD_BOT_TOKEN=discord-secret", text)
+            self.assertIn("AIPOOL_COMMAND=/usr/local/bin/authorized-command-wrapper", text)
             self.assertIn("HF_TOKEN=hf-secret", text)
             self.assertIn("AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_API_KEY=model-secret", text)
             self.assertNotIn("UNSAFE_SETTING", text)
             self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
             status, data = self.request("GET", "/admin/config")
             self.assertTrue(data["secrets"]["HF_TOKEN"])
-            self.assertTrue(data["secrets"]["AIPOOL_DISCORD_BOT_TOKEN"])
             self.assertTrue(any(provider["has_api_key"] for provider in data["providers"]))
             self.assertNotIn("hf-secret", json.dumps(data))
-            self.assertNotIn("discord-secret", json.dumps(data))
             self.assertNotIn("model-secret", json.dumps(data))
 
     def test_api_key_defaults_provider_models_to_enabled(self) -> None:

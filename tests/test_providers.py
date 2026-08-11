@@ -157,8 +157,8 @@ class ProvidersTests(unittest.TestCase):
 
     def test_candidate_command_adapter_sends_candidate_and_task_metadata(self) -> None:
         adapter = CandidateCommandAdapter(
-            ProviderProfile("candidate", "Candidate", "discord-bot", state=ProviderState.HEALTHY),
-            {"id": "candidate", "endpoint": "https://discord.example/bot"},
+            ProviderProfile("candidate", "Candidate", "community-bot", state=ProviderState.HEALTHY),
+            {"id": "candidate", "endpoint": "https://bot.example/"},
             (sys.executable, "-c", "import json,sys; p=json.load(sys.stdin); print(json.dumps(p['task']))"),
         )
         result = adapter.complete(task())
