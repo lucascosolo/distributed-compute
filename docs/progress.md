@@ -514,3 +514,20 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   checks and one Z.AI connection in error. Health checks are not generation
   proof; provider-specific generation remains separately quarantined until
   the operator finishes importing providers and approves a bounded test batch.
+
+## 2026-08-11 — OmniRoute auto-route smoke finding
+
+- After additional imports, OmniRoute reports 13 connections, 12 health-active
+  and one Z.AI error. A normal coordinator smoke selected direct Hugging Face
+  rather than OmniRoute because the direct route was cheaper and succeeded.
+- An isolated one-call OmniRoute-only coding smoke failed, exposing stale or
+  unavailable auto-route candidates in OmniRoute: a retired Mistral model
+  returned 410, Gemini hit a 429 hold, and another candidate rejected the
+  request's thinking settings. This is provider/catalog configuration debt,
+  not evidence that the outer aipool transport is broken.
+- Read-only model discovery found live catalogs for Hugging Face, OpenRouter,
+  NVIDIA, and SambaNova. Several other imported connections returned 401/403
+  from their model endpoints and need credential or provider-specific review.
+  OmniRoute auto aliases remain unsuitable as the sole production route until
+  stale candidates are repaired or quarantined; aipool's direct-provider path
+  and native fallback remain the safety net.
