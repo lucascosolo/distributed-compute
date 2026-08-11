@@ -134,6 +134,50 @@ class CommandAdapter:
 
 
 @dataclass(slots=True)
+class CandidateCommandAdapter:
+    """Run an operator-owned wrapper for one approved candidate.
+
+    The wrapper receives candidate metadata and a task envelope as JSON. This
+    supports authorized community-bot bridges without making Discord,
+    Telegram, or another platform part of the coordinator core.
+    """
+
+    profile: ProviderProfile
+    candidate_metadata: Mapping[str, object]
+    command: tuple[str, ...]
+    timeout_seconds: float = 120.0
+    max_output_bytes: int = 1_000_000
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        if not self.command:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, "candidate command is not configured", 0)
+        payload = json.dumps({
+            "candidate": dict(self.candidate_metadata), "task": task.to_dict(),
+        }, sort_keys=True, separators=(",", ":")).encode()
+        try:
+            completed = subprocess.run(
+                self.command, input=payload, stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, timeout=self.timeout_seconds,
+                check=False, shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            return _failure(self.profile.id, ProviderErrorKind.TIMEOUT, "candidate command timed out", (time.monotonic() - started) * 1000)
+        except OSError as exc:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
+        latency = (time.monotonic() - started) * 1000
+        if completed.returncode:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, "candidate command failed", latency)
+        if len(completed.stdout) > self.max_output_bytes:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, "candidate output exceeds limit", latency)
+        return ProviderResult(
+            provider_id=self.profile.id,
+            output=completed.stdout.decode(errors="replace"),
+            latency_ms=latency,
+        )
+
+
+@dataclass(slots=True)
 class BrowserChatAdapter:
     """Adapter seam for a reviewed public web chat UI.
 

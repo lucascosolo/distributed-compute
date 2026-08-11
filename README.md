@@ -179,6 +179,12 @@ Inspect candidate state with `aipool candidate list`; approve a passing probe
 only with `aipool candidate activate ID --operator-approved`. Approval records
 operator review but does not create credentials or bypass platform controls.
 
+After approval, run the bounded capability cases through an operator-owned
+candidate wrapper with `aipool candidate benchmark ID --command '...'`. The
+wrapper receives candidate metadata plus each task envelope on stdin and must
+return only the worker text on stdout; benchmark scores are persisted as
+provider observations.
+
 For asynchronous work, enqueue a task and inspect it later:
 
 ```bash

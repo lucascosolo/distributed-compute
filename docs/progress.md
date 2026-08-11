@@ -66,6 +66,10 @@ or the operator's environment.
 - The admin panel can now configure an operator-owned command worker via
   `AIPOOL_COMMAND`, which supports authorized Discord/Telegram wrappers while
   keeping the existing non-shell, rate-limit, and synthetic-test constraints.
+- Approved candidates can now be benchmarked through
+  `aipool candidate benchmark`; the candidate-aware command adapter passes
+  metadata and task envelopes to an operator wrapper and persists capability
+  observations without auto-activating the provider.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and

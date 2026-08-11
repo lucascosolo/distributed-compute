@@ -240,6 +240,10 @@ adapter proposal with tests. Never auto-write arbitrary executable provider code
 **Exit gate:** an operator can inspect the adapter/configuration, run its tests,
 and explicitly promote a candidate to `HEALTHY`.
 
+The candidate-aware command adapter is the initial known-transport path for
+authorized Discord/Telegram wrappers; `candidate benchmark` records evidence,
+but approval and routing configuration remain separate actions.
+
 ## Phase 6 — Semi-autonomous provider maintenance
 
 ### Chunk 6.1: Staleness diagnosis

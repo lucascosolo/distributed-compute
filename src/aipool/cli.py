@@ -8,16 +8,18 @@ import os
 import shlex
 import sys
 import threading
+from dataclasses import asdict
 from pathlib import Path
 
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .artifacts import ArtifactStore
+from .benchmark import run_benchmark
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
-from .providers import BrowserCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from .providers import BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .service import Coordinator
 from .storage import Store
 from .worker import QueueWorker
@@ -139,6 +141,11 @@ def _parser() -> argparse.ArgumentParser:
     activate.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     listing = candidate_subparsers.add_parser("list", help="list discovered candidates and evidence state")
     listing.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    benchmark = candidate_subparsers.add_parser("benchmark", help="run capability cases against an approved candidate")
+    benchmark.add_argument("candidate_id")
+    benchmark.add_argument("--command", dest="candidate_command", default=os.environ.get("AIPOOL_CANDIDATE_COMMAND"))
+    benchmark.add_argument("--timeout", type=float, default=120.0)
+    benchmark.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
@@ -259,6 +266,37 @@ def main(argv: list[str] | None = None) -> int:
                 for candidate in registry.all()
             ]}, separators=(",", ":")))
             return 0
+        finally:
+            store.close()
+    if args.command == "candidate" and args.candidate_action == "benchmark":
+        store = Store(args.db)
+        try:
+            registry = CandidateRegistry(store)
+            candidate = registry.get(args.candidate_id)
+            if candidate.state.value != "approved":
+                raise ValueError("candidate must be explicitly approved before benchmarking")
+            probe = registry.probe_result(candidate.id)
+            if probe is None or not probe.passed:
+                raise ValueError("successful candidate probe is required before benchmarking")
+            if not args.candidate_command:
+                raise ValueError("candidate benchmark command is not configured")
+            profile = ProviderProfile(
+                candidate.id, candidate.name, candidate.transport,
+                reliability=0.5, state=ProviderState.HEALTHY, max_complexity=2,
+            )
+            result = run_benchmark(CandidateCommandAdapter(
+                profile, asdict(candidate), tuple(shlex.split(args.candidate_command)),
+                timeout_seconds=args.timeout,
+            ))
+            store.record_benchmark(result)
+            print(json.dumps({
+                "provider_id": result.provider_id, "scores": result.scores,
+                "attempts": result.attempts, "valid": result.valid,
+            }, separators=(",", ":")))
+            return 0
+        except (KeyError, ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
         finally:
             store.close()
     if args.command == "queue":

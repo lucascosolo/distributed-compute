@@ -11,7 +11,7 @@ from aipool.browser_ui import UIAction, UIPlan
 from aipool.providers import ModelGuidedBrowserAdapter
 import tempfile
 from pathlib import Path
-from aipool.providers import CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from aipool.providers import CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 
 
 def task() -> TaskEnvelope:
@@ -154,6 +154,16 @@ class ProvidersTests(unittest.TestCase):
         result = adapter.complete(task())
         self.assertTrue(result.success)
         self.assertEqual(json.loads(result.output)["input_ref"], "artifact:sha256:test")
+
+    def test_candidate_command_adapter_sends_candidate_and_task_metadata(self) -> None:
+        adapter = CandidateCommandAdapter(
+            ProviderProfile("candidate", "Candidate", "discord-bot", state=ProviderState.HEALTHY),
+            {"id": "candidate", "endpoint": "https://discord.example/bot"},
+            (sys.executable, "-c", "import json,sys; p=json.load(sys.stdin); print(json.dumps(p['task']))"),
+        )
+        result = adapter.complete(task())
+        self.assertTrue(result.success)
+        self.assertEqual(json.loads(result.output)["task"], "classify")
 
     def test_command_timeout_is_normalized(self) -> None:
         adapter = CommandAdapter(

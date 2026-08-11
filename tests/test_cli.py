@@ -162,6 +162,34 @@ class CliTests(unittest.TestCase):
             self.assertEqual(record["transport"], "telegram-bot")
             self.assertFalse(record["probe_passed"])
 
+    def test_candidate_benchmark_requires_approval_and_persists_scores(self) -> None:
+        from aipool.discovery import CandidateProvider, CandidateRegistry, ProbeResult
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/benchmark.sqlite"
+            store = Store(database)
+            registry = CandidateRegistry(store)
+            candidate = CandidateProvider(
+                id="candidate:bench", name="Candidate", source="https://source.example/",
+                transport="discord-bot", endpoint="https://discord.example/bot", terms_url="",
+                authorization="operator reviewed",
+            )
+            registry.add(candidate)
+            registry.mark_probed(candidate.id, ProbeResult(
+                candidate_id=candidate.id, available=True, authorized=True,
+                context_length=1024, output_valid=True, latency_ms=1.0,
+                restrictions_clear=True, cost_known=True, automation_supported=True,
+            ))
+            registry.activate(candidate.id, operator_approved=True)
+            store.close()
+            command = f'{os.sys.executable} -c "print(\'{{\\\"name\\\":\\\"Ada\\\"}}\')"'
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["candidate", "benchmark", candidate.id, "--command", command, "--db", database])
+            self.assertEqual(code, 0)
+            result = json.loads(output.getvalue())
+            self.assertEqual(result["attempts"], 3)
+            self.assertEqual(result["valid"], 2)
+
     def test_discover_can_ingest_a_supplied_reddit_thread(self) -> None:
         from aipool.discovery_sources import DiscoveryLead
         with __import__("tempfile").TemporaryDirectory() as directory:
