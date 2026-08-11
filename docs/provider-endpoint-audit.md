@@ -19,7 +19,7 @@ individual and batch smoke-test endpoints until their contract is verified.
 | Cloudflare Workers AI | `api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}` / native REST | adapter implemented, configuration pending | The panel now accepts the non-secret account ID beside the API token. The native adapter handles the account-scoped path, `result.response` envelope, authentication errors, and retry-after rate limits; it remains unloaded until both values are present. The catalog was refreshed away from deprecated Llama/Qwen IDs to `@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3-30b-a3b-fp8`. |
 | OpenRouter | `openrouter.ai/api/v1` / OpenAI-compatible | verified | Official docs show `/api/v1/chat/completions`. |
 | Z.AI GLM | `api.z.ai/api/paas/v4` / OpenAI-compatible | endpoint and catalog IDs verified, account access pending | Z.AI’s official documentation confirms the overseas base path and `glm-4.7`/`glm-4.7-flash` IDs. Account-region access and quota status still need confirmation before testing. |
-| TokenRouter | `api.tokenrouter.com/v1/responses` / Responses API | adapter implemented, host contract pending | The adapter now uses the documented `/responses` request and response shape rather than chat completions. The operator supplied the `.com` host, while detailed public docs currently use `.io`; do not send traffic until the `.com` host is confirmed. |
+| TokenRouter | `api.tokenrouter.io/v1/responses` / Responses API | corrected, access pending | Official API docs specify the `.io` host, `/v1/responses`, Bearer authentication, and `auto:balance`. The catalog no longer uses the operator-supplied `.com` host; a no-generation credential/access check is still required before smoke testing. |
 | NVIDIA NIM hosted API | `integrate.api.nvidia.com/v1` / OpenAI-compatible | shape verified, catalog refreshed | NVIDIA’s hosted endpoint is OpenAI-compatible. The catalog now uses current free-endpoint IDs shown in NVIDIA’s model directory; a no-generation `/models` check must still confirm the operator key’s access. |
 | Mistral AI | `api.mistral.ai/v1` / OpenAI-compatible | verified, catalog refreshed | Official docs use `/v1/chat/completions`; the current model pages list `mistral-small-2603`, `codestral-2508`, and `mistral-large-2512`. Their published prices mean the operator must confirm free eligibility before any call. |
 | SambaNova Cloud | `api.sambanova.ai/v1` / OpenAI-compatible | verified, quota metadata refreshed | Official API docs confirm `/v1/chat/completions` and `/v1/models`; the documented free tier is 20 RPM, 20 RPD, and 200,000 TPD for the current selected models when no payment method is linked. The operator currently has this family disabled. |
@@ -40,8 +40,8 @@ wasting a full three-case benchmark on an obvious integration mismatch.
 
 ## Next implementation chunk
 
-Finish the remaining provider-contract audit, starting with TokenRouter’s
-conflicting `.com` versus `.io` documentation and Kilo’s live model catalog.
+Finish the remaining provider-contract audit, starting with TokenRouter's
+credential/access check and Kilo's live model catalog.
 Then add any required provider-specific adapters or quarantine entries. Keep
 Cloudflare unloaded until the operator saves its account ID, and do not run a
 live smoke call while any provider contract remains unresolved.

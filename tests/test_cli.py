@@ -139,7 +139,7 @@ class CliTests(unittest.TestCase):
         for item in load_catalog():
             by_family.setdefault(item.provider_name, item)
         self.assertEqual(by_family["TokenRouter"].preflight_status, "pending")
-        self.assertIn(".com", by_family["TokenRouter"].preflight_note)
+        self.assertIn(".io", by_family["TokenRouter"].preflight_note)
         self.assertEqual(by_family["Google AI Studio API"].preflight_status, "verified")
 
     def test_tokenrouter_registers_responses_adapter(self) -> None:
@@ -149,7 +149,7 @@ class CliTests(unittest.TestCase):
             registry = _build_registry(__import__("argparse").Namespace(command="providers"))
         adapter = registry.get(f"catalog:{provider.slug}")
         self.assertEqual(adapter.profile.transport, "tokenrouter-responses")
-        self.assertTrue(adapter.endpoint.endswith("/v1"))
+        self.assertEqual(adapter.endpoint, "https://api.tokenrouter.io/v1")
 
     def test_kilo_catalog_uses_documented_free_model_ids(self) -> None:
         from aipool.provider_catalog import load_catalog
