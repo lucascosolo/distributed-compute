@@ -305,6 +305,14 @@ or the operator's environment.
   access, or host contract is still unresolved now show a review note in the
   panel, are excluded from the no-network smoke plan, and are rejected by
   individual and batch smoke-test endpoints until marked verified.
+- Ran four bounded, read-only model-list checks on the VPS. TokenRouter
+  returned HTTP 401; NVIDIA and BazaarLink returned catalogs containing the
+  selected routes; Kilo returned a large live catalog after the discovery cap
+  was raised from 256 KiB to 2 MiB. No generation requests were made.
+- Refreshed Kilo to live free Nemotron routes and BazaarLink to the observed
+  `deepseek/deepseek-v4-flash:free` route. NVIDIA, Kilo, and BazaarLink now
+  pass the read-only preflight gate but remain quarantined until an approved
+  generation smoke test.
 
 ## Immediate user requirement
 

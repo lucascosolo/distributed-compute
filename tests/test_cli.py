@@ -155,7 +155,8 @@ class CliTests(unittest.TestCase):
         from aipool.provider_catalog import load_catalog
         providers = [item for item in load_catalog() if item.provider_name == "Kilo Gateway"]
         self.assertEqual({item.model for item in providers}, {
-            "minimax/minimax-m2.1:free", "z-ai/glm-5:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
         })
 
     def test_kilo_free_models_load_without_an_api_key(self) -> None:
@@ -169,7 +170,7 @@ class CliTests(unittest.TestCase):
         from aipool.provider_catalog import load_catalog
         providers = [item for item in load_catalog() if item.provider_name == "BazaarLink"]
         self.assertEqual({item.model for item in providers}, {
-            "auto:free", "deepseek/deepseek-v4-flash",
+            "auto:free", "deepseek/deepseek-v4-flash:free",
         })
         self.assertEqual(providers[0].quota_status, "documented")
 
