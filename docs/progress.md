@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `36cece8` (working quota correction below is not yet released)
+- Last pushed commit: `63bdba6`
 - Working tree at the last checkpoint: clean
 - Verification for this chunk: `160 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -248,6 +248,10 @@ or the operator's environment.
   the Free plan has qualitative light usage with session limits resetting every
   5 hours and weekly limits every 7 days. Usage is model-weighted rather than a
   fixed token allowance; exact account/model allowances remain unknown.
+- Catalog smoke tests now require an explicit `operator_approved: true` request
+  field in addition to the authenticated panel. The panel supplies that field
+  only when its human operator clicks the bounded smoke-test button. This keeps
+  API clients and background jobs from silently spending provider quota.
 
 ## Non-negotiable design decisions
 
