@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from dataclasses import replace
 
 from .domain import ProviderState, Strategy, TaskEnvelope, TaskOutcome
 from .health import HealthManager
@@ -21,7 +22,10 @@ class Coordinator:
         self.health = health or HealthManager(store)
 
     def submit(self, task: TaskEnvelope) -> TaskOutcome:
-        profiles = self.health.profiles(adapter.profile for adapter in self.registry.all())
+        profiles = [
+            replace(profile, capabilities=self.store.learned_capabilities(profile))
+            for profile in self.health.profiles(adapter.profile for adapter in self.registry.all())
+        ]
         decision = choose_provider(task, profiles)
         if decision.provider is None:
             outcome = TaskOutcome(

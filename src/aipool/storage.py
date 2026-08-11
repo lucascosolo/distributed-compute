@@ -72,6 +72,14 @@ class Store:
             ).fetchone()
         return (int(row["attempts"]), int(row["successes"])) if row else (0, 0)
 
+    def learned_capabilities(self, provider: ProviderProfile, *, prior_weight: float = 3.0) -> dict[str, float]:
+        """Blend declared capability with observed outcomes using a conservative prior."""
+        learned: dict[str, float] = {}
+        for capability, declared in provider.capabilities.items():
+            attempts, successes = self.observation(provider.id, capability)
+            learned[capability] = ((declared * prior_weight) + successes) / (prior_weight + attempts)
+        return learned
+
     def ensure_health(self, provider: ProviderProfile) -> None:
         with self._lock:
             self.connection.execute(
