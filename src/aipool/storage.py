@@ -38,6 +38,14 @@ class Store:
                 provider_id TEXT NOT NULL, output TEXT NOT NULL,
                 worker_tokens INTEGER NOT NULL, created_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS queue_tasks (
+                task_id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL UNIQUE,
+                task_json TEXT NOT NULL, status TEXT NOT NULL,
+                created_at REAL NOT NULL, updated_at REAL NOT NULL,
+                lease_id TEXT, lease_until REAL,
+                cancel_requested INTEGER NOT NULL DEFAULT 0,
+                outcome_json TEXT
+            );
             """
         )
         self.connection.commit()
