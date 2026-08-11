@@ -413,6 +413,7 @@ class OpenAICompatibleAdapter:
     opener: Callable[..., object] = request.urlopen
     static_api_key: str = ""
     api_key_file: str = ""
+    model_by_task: Mapping[str, str] = field(default_factory=dict)
     headers_extra: Mapping[str, str] = field(default_factory=dict)
     allow_anonymous: bool = False
     artifacts: ArtifactStore | None = None
@@ -445,7 +446,7 @@ class OpenAICompatibleAdapter:
         )
         body = json.dumps(
             {
-                "model": self.model,
+                "model": self.model_by_task.get(task.task, self.model),
                 "messages": [{"role": "user", "content": content}],
             }
         ).encode()

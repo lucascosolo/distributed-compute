@@ -177,6 +177,16 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
         registry.register(OpenAICompatibleAdapter(
             profile, endpoint, omniroute_model, "AIPOOL_OMNIROUTE_API_KEY",
             api_key_file=os.environ.get("AIPOOL_OMNIROUTE_API_KEY_FILE", ""),
+            model_by_task={
+                task_kind: model
+                for task_kind, model in (
+                    ("coding", os.environ.get("AIPOOL_OMNIROUTE_MODEL_CODING", "")),
+                    ("code_review", os.environ.get("AIPOOL_OMNIROUTE_MODEL_CODE_REVIEW", "")),
+                    ("reasoning", os.environ.get("AIPOOL_OMNIROUTE_MODEL_REASONING", "")),
+                    ("planning", os.environ.get("AIPOOL_OMNIROUTE_MODEL_REASONING", "")),
+                )
+                if model
+            },
             artifacts=artifact_store,
         ))
     hf_model = os.environ.get("AIPOOL_HF_MODEL")

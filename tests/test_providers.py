@@ -215,6 +215,29 @@ class ProvidersTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
 
+    def test_openai_adapter_selects_task_specific_model_when_configured(self) -> None:
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self):
+                return b'{"choices":[{"message":{"content":"ok"}}],"usage":{"total_tokens":1}}'
+
+        requests = []
+        def opener(req, timeout):
+            requests.append(json.loads(req.data))
+            return Response()
+
+        adapter = OpenAICompatibleAdapter(
+            ProviderProfile("api", "API", "openai", state=ProviderState.HEALTHY),
+            "https://example.test/v1/chat/completions", "auto/best-free", "AIPOOL_TEST_KEY",
+            static_api_key="test",
+            model_by_task={"coding": "auto/best-coding"},
+            opener=opener,
+        )
+        self.assertTrue(adapter.complete(TaskEnvelope(task="coding", input_ref="artifact:test")).success)
+        self.assertTrue(adapter.complete(TaskEnvelope(task="classify", input_ref="artifact:test")).success)
+        self.assertEqual([r["model"] for r in requests], ["auto/best-coding", "auto/best-free"])
+
     def test_openai_adapter_can_read_a_rotation_friendly_key_file(self) -> None:
         class Response:
             def __enter__(self): return self

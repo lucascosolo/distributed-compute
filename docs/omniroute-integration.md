@@ -58,6 +58,9 @@ by the `aipool` service user rather than in the project checkout:
 AIPOOL_OMNIROUTE_ENABLED=false
 AIPOOL_OMNIROUTE_ENDPOINT=http://127.0.0.1:20128/v1
 AIPOOL_OMNIROUTE_MODEL=auto/best-free
+AIPOOL_OMNIROUTE_MODEL_CODING=auto/best-coding
+AIPOOL_OMNIROUTE_MODEL_CODE_REVIEW=auto/best-coding
+AIPOOL_OMNIROUTE_MODEL_REASONING=auto/best-reasoning
 AIPOOL_OMNIROUTE_POWER=strong
 AIPOOL_OMNIROUTE_API_KEY_FILE=/var/lib/distributed-compute/omniroute-api-key
 ```
@@ -68,6 +71,10 @@ credential can be rotated without putting it in arguments or restarting the
 coordinator. `auto/*` routes remain subject to aipool's outer capability,
 quota, and cost policy; they are not proof that a free or capable model is
 available.
+
+Task-specific aliases keep complex work away from a generic cheap-chat route:
+coding and code review use `auto/best-coding`, while reasoning and planning use
+`auto/best-reasoning`. Other task types use the general model.
 
 The checked-in `deploy/omniroute.compose.yml` is the first-stage runtime shape.
 It uses separate bind-mounted data directories, a private Redis sidecar, API-key

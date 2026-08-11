@@ -53,12 +53,16 @@ class CliTests(unittest.TestCase):
             "AIPOOL_OMNIROUTE_MODEL": "auto/best-coding",
             "AIPOOL_OMNIROUTE_API_KEY_FILE": "/var/lib/omniroute/aipool-api-key",
             "AIPOOL_OMNIROUTE_POWER": "strong",
+            "AIPOOL_OMNIROUTE_MODEL_CODING": "auto/best-coding",
+            "AIPOOL_OMNIROUTE_MODEL_REASONING": "auto/best-reasoning",
         }, clear=True):
             registry = _build_registry(__import__("argparse").Namespace(command="providers"))
         adapter = registry.get("omniroute:auto/best-coding")
         self.assertEqual(adapter.profile.transport, "omniroute")
         self.assertEqual(adapter.endpoint, "http://127.0.0.1:20128/v1/chat/completions")
         self.assertEqual(adapter.api_key_file, "/var/lib/omniroute/aipool-api-key")
+        self.assertEqual(adapter.model_by_task["coding"], "auto/best-coding")
+        self.assertEqual(adapter.model_by_task["planning"], "auto/best-reasoning")
 
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
