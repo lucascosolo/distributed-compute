@@ -4,6 +4,8 @@
 AIPOOL_PROJECT_ROOT=/path/to/distributed-compute
 AIPOOL_MODE=local
 AIPOOL_BASE_URL=http://127.0.0.1:8765
+AIPOOL_HOST=127.0.0.1
+AIPOOL_PORT=8765
 AIPOOL_TOKEN=
 AIPOOL_DB=.aipool-data/aipool.sqlite
 AIPOOL_ARTIFACT_ROOT=.aipool-artifacts

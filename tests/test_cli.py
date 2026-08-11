@@ -48,6 +48,31 @@ class CliTests(unittest.TestCase):
             self.assertEqual(result["tasks"], 1)
             self.assertEqual(result["delegated_compute_saved"], 0.8)
 
+    def test_remote_mode_forwards_task_to_configured_gateway(self) -> None:
+        task = json.dumps({"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
+        output = io.StringIO()
+        with patch.dict(os.environ, {"AIPOOL_MODE": "remote", "AIPOOL_BASE_URL": "http://127.0.0.1:8765", "AIPOOL_TOKEN": "token"}, clear=True), \
+             patch("aipool.cli.submit_remote", return_value={"success": True, "valid": True, "output": "ok"}) as submit, \
+             contextlib.redirect_stdout(output):
+            code = main(["task", "--json", task])
+        self.assertEqual(code, 0)
+        submit.assert_called_once()
+        self.assertEqual(json.loads(output.getvalue())["output"], "ok")
+
+    def test_serve_uses_operator_local_host_port_and_token(self) -> None:
+        output = io.StringIO()
+        server = __import__("unittest").mock.Mock()
+        with patch.dict(os.environ, {"AIPOOL_HOST": "127.0.0.1", "AIPOOL_PORT": "9876", "AIPOOL_TOKEN": "token"}, clear=True), \
+             patch("aipool.cli.make_server", return_value=server) as make, \
+             contextlib.redirect_stdout(output):
+            code = main(["serve", "--db", ":memory:"])
+        self.assertEqual(code, 0)
+        make.assert_called_once()
+        self.assertEqual(make.call_args.kwargs["host"], "127.0.0.1")
+        self.assertEqual(make.call_args.kwargs["port"], 9876)
+        self.assertEqual(make.call_args.kwargs["token"], "token")
+        server.serve_forever.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

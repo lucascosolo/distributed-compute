@@ -9,7 +9,9 @@ import shlex
 import sys
 from pathlib import Path
 
+from .client import RemoteCoordinatorError, submit_remote
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
+from .gateway import make_server
 from .providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .service import Coordinator
 from .storage import Store
@@ -75,6 +77,10 @@ def _parser() -> argparse.ArgumentParser:
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    serve = subparsers.add_parser("serve", help="run the local or authorized remote gateway")
+    serve.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    serve.add_argument("--host", default=os.environ.get("AIPOOL_HOST", "127.0.0.1"))
+    serve.add_argument("--port", type=int, default=int(os.environ.get("AIPOOL_PORT", "8765")))
     return parser
 
 
@@ -82,6 +88,24 @@ def main(argv: list[str] | None = None) -> int:
     _load_local_config()
     args = _parser().parse_args(argv)
     registry = _build_registry(args)
+    if args.command == "serve":
+        store = Store(args.db)
+        try:
+            server = make_server(
+                Coordinator(registry, store),
+                host=args.host,
+                port=args.port,
+                token=os.environ.get("AIPOOL_TOKEN") or None,
+            )
+            try:
+                server.serve_forever()
+            finally:
+                server.server_close()
+        except KeyboardInterrupt:
+            return 0
+        finally:
+            store.close()
+        return 0
     if args.command == "providers":
         print(json.dumps([{
             "id": adapter.profile.id,
@@ -105,6 +129,17 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, TypeError, json.JSONDecodeError, KeyError) as exc:
         print(json.dumps({"success": False, "error": f"invalid task envelope: {exc}"}, separators=(",", ":")))
         return 2
+    if os.environ.get("AIPOOL_MODE", "local").lower() == "remote":
+        try:
+            result = submit_remote(
+                os.environ.get("AIPOOL_BASE_URL", ""), task,
+                token=os.environ.get("AIPOOL_TOKEN") or None,
+            )
+        except RemoteCoordinatorError as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 1
+        print(json.dumps(result, separators=(",", ":")))
+        return 0 if result.get("success") else 1
     store = Store(args.db)
     try:
         outcome = Coordinator(registry, store).submit(task)

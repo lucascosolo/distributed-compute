@@ -94,6 +94,35 @@ aipool status
 aipool stats --db .aipool-data/aipool.sqlite
 ```
 
+To run the HTTP gateway on the same computer, keep it loopback-only by default:
+
+```dotenv
+AIPOOL_HOST=127.0.0.1
+AIPOOL_PORT=8765
+AIPOOL_TOKEN=
+```
+
+```bash
+aipool serve --db .aipool-data/aipool.sqlite
+```
+
+The gateway requires a bearer token before it will bind to a non-loopback host.
+For a VPS or another authorized machine, install the project there, configure
+that machine's ignored `.aipool.local` with `AIPOOL_HOST`, `AIPOOL_PORT`,
+`AIPOOL_TOKEN`, `AIPOOL_DB`, and its provider settings, then run `aipool serve`.
+On the client machine, use only operator-local configuration:
+
+```dotenv
+AIPOOL_MODE=remote
+AIPOOL_BASE_URL=http://127.0.0.1:8765
+AIPOOL_TOKEN=replace-with-the-same-operator-chosen-token
+```
+
+Change `AIPOOL_BASE_URL` to the authorized server address only in that ignored
+client config. Prefer a private network or authenticated tunnel; do not expose
+the gateway directly to the public Internet without an additional access
+control layer.
+
 The CLI returns machine-readable JSON. A result containing
 `"native_fallback":true` is an intentional handoff: let the native Claude or
 Codex session finish that task rather than repeatedly retrying the same request
@@ -132,9 +161,10 @@ and final synthesis. It also explains how to locate the ignored operator config.
 The repository reserves `.aipool.local` for deployment-specific values such as
 the coordinator host, database path, artifact root, and authentication token.
 Those values must never appear in tracked files, documentation, tests, or skill
-files. The persistent HTTP gateway and VPS deployment workflow are being built
-incrementally; use the local MVP until the remote-control-plane milestone is
-complete. Do not infer a production VPS address or token from this repository.
+files. The standard-library gateway and thin remote client are available now;
+service supervision, TLS termination, durable queueing, and the production VPS
+deployment workflow remain roadmap work. Do not infer a production VPS address
+or token from this repository.
 
 ## Responsible use and provider terms
 
