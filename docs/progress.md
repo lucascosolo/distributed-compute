@@ -252,6 +252,10 @@ or the operator's environment.
   field in addition to the authenticated panel. The panel supplies that field
   only when its human operator clicks the bounded smoke-test button. This keeps
   API clients and background jobs from silently spending provider quota.
+- The provider console now shows one compact card per provider family. Families
+  with saved keys are marked and collapsed, unconfigured families sort first,
+  and per-model controls remain behind a `View model details` button. The shared
+  family key field still enables all models in that family when saved.
 
 ## Non-negotiable design decisions
 
@@ -278,7 +282,10 @@ Continue researching and normalizing official quota rules for the remaining
 provider families before running real smoke tests. The first pass now covers
 seven families plus Kilo's qualitative free-tier claim; the next pass should add evidence where the provider publishes
 it, preserve account-dependent dimensions, and avoid guessing unknown caps.
-Then wire the native-agent bridge wrappers and run a human-approved, bounded
+The smoke-test checklist is in `docs/provider-smoke-test-plan.md`. The operator
+has approved running a bounded smoke test when the implementation is ready;
+show the exact selected batch and expected quota impact before spending calls.
+Then wire the native-agent bridge wrappers and run the approved bounded
 cross-runtime test. After that, obtain a Cloudflare Access service token through the operator
 dashboard if CLI-over-HTTPS use is needed, then run a human-approved bounded
 provider benchmark. Retired transports are not reintroduced.
