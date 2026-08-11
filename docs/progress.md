@@ -265,7 +265,10 @@ or the operator's environment.
   3/3 valid; Mistral Large and NVIDIA GLM-5.2 returned 1/3; OpenRouter returned
   0/3 and became degraded. Aion, Bazaarlink, Cerebras, Groq, Hugging Face,
   TokenRouter, and xAI representatives hit authentication failures; Z.ai hit a
-  rate limit. These results remain quarantine evidence, not routing approval.
+  rate limit. The Hugging Face authentication result occurred before the
+  shared-`HF_TOKEN` fallback fix and must be retested separately; it is not
+  evidence that the token or provider is invalid. All results remain quarantine
+  evidence, not routing approval.
 - Hugging Face's All Access token is now accepted through the shared `HF_TOKEN`
   field for every catalog model. The operator observed 27 Qwen3-8B requests
   costing $0.27, so Hugging Face is not currently treated as free compute.
