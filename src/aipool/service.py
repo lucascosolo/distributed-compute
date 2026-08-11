@@ -13,7 +13,11 @@ from .health import HealthManager
 from .providers import ProviderRegistry
 from .quality import validate_output
 from .routing import RoutingDecision, choose_provider
+from .scoping import ALLOWED_SUBTASKS, split_task
 from .storage import Store
+
+
+MAX_MAP_REDUCE_INPUT_BYTES = 256 * 1024
 
 
 class Coordinator:
@@ -27,6 +31,10 @@ class Coordinator:
             return self._submit_verified(task)
         if task.strategy == Strategy.CONSENSUS:
             return self._submit_consensus(task)
+        if task.strategy == Strategy.MAP:
+            return self._submit_map(task)
+        if task.strategy == Strategy.MAP_REDUCE:
+            return self._submit_map_reduce(task)
         return self._submit_single(task)
 
     def benchmark_provider(
@@ -112,6 +120,105 @@ class Coordinator:
             task.task_id, decision.strategy, decision.provider.id, None, False, False,
             "all_candidate_providers_failed",
             orchestration_cost=decision.assessment.single_cost * len(attempted),
+        )
+        self.store.record_outcome(outcome)
+        return outcome
+
+    def _submit_map(self, task: TaskEnvelope) -> TaskOutcome:
+        scopes = task.requirements.get("scopes")
+        subtask_kind = task.requirements.get("subtask_kind")
+        if not isinstance(scopes, (list, tuple)) or not isinstance(subtask_kind, str):
+            return self._native_composite_fallback(task, Strategy.MAP, "map_scopes_required")
+        try:
+            subtasks = split_task(task, scopes, subtask_kind=subtask_kind)
+        except (TypeError, ValueError):
+            return self._native_composite_fallback(task, Strategy.MAP, "map_scopes_invalid")
+
+        outcomes = [self.submit(subtask) for subtask in subtasks]
+        total_cost = sum(outcome.orchestration_cost for outcome in outcomes)
+        total_tokens = sum(outcome.worker_tokens for outcome in outcomes)
+        if any(not outcome.valid or outcome.native_fallback for outcome in outcomes):
+            reason = "map_subtask_native_fallback" if any(outcome.native_fallback for outcome in outcomes) else "map_subtask_failed"
+            return self._native_composite_fallback(task, Strategy.MAP, reason, total_cost, total_tokens)
+
+        aggregate = json.dumps(
+            [
+                {"scope": subtask.requirements["scope"], "output": outcome.output}
+                for subtask, outcome in zip(subtasks, outcomes)
+            ],
+            separators=(",", ":"),
+        )
+        outcome = TaskOutcome(
+            task.task_id, Strategy.MAP, None, aggregate, True, True, "map",
+            orchestration_cost=total_cost,
+            delegated_compute_saved=max(0.0, task.local_estimate - total_cost),
+            worker_tokens=total_tokens,
+        )
+        self.store.record_outcome(outcome)
+        return outcome
+
+    def _submit_map_reduce(self, task: TaskEnvelope) -> TaskOutcome:
+        reduce_kind = task.requirements.get("reduce_kind", "summarization")
+        if not isinstance(reduce_kind, str) or reduce_kind not in ALLOWED_SUBTASKS:
+            return self._native_composite_fallback(task, Strategy.MAP_REDUCE, "reduce_kind_invalid")
+        mapped = self._submit_map(replace(task, strategy=Strategy.MAP))
+        if not mapped.valid or mapped.output is None:
+            return self._native_composite_fallback(
+                task, Strategy.MAP_REDUCE, "map_reduce_map_fallback",
+                mapped.orchestration_cost, mapped.worker_tokens,
+            )
+        try:
+            mapped_outputs = json.loads(mapped.output)
+            serialized = json.dumps(mapped_outputs, separators=(",", ":"))
+        except (TypeError, json.JSONDecodeError):
+            return self._native_composite_fallback(task, Strategy.MAP_REDUCE, "map_reduce_invalid_map_output", mapped.orchestration_cost, mapped.worker_tokens)
+        if len(serialized.encode()) > MAX_MAP_REDUCE_INPUT_BYTES:
+            return self._native_composite_fallback(task, Strategy.MAP_REDUCE, "map_reduce_input_too_large", mapped.orchestration_cost, mapped.worker_tokens)
+
+        requirements = dict(task.requirements)
+        for key in ("scopes", "subtask_kind", "reduce_kind", "output"):
+            requirements.pop(key, None)
+        requirements["mapped_outputs"] = mapped_outputs
+        reduce_task = TaskEnvelope(
+            task=reduce_kind,
+            input_ref=task.input_ref,
+            requirements=requirements,
+            importance=task.importance,
+            strategy=Strategy.SINGLE,
+            max_cost=max(0.0, task.max_cost - mapped.orchestration_cost),
+            local_estimate=max(0.0, task.local_estimate - mapped.orchestration_cost),
+        )
+        reduced = self.submit(reduce_task)
+        total_cost = mapped.orchestration_cost + reduced.orchestration_cost
+        if not reduced.valid:
+            return self._native_composite_fallback(
+                task, Strategy.MAP_REDUCE,
+                "map_reduce_reduce_fallback" if reduced.native_fallback else "map_reduce_reduce_failed",
+                total_cost, mapped.worker_tokens + reduced.worker_tokens,
+            )
+        outcome = TaskOutcome(
+            task.task_id, Strategy.MAP_REDUCE, reduced.provider_id, reduced.output,
+            True, True, "map_reduce", orchestration_cost=total_cost,
+            delegated_compute_saved=max(0.0, task.local_estimate - total_cost),
+            worker_tokens=mapped.worker_tokens + reduced.worker_tokens,
+        )
+        self.store.record_outcome(outcome)
+        return outcome
+
+    def _native_composite_fallback(
+        self,
+        task: TaskEnvelope,
+        strategy: Strategy,
+        reason: str,
+        orchestration_cost: float = 0.0,
+        worker_tokens: int = 0,
+    ) -> TaskOutcome:
+        outcome = TaskOutcome(
+            task.task_id, strategy, None, None, True, False, reason,
+            orchestration_cost=orchestration_cost,
+            delegated_compute_saved=max(0.0, task.local_estimate - orchestration_cost),
+            worker_tokens=worker_tokens,
+            native_fallback=True,
         )
         self.store.record_outcome(outcome)
         return outcome

@@ -29,7 +29,8 @@ def split_task(task: TaskEnvelope, scopes: Iterable[str], *, subtask_kind: str) 
         raise ValueError("scopes must be unique")
 
     base_requirements = dict(task.requirements)
-    base_requirements.pop("scope", None)
+    for key in ("scope", "scopes", "subtask_kind", "reduce_kind", "mapped_outputs"):
+        base_requirements.pop(key, None)
     estimate = task.local_estimate / len(normalized)
     return tuple(
         TaskEnvelope(

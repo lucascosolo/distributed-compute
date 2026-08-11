@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from aipool.domain import ProviderProfile, ProviderState, Strategy, TaskEnvelope
@@ -129,6 +130,72 @@ class ServiceTests(unittest.TestCase):
         )
         self.assertTrue(outcome.native_fallback)
         self.assertEqual(outcome.reason, "delegation_cost_not_lower_than_local_estimate")
+
+    def test_map_runs_each_explicit_scope_and_aggregates_valid_results(self) -> None:
+        calls = [0]
+
+        def handler(task: TaskEnvelope) -> str:
+            calls[0] += 1
+            return json.dumps({"scope": task.requirements["scope"], "label": "docs"})
+
+        adapter = FixtureAdapter(profile("mapper", classification=0.9, structured_json=0.9), handler)
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"mapper": adapter}), store).submit(
+            TaskEnvelope(
+                task="coding", input_ref="artifact:map", strategy=Strategy.MAP,
+                requirements={"scopes": ["src", "tests"], "subtask_kind": "classification", "output": "json"},
+                local_estimate=2.0,
+            )
+        )
+        self.assertTrue(outcome.valid)
+        self.assertEqual(outcome.strategy, Strategy.MAP)
+        self.assertEqual(calls[0], 2)
+        self.assertEqual(json.loads(outcome.output), [
+            {"scope": "src", "output": '{"scope": "src", "label": "docs"}'},
+            {"scope": "tests", "output": '{"scope": "tests", "label": "docs"}'},
+        ])
+        self.assertEqual(outcome.orchestration_cost, 0.16)
+
+    def test_map_falls_back_if_a_subtask_cannot_be_delegated_economically(self) -> None:
+        adapter = FixtureAdapter(profile("mapper", classification=0.9, structured_json=0.9), lambda _: '{"label":"docs"}')
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"mapper": adapter}), store).submit(
+            TaskEnvelope(
+                task="coding", input_ref="artifact:map-budget", strategy=Strategy.MAP,
+                requirements={"scopes": ["a", "b"], "subtask_kind": "classification", "output": "json"},
+                local_estimate=0.15,
+            )
+        )
+        self.assertTrue(outcome.native_fallback)
+        self.assertFalse(outcome.valid)
+        self.assertEqual(outcome.reason, "map_subtask_native_fallback")
+
+    def test_map_reduce_uses_mapped_outputs_in_a_bounded_reduce_stage(self) -> None:
+        def handler(task: TaskEnvelope) -> str:
+            if task.task == "summarization":
+                return "Combined summary of the mapped document results."
+            return json.dumps({"scope": task.requirements["scope"], "label": "docs"})
+
+        capabilities = {"classification": 0.9, "structured_json": 0.9, "summarization": 0.9}
+        adapter = FixtureAdapter(
+            ProviderProfile("worker", "worker", "fixture", capabilities=capabilities, reliability=0.9, state=ProviderState.HEALTHY, max_complexity=2),
+            handler,
+        )
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"worker": adapter}), store).submit(
+            TaskEnvelope(
+                task="coding", input_ref="artifact:map-reduce", strategy=Strategy.MAP_REDUCE,
+                requirements={"scopes": ["one", "two"], "subtask_kind": "classification", "reduce_kind": "summarization", "output": "json"},
+                local_estimate=3.0,
+            )
+        )
+        self.assertTrue(outcome.valid)
+        self.assertEqual(outcome.strategy, Strategy.MAP_REDUCE)
+        self.assertEqual(outcome.output, "Combined summary of the mapped document results.")
+        self.assertEqual(outcome.reason, "map_reduce")
 
 
 if __name__ == "__main__":
