@@ -114,6 +114,8 @@ class GatewayTests(unittest.TestCase):
         self.assertTrue(content_type.startswith("text/html"))
         self.assertIn(b"provider console", body)
         self.assertIn(b"savebar", body)
+        self.assertIn(b"Readiness ", body)
+        self.assertIn(b"No provider calls were made", body)
         self.assertIn(b"API key saved", body)
         self.assertIn(b"No API key saved", body)
         self.assertIn(b"human review required", body)
