@@ -11,6 +11,7 @@ from itertools import islice
 from typing import Any, Callable, Iterable, Mapping, Protocol
 from urllib import parse, request
 from xml.etree import ElementTree
+from html.parser import HTMLParser
 
 
 MAX_RESPONSE_BYTES = 1_000_000
@@ -401,4 +402,71 @@ class RssDiscoverySource:
                 summary=values.get("description", values.get("summary", ""))[:8_000],
                 source_kind="rss", discovered_at=float(self.clock()),
             ))
+        return tuple(leads)
+
+
+class _LinkParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.links: list[tuple[str, str]] = []
+        self._href: str | None = None
+        self._text: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.casefold() != "a":
+            return
+        href = dict(attrs).get("href")
+        if href:
+            self._href = href
+            self._text = []
+
+    def handle_data(self, data: str) -> None:
+        if self._href is not None:
+            self._text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.casefold() == "a" and self._href is not None:
+            self.links.append((self._href, " ".join("".join(self._text).split())))
+            self._href = None
+            self._text = []
+
+
+class HtmlPageSource:
+    """Extract a bounded set of external links from a public article page."""
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        fetch: Callable[[str], bytes] = _fetch_bounded_bytes,
+        max_results: int = 25,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        _web_url(url, "page URL")
+        if not 1 <= max_results <= 100:
+            raise ValueError("page max_results must be between 1 and 100")
+        self.url, self.fetch, self.max_results, self.clock = url, fetch, max_results, clock
+
+    def collect(self) -> tuple[DiscoveryLead, ...]:
+        parser = _LinkParser()
+        parser.feed(self.fetch(self.url).decode("utf-8", errors="replace"))
+        page_host = parse.urlsplit(self.url).netloc.casefold()
+        leads: list[DiscoveryLead] = []
+        seen: set[str] = set()
+        for href, text in parser.links:
+            target = parse.urljoin(self.url, href)
+            parsed = parse.urlsplit(target)
+            if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+                continue
+            normalized = target.split("#", 1)[0]
+            if not normalized or normalized in seen or parsed.netloc.casefold() == page_host:
+                continue
+            seen.add(normalized)
+            leads.append(DiscoveryLead(
+                title=(text or parsed.netloc)[:512], source_url=self.url,
+                external_url=normalized, source_kind="html-page",
+                transport_hint="browser-chat", discovered_at=float(self.clock()),
+            ))
+            if len(leads) >= self.max_results:
+                break
         return tuple(leads)

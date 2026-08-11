@@ -13,7 +13,7 @@ from pathlib import Path
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .artifacts import ArtifactStore
 from .discovery import CandidateRegistry, promote_lead
-from .discovery_sources import DiscoveryRunner, LeadRegistry, RedditSearchSource, RedditThreadSource
+from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, RedditSearchSource, RedditThreadSource
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -102,6 +102,7 @@ def _parser() -> argparse.ArgumentParser:
     discover_input = discover.add_mutually_exclusive_group(required=True)
     discover_input.add_argument("--query")
     discover_input.add_argument("--thread-url")
+    discover_input.add_argument("--page-url")
     discover.add_argument("--subreddit")
     discover.add_argument("--max-results", type=int, default=10)
     discover.add_argument("--max-leads", type=int, default=32)
@@ -145,6 +146,8 @@ def main(argv: list[str] | None = None) -> int:
         try:
             if args.thread_url:
                 source = RedditThreadSource(args.thread_url, max_results=args.max_results)
+            elif args.page_url:
+                source = HtmlPageSource(args.page_url, max_results=args.max_results)
             else:
                 source = RedditSearchSource(args.query, subreddit=args.subreddit, max_results=args.max_results)
             result = DiscoveryRunner((source,), max_leads=args.max_leads).run(LeadRegistry(store))

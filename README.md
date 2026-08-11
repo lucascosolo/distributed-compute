@@ -122,6 +122,18 @@ aipool discover --db .aipool-data/aipool.sqlite \
   --max-results 25
 ```
 
+Article and directory pages can also be scanned for bounded external links:
+
+```bash
+aipool discover --db .aipool-data/aipool.sqlite \
+  --page-url "https://techtactician.com/best-free-ai-chat-tools-no-sign-up/" \
+  --max-results 25
+```
+
+Page links are discovery leads only. Navigation links, recommendations, and
+marketing claims are not evidence that a chatbot is available, capable, or
+permitted to automate.
+
 This performs one bounded public search request. It does not probe, automate,
 or activate any discovered chatbot; review each source's current terms and
 candidate evidence before configuring a transport.

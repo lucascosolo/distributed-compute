@@ -108,6 +108,25 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(json.loads(output.getvalue())["leads"][0]["external_url"], "https://chat.example/")
 
+    def test_discover_can_ingest_a_supplied_article_page(self) -> None:
+        from aipool.discovery_sources import DiscoveryLead
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = io.StringIO()
+            fake_source = __import__("unittest").mock.Mock()
+            fake_source.collect.return_value = (DiscoveryLead(
+                title="article link", source_url="https://article.example/",
+                external_url="https://chat.example/",
+            ),)
+            with patch.dict(os.environ, {}, clear=True), \
+                 patch("aipool.cli.HtmlPageSource", return_value=fake_source), \
+                 contextlib.redirect_stdout(output):
+                code = main([
+                    "discover", "--page-url", "https://article.example/",
+                    "--db", directory + "/page.sqlite",
+                ])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output.getvalue())["leads"][0]["title"], "article link")
+
     def test_stats_is_compact_and_reads_persisted_metrics(self) -> None:
         with __import__("tempfile").TemporaryDirectory() as directory:
             database = directory + "/stats.sqlite"

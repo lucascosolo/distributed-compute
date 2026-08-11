@@ -5,6 +5,7 @@ from pathlib import Path
 from aipool.discovery_sources import (
     DiscoveryLead,
     DiscoveryRunner,
+    HtmlPageSource,
     JsonDirectorySource,
     LeadRegistry,
     RedditSearchSource,
@@ -129,6 +130,21 @@ class DiscoverySourceTests(unittest.TestCase):
         self.assertEqual(leads[0].external_url, "https://chat.lmsys.org/")
         self.assertEqual(leads[0].source_kind, "reddit-thread")
         self.assertIn("reddit.com/r/x/comments/t/thread/a", leads[0].source_url)
+
+    def test_html_page_source_extracts_bounded_external_links(self) -> None:
+        html = b"""<html><body>
+        <a href="https://chat.example/">Free browser chatbot</a>
+        <a href="/about">About</a>
+        <a href="https://chat.example/">duplicate</a>
+        </body></html>"""
+        source = HtmlPageSource(
+            "https://directory.example/article", fetch=lambda _: html, max_results=5,
+        )
+        leads = source.collect()
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0].external_url, "https://chat.example/")
+        self.assertEqual(leads[0].title, "Free browser chatbot")
+        self.assertEqual(leads[0].source_kind, "html-page")
 
 
 if __name__ == "__main__":

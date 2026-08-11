@@ -75,6 +75,9 @@ or the operator's environment.
 - Reddit thread ingestion now extracts a bounded, deduplicated set of external
   links from comments, so supplied discussions can feed the same lead review
   pipeline without treating comment recommendations as verified providers.
+- `HtmlPageSource` and `aipool discover --page-url` now support bounded link
+  extraction from public articles and directories, including the supplied
+  no-signup chatbot lists; page links remain unverified leads.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
