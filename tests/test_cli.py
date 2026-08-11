@@ -85,7 +85,10 @@ class CliTests(unittest.TestCase):
         })
         output = io.StringIO()
         command = f"{os.sys.executable} -c \"import sys; print('browser summary')\""
-        with patch.dict(os.environ, {"AIPOOL_BROWSER_COMMAND": command}, clear=True), contextlib.redirect_stdout(output):
+        with tempfile.TemporaryDirectory() as config_directory, patch.dict(os.environ, {
+            "AIPOOL_BROWSER_COMMAND": command,
+            "AIPOOL_CONFIG_FILE": config_directory + "/missing.env",
+        }, clear=True), contextlib.redirect_stdout(output):
             code = main(["task", "--json", task])
         result = json.loads(output.getvalue())
         self.assertEqual(code, 0)

@@ -197,6 +197,15 @@ or the operator's environment.
   Character.AI was only inspected as a public landing page; Free LLM Playground's
   public page claims no signup/API key and a daily free cap, but neither candidate
   has been browser-tested or activated.
+- Inspected `nejib1/Free-LLM` as a bounded discovery source. Its useful metadata
+  model separates permanent free tiers, renewable credits, one-time trials, and
+  local/self-hosted tools, while recording card requirements, rate limits, model
+  IDs, and OpenAI-compatible endpoints. Added API leads such as Groq, Cerebras,
+  OpenRouter, Z.AI, and Inference.net to the quarantine catalog; none is active
+  merely because it appears in that list.
+- The operator requested removing Discord entirely. That removal is recorded as
+  roadmap chunk 5.4d rather than being mixed into the current provider pivot;
+  no Discord code has been deleted in this checkpoint.
 
 ## Non-negotiable design decisions
 
@@ -219,13 +228,12 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Keep the four current Discord workers out of routing and continue with the
-configured Hugging Face API and bounded browser-candidate probes. Verify actual
-cost/credit behavior before treating Hugging Face as free, and keep browser
-candidates quarantined until a visible-page probe proves no-login access, usable
-context transfer, valid output, and acceptable terms. Do not route complex work
-merely because a provider is present; keep new candidates at complexity level 1
-until benchmark evidence warrants promotion.
+Continue with the configured Hugging Face API and bounded browser/API-candidate
+probes. Verify actual cost/credit behavior before treating Hugging Face as free,
+and keep candidates quarantined until a probe proves usable context transfer,
+valid output, acceptable terms, and a cheaper total cost. The next implementation
+chunk is the catalog-driven admin panel; Discord removal follows as roadmap chunk
+5.4d.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

@@ -12,6 +12,21 @@ measurement, and scale. Provider discovery comes last because discovering more
 providers is useless until the coordinator can prove that a provider is safe,
 useful, authorized, and cheaper than existing options.
 
+## Current priority queue
+
+1. Keep Hugging Face as the first live API transport and verify its actual free
+   credit usage, limits, and task-specific quality.
+2. Add a catalog-driven admin panel so the operator can configure individual API
+   providers without editing environment files or exposing secrets to the repo.
+3. Add guided, human-in-the-loop provider onboarding. The system may open the
+   provider's official registration/key page and prepare configuration, but it
+   must stop for email, phone, CAPTCHA, terms acceptance, payment, or final
+   account/key creation; it must never create accounts or evade provider limits
+   autonomously.
+4. Remove the Discord transport completely in a dedicated cleanup chunk. Discord
+   lessons remain in the ledger, but Discord code, commands, panel fields, tests,
+   candidate seeds, and docs should not remain in the shipped project.
+
 ## Phase 0 — Foundations and contracts
 
 ### Chunk 0.1: Repository and domain contracts
@@ -248,6 +263,62 @@ The Discord controller begins with a read-only connectivity check. Its optional
 message adapter requires an operator-selected worker bot ID and never installs
 other bots, uses user tokens, retries a rate limit, or rotates state to evade a
 limit.
+
+### Chunk 5.4a: Free-LLM directory ingestion
+
+Use the public `nejib1/Free-LLM` repository as a bounded, provenance-preserving
+source of API leads and metadata ideas. Normalize provider name, endpoint, model
+family, transport type, free-tier category, card/verification requirements,
+request/token limits, credit expiry, and source timestamp. Distinguish permanent
+free tiers, renewable credits, one-time trials, and local/self-hosted tools; do
+not represent any category as free forever without current evidence.
+
+**Exit gate:** a bounded source run produces quarantine-only API candidates with
+source links and structured cost/limit metadata; stale or contradictory entries
+are flagged instead of silently becoming active providers.
+
+### Chunk 5.4b: Catalog-driven provider admin panel
+
+Render API candidates dynamically from the checked-in catalog instead of adding a
+new hard-coded form field for every service. Each provider card should show its
+transport, source link, free-tier category, known limits, model field, endpoint
+field when applicable, masked API-key field, enabled state, and last probe/health
+state. Store provider-specific values only in the gitignored operator config with
+`0600` permissions; never return secret values from `/admin/config`.
+
+Known OpenAI-compatible entries may be wired to the generic adapter after explicit
+operator enablement. Other API shapes remain visible as “adapter needed” until a
+reviewable adapter exists; a key alone must never activate an untested provider.
+
+**Exit gate:** the operator can configure two different API services from the
+panel, restart the coordinator, verify both masked configurations, and route only
+the provider whose smoke test and cost gate pass.
+
+### Chunk 5.4c: Guided API-key onboarding
+
+Provide a provider-specific “get a key” link and a guided checklist, not an
+autonomous account-registration bot. The flow may navigate public documentation
+or an official signup page, but pauses before personal-data submission, email or
+phone verification, CAPTCHA, terms acceptance, payment, and final key creation.
+The operator pastes or types the resulting key into the panel; the panel validates
+format, stores it locally, and offers a bounded smoke test with an explicit cost
+and quota warning.
+
+**Exit gate:** onboarding reduces setup to a provider-specific, auditable sequence
+without collecting credentials in logs or making accounts on the operator's
+behalf.
+
+### Chunk 5.4d: Remove Discord transport
+
+Delete the Discord adapter, API client, CLI subcommands, panel fields, Discord
+candidate seeds, Discord-specific tests, and Discord-only documentation. Retain
+only generic transport, health, rate-limit, and candidate-policy behavior that is
+used by other providers. Remove any Discord-specific ignored configuration from
+operator-local deployment files separately; never commit or print those values.
+
+**Exit gate:** repository search finds no Discord implementation or user-facing
+configuration, the full test suite passes, the panel contains no Discord fields,
+and the Hugging Face/API/browser paths remain functional.
 
 ## Phase 6 — Semi-autonomous provider maintenance
 

@@ -25,6 +25,14 @@
     {"name": "AI Bot", "url": "https://top.gg/bot/949022906023829564", "source_url": "https://top.gg/bot/949022906023829564", "transport": "discord"},
     {"name": "Xavier", "url": "https://top.gg/bot/1203009089588695100", "source_url": "https://top.gg/bot/1203009089588695100", "transport": "discord"},
     {"name": "BoltBot", "url": "https://top.gg/bot/1250114494081007697", "source_url": "https://top.gg/bot/1250114494081007697", "transport": "discord"},
-    {"name": "Clyde Reborn", "url": "https://clydereborn.github.io/", "source_url": "https://clydereborn.github.io/", "transport": "discord"}
+    {"name": "Clyde Reborn", "url": "https://clydereborn.github.io/", "source_url": "https://clydereborn.github.io/", "transport": "discord"},
+    {"name": "Google AI Studio API", "url": "https://generativelanguage.googleapis.com/v1beta", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api"},
+    {"name": "Cerebras API", "url": "https://api.cerebras.ai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
+    {"name": "Groq API", "url": "https://api.groq.com/openai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
+    {"name": "Cohere API", "url": "https://api.cohere.ai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api"},
+    {"name": "Cloudflare Workers AI", "url": "https://api.cloudflare.com/client/v4/accounts/", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api"},
+    {"name": "OpenRouter Free Models", "url": "https://openrouter.ai/api/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
+    {"name": "Z.AI GLM API", "url": "https://api.z.ai/api/paas/v4", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
+    {"name": "Inference.net API", "url": "https://api.inference.net/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"}
   ]
 }

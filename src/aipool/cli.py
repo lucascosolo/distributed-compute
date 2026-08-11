@@ -32,12 +32,13 @@ def _load_local_config() -> None:
     configured = os.environ.get("AIPOOL_CONFIG_FILE")
     if configured:
         candidates.append(Path(configured).expanduser())
-    candidates.extend((
-        Path.cwd() / ".aipool.local",
-        Path.home() / ".claude" / "distributed-compute.env",
-        Path.home() / ".codex" / "distributed-compute.env",
-        Path.home() / ".agents" / "distributed-compute.env",
-    ))
+    else:
+        candidates.extend((
+            Path.cwd() / ".aipool.local",
+            Path.home() / ".claude" / "distributed-compute.env",
+            Path.home() / ".codex" / "distributed-compute.env",
+            Path.home() / ".agents" / "distributed-compute.env",
+        ))
     for path in candidates:
         if not path.is_file():
             continue
