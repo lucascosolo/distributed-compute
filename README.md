@@ -62,6 +62,8 @@ providers.
   credentials or treating source text as coordinator instructions.
 - Bounded Reddit lead discovery with persistent provenance; discovered links
   remain leads/candidates and are never activated automatically.
+- JSON-directory and RSS lead adapters plus an explicit lead-to-quarantine
+  promotion command.
 
 ## Quick start: run everything on one computer
 
@@ -111,9 +113,29 @@ aipool discover --db .aipool-data/aipool.sqlite \
   --query "free chatbot no API key" --max-results 10
 ```
 
+For a specific discussion thread, extract only bounded external links from its
+comments:
+
+```bash
+aipool discover --db .aipool-data/aipool.sqlite \
+  --thread-url "https://www.reddit.com/r/ChatGPT/comments/195buk4/ai_chatbots_or_other_services_that_dont_require_a/" \
+  --max-results 25
+```
+
 This performs one bounded public search request. It does not probe, automate,
 or activate any discovered chatbot; review each source's current terms and
 candidate evidence before configuring a transport.
+
+After reviewing a lead, promote it into the quarantined candidate registry:
+
+```bash
+aipool candidate promote LEAD_ID --db .aipool-data/aipool.sqlite \
+  --terms-review "Reviewed date: no explicit binding prohibition found"
+```
+
+Use `--terms-prohibited` when the reviewed terms contain an explicit binding
+prohibition on the intended external use. Promotion never activates a provider;
+successful probes and separate operator approval are still required.
 
 For asynchronous work, enqueue a task and inspect it later:
 

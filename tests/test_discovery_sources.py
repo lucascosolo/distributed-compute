@@ -2,7 +2,15 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from aipool.discovery_sources import DiscoveryLead, DiscoveryRunner, LeadRegistry, RedditSearchSource
+from aipool.discovery_sources import (
+    DiscoveryLead,
+    DiscoveryRunner,
+    JsonDirectorySource,
+    LeadRegistry,
+    RedditSearchSource,
+    RedditThreadSource,
+    RssDiscoverySource,
+)
 from aipool.storage import Store
 
 
@@ -77,6 +85,50 @@ class DiscoverySourceTests(unittest.TestCase):
     def test_lead_requires_web_provenance(self) -> None:
         with self.assertRaisesRegex(ValueError, "absolute http or https"):
             DiscoveryLead(title="bad", source_url="not-a-url")
+
+    def test_json_directory_source_normalizes_bounded_entries(self) -> None:
+        source = JsonDirectorySource(
+            "https://directory.example/feed.json",
+            fetch=lambda _: {"items": [
+                {"name": "Assistant", "url": "https://assistant.example/", "description": "free chat"},
+                {"name": "Missing URL"},
+            ]},
+            max_results=1,
+        )
+        leads = source.collect()
+        self.assertEqual(len(leads), 1)
+        self.assertEqual(leads[0].external_url, "https://assistant.example/")
+        self.assertEqual(leads[0].source_kind, "json-directory")
+
+    def test_rss_source_keeps_article_as_provenance_lead(self) -> None:
+        xml = b"""<rss><channel><item><title>Chatbot discussion</title>
+        <link>https://forum.example/post</link><description>Try this assistant</description>
+        </item></channel></rss>"""
+        source = RssDiscoverySource(
+            "https://forum.example/feed.xml", fetch=lambda _: xml, max_results=1,
+        )
+        leads = source.collect()
+        self.assertEqual(leads[0].source_url, "https://forum.example/post")
+        self.assertEqual(leads[0].external_url, "")
+        self.assertEqual(leads[0].source_kind, "rss")
+
+    def test_reddit_thread_source_extracts_bounded_external_chatbot_links(self) -> None:
+        payload = [
+            {"data": {"children": [{"data": {"title": "No-login chatbots", "permalink": "/r/x/comments/t/thread/"}}]}},
+            {"data": {"children": [
+                {"data": {"body": "Try https://chat.lmsys.org/ and https://www.hammerai.com/", "permalink": "/r/x/comments/t/thread/a/"}},
+                {"data": {"body": "another https://chat.lmsys.org/", "permalink": "/r/x/comments/t/thread/b/"}},
+            ]}},
+        ]
+        source = RedditThreadSource(
+            "https://www.reddit.com/r/ChatGPT/comments/t/thread/",
+            fetch=lambda _: payload, max_results=2,
+        )
+        leads = source.collect()
+        self.assertEqual(len(leads), 2)
+        self.assertEqual(leads[0].external_url, "https://chat.lmsys.org/")
+        self.assertEqual(leads[0].source_kind, "reddit-thread")
+        self.assertIn("reddit.com/r/x/comments/t/thread/a", leads[0].source_url)
 
 
 if __name__ == "__main__":

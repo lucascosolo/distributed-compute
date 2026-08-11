@@ -68,6 +68,13 @@ or the operator's environment.
 - `aipool discover` now performs one bounded Reddit search, persists
   provenance-rich leads in SQLite, deduplicates repeated sightings, and keeps
   all results out of provider activation.
+- JSON-directory and RSS source adapters now normalize additional public
+  directories and community feeds. `aipool candidate promote` records an
+  operator's terms review and either creates a quarantined candidate or marks
+  an explicitly prohibited lead rejected; it never activates a provider.
+- Reddit thread ingestion now extracts a bounded, deduplicated set of external
+  links from comments, so supplied discussions can feed the same lead review
+  pipeline without treating comment recommendations as verified providers.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -93,11 +100,11 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Add bounded discovery source adapters for public directories/search results and
-additional community sources, then expose the comparison harness through an
-operator workflow. Every public chatbot remains a candidate by default, while
-an explicitly documented binding prohibition keeps it quarantined/rejected;
-probes and capability tests still gate production routing.
+Connect the promoted candidates to real browser adapter probes and expose the
+comparison harness through an operator workflow. Every public chatbot remains
+a candidate by default, while an explicitly documented binding prohibition
+keeps it quarantined/rejected; probes and capability tests still gate
+production routing.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

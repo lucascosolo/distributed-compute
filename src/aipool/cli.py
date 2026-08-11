@@ -12,7 +12,8 @@ from pathlib import Path
 
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .artifacts import ArtifactStore
-from .discovery_sources import DiscoveryRunner, LeadRegistry, RedditSearchSource
+from .discovery import CandidateRegistry, promote_lead
+from .discovery_sources import DiscoveryRunner, LeadRegistry, RedditSearchSource, RedditThreadSource
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -98,11 +99,20 @@ def _parser() -> argparse.ArgumentParser:
     task.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("providers", help="list configured providers")
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
-    discover.add_argument("--query", required=True)
+    discover_input = discover.add_mutually_exclusive_group(required=True)
+    discover_input.add_argument("--query")
+    discover_input.add_argument("--thread-url")
     discover.add_argument("--subreddit")
     discover.add_argument("--max-results", type=int, default=10)
     discover.add_argument("--max-leads", type=int, default=32)
     discover.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    candidate = subparsers.add_parser("candidate", help="review and promote a discovered lead")
+    candidate_subparsers = candidate.add_subparsers(dest="candidate_action", required=True)
+    promote = candidate_subparsers.add_parser("promote", help="put one lead into provider quarantine")
+    promote.add_argument("lead_id")
+    promote.add_argument("--terms-review", required=True)
+    promote.add_argument("--terms-prohibited", action="store_true")
+    promote.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
@@ -133,7 +143,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "discover":
         store = Store(args.db)
         try:
-            source = RedditSearchSource(args.query, subreddit=args.subreddit, max_results=args.max_results)
+            if args.thread_url:
+                source = RedditThreadSource(args.thread_url, max_results=args.max_results)
+            else:
+                source = RedditSearchSource(args.query, subreddit=args.subreddit, max_results=args.max_results)
             result = DiscoveryRunner((source,), max_leads=args.max_leads).run(LeadRegistry(store))
             print(json.dumps({
                 "leads": [lead.to_dict() for lead in result.leads],
@@ -141,6 +154,26 @@ def main(argv: list[str] | None = None) -> int:
             }, separators=(",", ":")))
             return 0 if not result.errors else 1
         except (ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
+    if args.command == "candidate" and args.candidate_action == "promote":
+        store = Store(args.db)
+        try:
+            lead = LeadRegistry(store).get(args.lead_id)
+            candidate = promote_lead(
+                CandidateRegistry(store), lead,
+                terms_review=args.terms_review,
+                terms_prohibited=args.terms_prohibited,
+            )
+            print(json.dumps({
+                "id": candidate.id, "name": candidate.name,
+                "state": candidate.state.value, "endpoint": candidate.endpoint,
+                "rejection_reason": candidate.rejection_reason,
+            }, separators=(",", ":")))
+            return 0
+        except (KeyError, ValueError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
             return 2
         finally:

@@ -67,6 +67,47 @@ class CliTests(unittest.TestCase):
             self.assertEqual(len(store.discovery_lead_rows()), 1)
             store.close()
 
+    def test_candidate_promote_requires_terms_review_and_keeps_quarantine(self) -> None:
+        from aipool.discovery_sources import DiscoveryLead, LeadRegistry
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/promotion.sqlite"
+            store = Store(database)
+            lead = DiscoveryLead(
+                title="candidate", source_url="https://reddit.example/post",
+                external_url="https://chat.example/",
+            )
+            stored = LeadRegistry(store).add(lead, now=1.0)
+            store.close()
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main([
+                    "candidate", "promote", stored.lead_id, "--db", database,
+                    "--terms-review", "reviewed: no explicit binding prohibition",
+                ])
+            result = json.loads(output.getvalue())
+            self.assertEqual(code, 0)
+            self.assertEqual(result["state"], "quarantined")
+
+    def test_discover_can_ingest_a_supplied_reddit_thread(self) -> None:
+        from aipool.discovery_sources import DiscoveryLead
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            output = io.StringIO()
+            fake_source = __import__("unittest").mock.Mock()
+            fake_source.collect.return_value = (DiscoveryLead(
+                title="thread recommendation", source_url="https://reddit.example/comment",
+                external_url="https://chat.example/",
+            ),)
+            with patch.dict(os.environ, {}, clear=True), \
+                 patch("aipool.cli.RedditThreadSource", return_value=fake_source), \
+                 contextlib.redirect_stdout(output):
+                code = main([
+                    "discover", "--thread-url",
+                    "https://www.reddit.com/r/ChatGPT/comments/t/thread/",
+                    "--db", directory + "/thread.sqlite",
+                ])
+            self.assertEqual(code, 0)
+            self.assertEqual(json.loads(output.getvalue())["leads"][0]["external_url"], "https://chat.example/")
+
     def test_stats_is_compact_and_reads_persisted_metrics(self) -> None:
         with __import__("tempfile").TemporaryDirectory() as directory:
             database = directory + "/stats.sqlite"

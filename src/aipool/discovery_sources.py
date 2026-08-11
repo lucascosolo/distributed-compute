@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import asdict, dataclass, replace
+from itertools import islice
 from typing import Any, Callable, Iterable, Mapping, Protocol
 from urllib import parse, request
+from xml.etree import ElementTree
 
 
 MAX_RESPONSE_BYTES = 1_000_000
 REDDIT_TERMS_URL = "https://www.redditinc.com/policies/data-api-terms"
+_HTTP_LINK = re.compile(r"https?://[^\s<>\"')]+")
 
 
 def _web_url(value: str, field: str, *, optional: bool = False) -> str:
@@ -104,6 +108,12 @@ class LeadRegistry:
     def all(self) -> tuple[DiscoveryLead, ...]:
         return tuple(self._leads.values())
 
+    def get(self, lead_id: str) -> DiscoveryLead:
+        try:
+            return self._leads[lead_id]
+        except KeyError as exc:
+            raise KeyError(f"unknown discovery lead: {lead_id}") from exc
+
 
 @dataclass(frozen=True, slots=True)
 class DiscoveryRun:
@@ -117,16 +127,16 @@ class DiscoveryRunner:
     def __init__(self, sources: Iterable[DiscoverySource], *, max_sources: int = 8, max_leads: int = 32) -> None:
         if not 1 <= max_sources <= 32 or not 1 <= max_leads <= 256:
             raise ValueError("discovery bounds are invalid")
-        self.sources = tuple(sources)
+        self.sources = tuple(islice(sources, max_sources))
         self.max_sources = max_sources
         self.max_leads = max_leads
 
     def run(self, registry: LeadRegistry | None = None) -> DiscoveryRun:
         found: dict[str, DiscoveryLead] = {}
         errors: list[str] = []
-        for source in self.sources[:self.max_sources]:
+        for source in islice(self.sources, self.max_sources):
             try:
-                for lead in source.collect():
+                for lead in islice(source.collect(), self.max_leads):
                     if not isinstance(lead, DiscoveryLead):
                         raise TypeError("discovery source returned a non-lead")
                     found.setdefault(lead.lead_id, lead)
@@ -152,6 +162,27 @@ def _fetch_reddit_json(url: str) -> Mapping[str, Any]:
     if not isinstance(decoded, Mapping):
         raise ValueError("discovery response must be a JSON object")
     return decoded
+
+
+def _fetch_bounded_bytes(url: str) -> bytes:
+    _web_url(url, "discovery URL")
+    req = request.Request(url, headers={"User-Agent": "aipool-discovery/0.1"})
+    with request.urlopen(req, timeout=10.0) as response:  # nosec B310: operator-selected source URL
+        raw = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise ValueError("discovery response exceeds size limit")
+    return raw
+
+
+def _fetch_bounded_json(url: str) -> Mapping[str, Any]:
+    decoded = json.loads(_fetch_bounded_bytes(url))
+    if not isinstance(decoded, Mapping):
+        raise ValueError("discovery response must be a JSON object")
+    return decoded
+
+
+def _fetch_bounded_json_payload(url: str) -> Any:
+    return json.loads(_fetch_bounded_bytes(url))
 
 
 class RedditSearchSource:
@@ -206,5 +237,168 @@ class RedditSearchSource:
                 source_kind="reddit-search", terms_url=REDDIT_TERMS_URL,
                 transport_hint="browser-chat" if external_url else "unknown",
                 discovered_at=float(self.clock()),
+            ))
+        return tuple(leads)
+
+
+class RedditThreadSource:
+    """Extract external chatbot links from a bounded Reddit discussion."""
+
+    def __init__(
+        self,
+        thread_url: str,
+        *,
+        fetch: Callable[[str], Any] = _fetch_bounded_json_payload,
+        max_results: int = 25,
+        max_comments: int = 50,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        _web_url(thread_url, "Reddit thread URL")
+        if "reddit.com" not in parse.urlsplit(thread_url).netloc.casefold():
+            raise ValueError("Reddit thread URL must be hosted on reddit.com")
+        if not 1 <= max_results <= 100 or not 1 <= max_comments <= 200:
+            raise ValueError("Reddit thread bounds are invalid")
+        self.thread_url = thread_url.rstrip("/")
+        self.fetch = fetch
+        self.max_results = max_results
+        self.max_comments = max_comments
+        self.clock = clock
+
+    def collect(self) -> tuple[DiscoveryLead, ...]:
+        payload = self.fetch(self.thread_url + ".json?raw_json=1")
+        if not isinstance(payload, list) or len(payload) < 2:
+            raise ValueError("Reddit thread response is invalid")
+        comments_listing = payload[1]
+        leads: list[DiscoveryLead] = []
+        seen_urls: set[str] = set()
+        visited = 0
+
+        def visit(node: Any) -> None:
+            nonlocal visited
+            if visited >= self.max_comments or len(leads) >= self.max_results:
+                return
+            data = node.get("data") if isinstance(node, Mapping) else None
+            if not isinstance(data, Mapping):
+                return
+            body = str(data.get("body", ""))
+            permalink = str(data.get("permalink", ""))
+            if body:
+                visited += 1
+                source_url = parse.urljoin("https://www.reddit.com", permalink) if permalink else self.thread_url
+                for match in _HTTP_LINK.findall(body):
+                    target = match.rstrip(".,!?;:")
+                    host = parse.urlsplit(target).netloc.casefold()
+                    if not host or "reddit.com" in host or target in seen_urls:
+                        continue
+                    seen_urls.add(target)
+                    leads.append(DiscoveryLead(
+                        title=f"Reddit recommendation: {target}", source_url=source_url,
+                        summary=body[:8_000], external_url=target,
+                        source_kind="reddit-thread", terms_url=REDDIT_TERMS_URL,
+                        transport_hint="browser-chat", discovered_at=float(self.clock()),
+                    ))
+                    if len(leads) >= self.max_results:
+                        return
+            replies = data.get("replies")
+            children = replies.get("data", {}).get("children", []) if isinstance(replies, Mapping) else []
+            if isinstance(children, list):
+                for child in children:
+                    visit(child)
+                    if visited >= self.max_comments or len(leads) >= self.max_results:
+                        return
+
+        data = comments_listing.get("data") if isinstance(comments_listing, Mapping) else None
+        children = data.get("children", []) if isinstance(data, Mapping) else []
+        if not isinstance(children, list):
+            raise ValueError("Reddit thread comments are invalid")
+        for child in children:
+            visit(child)
+            if visited >= self.max_comments or len(leads) >= self.max_results:
+                break
+        return tuple(leads)
+
+
+class JsonDirectorySource:
+    """Normalize a bounded operator-selected JSON directory into leads."""
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        fetch: Callable[[str], Mapping[str, Any]] = _fetch_bounded_json,
+        max_results: int = 25,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        _web_url(url, "directory URL")
+        if not 1 <= max_results <= 100:
+            raise ValueError("directory max_results must be between 1 and 100")
+        self.url, self.fetch, self.max_results, self.clock = url, fetch, max_results, clock
+
+    def collect(self) -> tuple[DiscoveryLead, ...]:
+        payload = self.fetch(self.url)
+        items = payload.get("items") if isinstance(payload, Mapping) else None
+        if not isinstance(items, list):
+            raise ValueError("directory response is missing items")
+        leads: list[DiscoveryLead] = []
+        for item in items[:self.max_results]:
+            if not isinstance(item, Mapping):
+                continue
+            target = str(item.get("url", ""))
+            if not target:
+                continue
+            try:
+                _web_url(target, "directory item URL")
+                source_url = str(item.get("source_url", self.url))
+                _web_url(source_url, "directory source URL")
+            except ValueError:
+                continue
+            leads.append(DiscoveryLead(
+                title=str(item.get("name", item.get("title", "")))[:512],
+                source_url=source_url, summary=str(item.get("description", ""))[:8_000],
+                external_url=target, source_kind="json-directory",
+                terms_url=str(item.get("terms_url", "")),
+                transport_hint=str(item.get("transport", "browser-chat")),
+                discovered_at=float(self.clock()),
+            ))
+        return tuple(leads)
+
+
+class RssDiscoverySource:
+    """Read a bounded RSS/Atom-like feed as provenance-only discussion leads."""
+
+    def __init__(
+        self,
+        url: str,
+        *,
+        fetch: Callable[[str], bytes] = _fetch_bounded_bytes,
+        max_results: int = 25,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        _web_url(url, "feed URL")
+        if not 1 <= max_results <= 100:
+            raise ValueError("feed max_results must be between 1 and 100")
+        self.url, self.fetch, self.max_results, self.clock = url, fetch, max_results, clock
+
+    def collect(self) -> tuple[DiscoveryLead, ...]:
+        root = ElementTree.fromstring(self.fetch(self.url))
+        items = [node for node in root.iter() if node.tag.rsplit("}", 1)[-1] in {"item", "entry"}]
+        leads: list[DiscoveryLead] = []
+        for item in items[:self.max_results]:
+            values: dict[str, str] = {}
+            for child in item:
+                name = child.tag.rsplit("}", 1)[-1]
+                if name in {"title", "link", "description", "summary"}:
+                    values.setdefault(name, (child.text or "").strip())
+            title, source_url = values.get("title", ""), values.get("link", "")
+            if not title or not source_url:
+                continue
+            try:
+                _web_url(source_url, "feed item URL")
+            except ValueError:
+                continue
+            leads.append(DiscoveryLead(
+                title=title[:512], source_url=source_url,
+                summary=values.get("description", values.get("summary", ""))[:8_000],
+                source_kind="rss", discovered_at=float(self.clock()),
             ))
         return tuple(leads)

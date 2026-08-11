@@ -8,7 +8,9 @@ from aipool.discovery import (
     CandidateState,
     ProbeResult,
     QuarantineProbePipeline,
+    promote_lead,
 )
+from aipool.discovery_sources import DiscoveryLead
 from aipool.storage import Store
 
 
@@ -54,6 +56,40 @@ class DiscoveryTests(unittest.TestCase):
         registry.add(self.candidate())
         with self.assertRaisesRegex(ValueError, "already exists"):
             registry.add(self.candidate())
+
+    def test_lead_promotion_creates_quarantined_browser_candidate(self) -> None:
+        registry = CandidateRegistry()
+        lead = DiscoveryLead(
+            title="Public coding helper", source_url="https://directory.example/item",
+            external_url="https://chat.example/", terms_url="https://chat.example/terms",
+            transport_hint="browser-chat",
+        )
+        candidate = promote_lead(
+            registry, lead,
+            terms_review="Reviewed 2026-08-11: no explicit binding prohibition found",
+        )
+        self.assertEqual(candidate.state, CandidateState.QUARANTINED)
+        self.assertEqual(candidate.transport, "browser-chat")
+
+    def test_explicit_binding_prohibition_rejects_promoted_candidate(self) -> None:
+        registry = CandidateRegistry()
+        lead = DiscoveryLead(
+            title="Prohibited helper", source_url="https://directory.example/item",
+            external_url="https://chat.example/",
+        )
+        candidate = promote_lead(
+            registry, lead, terms_review="Terms reviewed", terms_prohibited=True,
+        )
+        self.assertEqual(candidate.state, CandidateState.REJECTED)
+        self.assertIn("binding prohibition", candidate.rejection_reason)
+
+    def test_lead_without_external_endpoint_cannot_be_promoted(self) -> None:
+        with self.assertRaisesRegex(ValueError, "external endpoint"):
+            promote_lead(
+                CandidateRegistry(),
+                DiscoveryLead(title="Discussion", source_url="https://reddit.example/post"),
+                terms_review="Terms reviewed",
+            )
 
     def passed_probe(self, candidate_id: str) -> ProbeResult:
         return ProbeResult(

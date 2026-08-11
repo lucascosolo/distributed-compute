@@ -48,6 +48,8 @@ class CandidateProvider:
             terms = urlsplit(self.terms_url)
             if terms.scheme not in {"http", "https"} or not terms.netloc:
                 raise ValueError("candidate terms_url must be an absolute http or https URL")
+        if len(self.authorization) > 4_000:
+            raise ValueError("candidate authorization basis is too large")
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +96,32 @@ def policy_rejection(candidate: CandidateProvider) -> str | None:
     if any(marker in text for marker in _PROHIBITED_ACCESS):
         return "prohibited access or evasion language"
     return None
+
+
+def promote_lead(
+    registry: "CandidateRegistry",
+    lead: Any,
+    *,
+    terms_review: str,
+    terms_prohibited: bool = False,
+) -> CandidateProvider:
+    """Turn a lead with a concrete endpoint into a quarantined candidate.
+
+    The operator supplies the terms-review record. The coordinator does not
+    attempt to decide whether a provider's terms form a binding contract.
+    """
+    if not terms_review.strip():
+        raise ValueError("terms review is required")
+    if not lead.external_url:
+        raise ValueError("lead has no external endpoint")
+    candidate = CandidateProvider(
+        id=f"discovered:{lead.lead_id}", name=lead.title, source=lead.source_url,
+        transport=lead.transport_hint or "browser-chat", endpoint=lead.external_url,
+        terms_url=lead.terms_url, authorization=terms_review,
+        state=CandidateState.REJECTED if terms_prohibited else CandidateState.QUARANTINED,
+        rejection_reason="explicit binding prohibition in reviewed terms" if terms_prohibited else None,
+    )
+    return registry.add(candidate)
 
 
 class CandidateRegistry:
