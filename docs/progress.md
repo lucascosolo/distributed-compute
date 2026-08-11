@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `b99f58e` (working tree currently has the next audit chunk)
+- Last pushed commit: `f8e63e1`
 - Working tree at the last checkpoint: clean
 - Verification for the current implementation: `183 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -313,9 +313,8 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `1370da8`; docs-only audit checkpoint `b7e6bcb` is
-  pushed but does not change the deployed runtime; working tree is clean; VPS
-  service is active and healthy.
+- Current deployed commit: `f8e63e1`; working tree is clean; VPS service is
+  active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
   Hugging Face chat endpoint have documented endpoint shapes. Cohere was fixed
@@ -326,7 +325,7 @@ new batch plan. No provider calls were made during the endpoint audit.
   expected calls, but the new requirement supersedes that plan: do not execute
   it yet. The approval-gated sequential endpoint is implemented but intentionally
   unused after the audit.
-- Current readiness after deployment is 68 model cards: 52 quarantined, 5 healthy, 6
+- Current readiness after deployment is 62 model cards: 50 quarantined, 3 healthy, 4
   auth-required, 1 degraded, and 4 not-loaded. The four not-loaded cards are
   Cloudflare Workers AI (2 cards) and SambaNova (2 cards disabled by operator
   state). The dashboard now explains that a saved key can still require an
@@ -345,6 +344,10 @@ new batch plan. No provider calls were made during the endpoint audit.
   where to find it, never echoes the API token, and keeps the family unloaded
   until both values are present. This is a no-generation configuration step;
   do not call Cloudflare model endpoints yet.
+- The deployed Cloudflare token was tested only against the read-only account
+  listing endpoint, not Workers AI inference. Cloudflare returned `Invalid
+  access token`, so the saved value is not currently usable for account lookup;
+  do not retry until the operator replaces or verifies that credential.
 - The deployed Cloudflare token was tested only against the read-only account
   listing endpoint, not Workers AI inference. Cloudflare returned `Invalid
   access token`, so the saved value is not currently usable for account lookup;
