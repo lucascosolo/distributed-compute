@@ -6,7 +6,7 @@ import json
 import os
 import subprocess
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Mapping, Protocol
 from urllib import error, request
 from urllib.parse import quote
@@ -407,6 +407,7 @@ class OpenAICompatibleAdapter:
     timeout_seconds: float = 30.0
     opener: Callable[..., object] = request.urlopen
     static_api_key: str = ""
+    headers_extra: Mapping[str, str] = field(default_factory=dict)
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = time.monotonic()
@@ -419,10 +420,12 @@ class OpenAICompatibleAdapter:
                 "messages": [{"role": "user", "content": json.dumps(task.to_dict(), separators=(",", ":"))}],
             }
         ).encode()
+        headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+        headers.update(self.headers_extra)
         req = request.Request(
             self.endpoint,
             data=body,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
         try:

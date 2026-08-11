@@ -219,7 +219,8 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             endpoint = os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint
             if not endpoint.rstrip("/").endswith("/chat/completions"):
                 endpoint = endpoint.rstrip("/") + "/chat/completions"
-            registry.register(OpenAICompatibleAdapter(profile, endpoint, model, api_key_env))
+            headers_extra = {"X-Free-Fallback": "false"} if catalog_provider.provider_slug == "bazaarlink" else {}
+            registry.register(OpenAICompatibleAdapter(profile, endpoint, model, api_key_env, headers_extra=headers_extra))
         elif catalog_provider.transport == "cloudflare-workers-ai":
             registry.register(CloudflareWorkersAIAdapter(
                 profile, model, api_key_env,

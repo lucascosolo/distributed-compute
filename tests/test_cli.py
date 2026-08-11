@@ -145,6 +145,14 @@ class CliTests(unittest.TestCase):
         })
         self.assertEqual(providers[0].quota_status, "documented")
 
+    def test_bazaarlink_disables_paid_fallback(self) -> None:
+        from aipool.provider_catalog import config_prefix, load_catalog
+        provider = next(item for item in load_catalog() if item.provider_name == "BazaarLink")
+        with patch.dict(os.environ, {f"{config_prefix(provider)}_API_KEY": "bazaar-key"}, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        adapter = registry.get(f"catalog:{provider.slug}")
+        self.assertEqual(adapter.headers_extra["X-Free-Fallback"], "false")
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog
