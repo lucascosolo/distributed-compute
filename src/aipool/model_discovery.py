@@ -10,7 +10,9 @@ from urllib.parse import urlsplit, urlunsplit
 from typing import Callable
 
 
-MAX_RESPONSE_BYTES = 256 * 1024
+# Some providers publish hundreds of models. Keep discovery bounded, but do not
+# mistake a large legitimate catalog for a broken provider.
+MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 
 
 @dataclass(frozen=True, slots=True)

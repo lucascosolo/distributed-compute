@@ -71,3 +71,13 @@ class ModelDiscoveryTests(unittest.TestCase):
         result = discover_models("https://api.kilo.ai/api/gateway", "kilo-key", api_key_optional=True, opener=opener)
         self.assertTrue(result.success)
         self.assertEqual(requests[0][0].get_header("Authorization"), "Bearer kilo-key")
+
+    def test_discovery_accepts_a_large_bounded_catalog(self) -> None:
+        records = [{"id": f"model-{index:05d}-with-a-long-enough-name"} for index in range(12000)]
+
+        def opener(req, timeout):
+            return _Response({"data": records})
+
+        result = discover_models("https://api.kilo.ai/api/gateway", "kilo-key", opener=opener)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.models), 512)
