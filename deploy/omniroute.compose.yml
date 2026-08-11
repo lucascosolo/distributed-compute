@@ -1,0 +1,39 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - /var/lib/omniroute/redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  omniroute:
+    image: diegosouzapw/omniroute:latest
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:20128:20128"
+    volumes:
+      - /var/lib/omniroute/data:/app/data
+    environment:
+      NODE_ENV: production
+      PORT: "20128"
+      HOSTNAME: "0.0.0.0"
+      DATA_DIR: /app/data
+      REDIS_URL: redis://redis:6379
+      REQUIRE_API_KEY: "true"
+      AUTH_COOKIE_SECURE: "true"
+      OMNIROUTE_MEMORY_MB: "512"
+      JWT_SECRET: ${JWT_SECRET:?set in /var/lib/omniroute/.env}
+      API_KEY_SECRET: ${API_KEY_SECRET:?set in /var/lib/omniroute/.env}
+      INITIAL_PASSWORD: ${INITIAL_PASSWORD:?set in /var/lib/omniroute/.env}
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
