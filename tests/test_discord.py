@@ -65,6 +65,11 @@ class DiscordApiTests(unittest.TestCase):
         self.assertIn("/guilds/guild/members?limit=1000", requests[0].full_url)
         self.assertNotIn("bot-secret", requests[0].full_url)
 
+    def test_list_bots_rejects_unbounded_member_request(self) -> None:
+        client = DiscordApiClient("token", "guild", "channel")
+        with self.assertRaisesRegex(ValueError, "between 1 and 1000"):
+            client.list_bots(1001)
+
     def test_channel_adapter_sends_bounded_task_and_waits_for_selected_bot(self) -> None:
         requests: list[Request] = []
         responses = iter((

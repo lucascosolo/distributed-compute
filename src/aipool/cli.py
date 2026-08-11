@@ -145,6 +145,9 @@ def _parser() -> argparse.ArgumentParser:
     discord_subparsers.add_parser("check", help="read-only bot/server/channel connectivity check")
     discord_bots = discord_subparsers.add_parser("bots", help="list bot members visible in the configured server")
     discord_bots.add_argument("--limit", type=int, default=1000)
+    discord_benchmark = discord_subparsers.add_parser("benchmark", help="run bounded capability cases against discovered worker bots")
+    discord_benchmark.add_argument("--max-bots", type=int, default=3)
+    discord_benchmark.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
     discover_input = discover.add_mutually_exclusive_group(required=True)
     discover_input.add_argument("--query")
@@ -355,6 +358,47 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
             return 2
+    if args.command == "discord" and args.discord_action == "benchmark":
+        store = Store(args.db)
+        try:
+            if not 1 <= args.max_bots <= 32:
+                raise ValueError("max-bots must be between 1 and 32")
+            client = DiscordApiClient(
+                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
+                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
+                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
+            )
+            controller_id = os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", "")
+            workers = [bot for bot in client.list_bots() if bot["id"] != controller_id][:args.max_bots]
+            registry = ProviderRegistry()
+            for bot in workers:
+                bot_id = bot["id"]
+                profile = ProviderProfile(
+                    f"discord-worker:{bot_id}", f"Discord worker {bot.get('username', bot_id)}", "discord",
+                    capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
+                    reliability=0.2, state=ProviderState.HEALTHY, max_complexity=1,
+                )
+                registry.register(DiscordChannelAdapter(
+                    profile, os.environ["AIPOOL_DISCORD_BOT_TOKEN"],
+                    os.environ["AIPOOL_DISCORD_CHANNEL_ID"], bot_id,
+                    controller_bot_id=controller_id,
+                    message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
+                ))
+            coordinator = Coordinator(registry, store)
+            results = []
+            for adapter in registry.all():
+                result = coordinator.benchmark_provider(adapter.profile.id)
+                results.append({
+                    "provider_id": result.provider_id, "scores": result.scores,
+                    "attempts": result.attempts, "valid": result.valid,
+                })
+            print(json.dumps({"workers": results}, separators=(",", ":")))
+            return 0
+        except (KeyError, ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
     if args.command == "queue":
         mode = os.environ.get("AIPOOL_MODE", "local").lower()
         base_url = os.environ.get("AIPOOL_BASE_URL", "")

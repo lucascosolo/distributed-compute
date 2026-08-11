@@ -287,6 +287,17 @@ configured channel, polls for its exact bot, and turns Discord
 Start with harmless synthetic prompts and keep workers at complexity level 1
 until benchmark evidence says otherwise.
 
+To run the first bounded capability test against up to three discovered worker
+bots, use:
+
+```bash
+aipool discord benchmark --db .aipool-data/aipool.sqlite
+```
+
+This sends only the built-in synthetic benchmark cases, records per-bot
+capability evidence, and leaves weak or failing bots out of capable routing.
+Increase `--max-bots` only when the test channel and provider limits support it.
+
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an
 operator-owned, non-shell wrapper. It receives one candidate JSON object on

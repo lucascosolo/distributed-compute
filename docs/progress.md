@@ -135,6 +135,10 @@ or the operator's environment.
   controller. No per-worker IDs are stored in operator configuration. The
   Discord Developer Portal must enable Server Members Intent for enumeration and
   Message Content Intent for ordinary reply content.
+- `aipool discord benchmark` now runs the existing three-case bounded benchmark
+  sequentially across up to three discovered worker bots, persists per-bot
+  capability observations, and sends failures through the normal health hold
+  logic. It requires no per-worker IDs.
 
 ## Non-negotiable design decisions
 
