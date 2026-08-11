@@ -308,6 +308,11 @@ This sends only the built-in synthetic benchmark cases, records per-bot
 capability evidence, and leaves weak or failing bots out of capable routing.
 Increase `--max-bots` only when the test channel and provider limits support it.
 
+For a human-authored diagnostic, inspect the recent synthetic-channel messages
+with `aipool discord recent --limit 20`. If a bot answers a human but ignores
+the controller, leave it disabled as `bot_to_bot_unsupported`; do not provide
+user OAuth or automate a personal Discord account to work around that behavior.
+
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an
 operator-owned, non-shell wrapper. It receives one candidate JSON object on

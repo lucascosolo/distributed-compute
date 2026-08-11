@@ -147,6 +147,8 @@ def _parser() -> argparse.ArgumentParser:
     discord_subparsers.add_parser("check", help="read-only bot/server/channel connectivity check")
     discord_bots = discord_subparsers.add_parser("bots", help="list bot members visible in the configured server")
     discord_bots.add_argument("--limit", type=int, default=1000)
+    discord_recent = discord_subparsers.add_parser("recent", help="read recent diagnostic messages from the configured test channel")
+    discord_recent.add_argument("--limit", type=int, default=50)
     discord_benchmark = discord_subparsers.add_parser("benchmark", help="run bounded capability cases against discovered worker bots")
     discord_benchmark.add_argument("--max-bots", type=int, default=3)
     discord_benchmark.add_argument("--include-degraded", action="store_true", help="retest workers already showing failures")
@@ -361,6 +363,18 @@ def main(argv: list[str] | None = None) -> int:
         except (ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
             return 2
+    if args.command == "discord" and args.discord_action == "recent":
+        try:
+            client = DiscordApiClient(
+                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
+                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
+                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
+            )
+            print(json.dumps({"messages": client.recent_messages(args.limit)}, separators=(",", ":")))
+            return 0
+        except (ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
     if args.command == "discord" and args.discord_action == "benchmark":
         store = Store(args.db)
         try:
@@ -402,7 +416,10 @@ def main(argv: list[str] | None = None) -> int:
                     skipped.append({"provider_id": adapter.profile.id, "state": "shared_rate_limited"})
                     continue
                 state = effective_profiles[adapter.profile.id].state
-                held_states = {ProviderState.RATE_LIMITED, ProviderState.AUTH_REQUIRED, ProviderState.BROKEN}
+                held_states = {
+                    ProviderState.RATE_LIMITED, ProviderState.AUTH_REQUIRED,
+                    ProviderState.BROKEN, ProviderState.DISABLED,
+                }
                 if not args.include_degraded:
                     held_states.add(ProviderState.DEGRADED)
                 if state in held_states:

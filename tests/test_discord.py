@@ -75,6 +75,20 @@ class DiscordApiTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "pages must be between"):
             client.list_bots(max_pages=11)
 
+    def test_recent_messages_returns_sanitized_diagnostic_records(self) -> None:
+        requests: list[Request] = []
+
+        def opener(req, timeout):
+            requests.append(req)
+            return Response([{
+                "id": "message", "author": {"id": "human", "username": "tester", "bot": False},
+                "content": "HUMAN_TEST_OK",
+            }])
+
+        result = DiscordApiClient("secret", "guild", "channel", opener=opener).recent_messages(1)
+        self.assertEqual(result[0]["content"], "HUMAN_TEST_OK")
+        self.assertIn("limit=1", requests[0].full_url)
+
     def test_list_bots_follows_a_full_page_to_find_later_bots(self) -> None:
         requests: list[Request] = []
         first_page = [{"user": {"id": "100", "username": "first", "bot": True}}]

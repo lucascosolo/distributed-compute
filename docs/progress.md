@@ -167,6 +167,14 @@ or the operator's environment.
 - A Discord rate-limit now blocks immediate retries against other Discord
   workers during the same routed task and stops the remainder of a benchmark
   batch. Other provider transports can still be considered when available.
+- Operator verification showed `CommunityOne` responds to a human-authored
+  prompt but not to the controller bot's prompt. It is therefore a
+  `bot_to_bot_unsupported` candidate, not usable Discord compute; do not keep
+  retrying it or attempt to solve that limitation with user OAuth.
+- Added the read-only `aipool discord recent` diagnostic. The live channel
+  confirmed the human-vs-bot distinction, and CommunityOne was marked disabled
+  in the ignored local database with the reason
+  `bot_to_bot_unsupported`; no repository secret or account OAuth was used.
 
 ## Non-negotiable design decisions
 

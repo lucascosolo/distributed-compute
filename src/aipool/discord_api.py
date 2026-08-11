@@ -92,6 +92,31 @@ class DiscordApiClient:
             after = next_after
         return bots
 
+    def recent_messages(self, limit: int = 50) -> list[dict[str, object]]:
+        """Read a small, operator-requested diagnostic window from the test channel."""
+        if not 1 <= limit <= 100:
+            raise ValueError("Discord message limit must be between 1 and 100")
+        payload = self._get_raw(
+            f"/channels/{self.channel_id}/messages?{parse.urlencode({'limit': str(limit)})}",
+        )
+        if not isinstance(payload, list):
+            raise ValueError("Discord messages response is not a list")
+        result: list[dict[str, object]] = []
+        for message in payload:
+            if not isinstance(message, dict):
+                continue
+            author = message.get("author")
+            if not isinstance(author, dict):
+                continue
+            result.append({
+                "id": str(message.get("id", "")),
+                "author_id": str(author.get("id", "")),
+                "author": str(author.get("username", "")),
+                "bot": bool(author.get("bot", False)),
+                "content": str(message.get("content", "")),
+            })
+        return result
+
     def _get(self, path: str) -> dict[str, object]:
         payload = self._get_raw(path)
         if not isinstance(payload, dict):
