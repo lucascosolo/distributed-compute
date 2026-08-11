@@ -49,6 +49,9 @@ or the operator's environment.
 - The gateway now exposes authenticated `/admin` and `/admin/config` routes for
   allowlisted provider settings. It writes operator-local config with mode
   `0600`, never returns secret values, and makes restart required explicit.
+- The admin panel now also configures the operator-owned browser wrapper used
+  for authorized no-key chat candidates; the shared repository and installed
+  skill both document the panel and its non-evasion constraints.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and
