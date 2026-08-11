@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `f8e63e1`
+- Last pushed commit: `7c66e8c`
 - Working tree at the last checkpoint: clean
 - Verification for the current implementation: `183 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -298,6 +298,9 @@ or the operator's environment.
   documented IDs `mistral-small-2603`, `codestral-2508`, and
   `mistral-large-2512`; the catalog now explicitly warns that published prices
   do not prove free eligibility.
+- Clarified Cohere's quota metadata: the official compatibility path is
+  retained; Command A+ is documented as free until rate limits, while Command
+  A publishes paid prices, so the family remains account-dependent.
 
 ## Immediate user requirement
 
@@ -313,7 +316,7 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `f8e63e1`; working tree is clean; VPS service is
+- Current deployed commit: `7c66e8c`; working tree is clean; VPS service is
   active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
