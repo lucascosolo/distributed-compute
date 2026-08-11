@@ -169,6 +169,18 @@ class CliTests(unittest.TestCase):
             "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b",
         })
 
+    def test_nvidia_catalog_uses_current_free_endpoint_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        models = {
+            item.model for item in load_catalog() if item.provider_name == "NVIDIA NIM"
+        }
+        self.assertEqual(models, {
+            "openai/gpt-oss-20b", "openai/gpt-oss-120b",
+            "nvidia/nemotron-3-ultra-550b-a55b",
+            "nvidia/nemotron-3-super-120b-a12b",
+            "nvidia/nemotron-3-nano-30b-a3b",
+        })
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog
