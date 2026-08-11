@@ -88,6 +88,32 @@ class CliTests(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertEqual(result["state"], "quarantined")
 
+    def test_candidate_probe_runs_configured_command_and_persists_evidence(self) -> None:
+        from aipool.discovery import CandidateProvider, CandidateRegistry
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/probe.sqlite"
+            store = Store(database)
+            CandidateRegistry(store).add(CandidateProvider(
+                id="candidate:one", name="Candidate", source="https://source.example/",
+                transport="browser-chat", endpoint="https://chat.example/", terms_url="",
+                authorization="operator reviewed; no explicit prohibition found",
+            ))
+            store.close()
+            command = (
+                f'{os.sys.executable} -c "import json,sys; c=json.load(sys.stdin); '
+                "print(json.dumps({'candidate_id':c['id'],'available':True,'authorized':True,"
+                "'context_length':1024,'output_valid':True,'latency_ms':1.0,"
+                "'restrictions_clear':True,'cost_known':True,'automation_supported':True}))\""
+            )
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["candidate", "probe", "--probe-command", command, "--db", database])
+            self.assertEqual(code, 0)
+            self.assertTrue(json.loads(output.getvalue())["reports"][0]["output_valid"])
+            reopened = Store(database)
+            self.assertEqual(reopened.candidate_rows()[0]["state"], "probed")
+            reopened.close()
+
     def test_discover_can_ingest_a_supplied_reddit_thread(self) -> None:
         from aipool.discovery_sources import DiscoveryLead
         with __import__("tempfile").TemporaryDirectory() as directory:

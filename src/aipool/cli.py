@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .artifacts import ArtifactStore
-from .discovery import CandidateRegistry, promote_lead
+from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, RedditSearchSource, RedditThreadSource
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
@@ -127,6 +127,11 @@ def _parser() -> argparse.ArgumentParser:
     promote.add_argument("--terms-review", required=True)
     promote.add_argument("--terms-prohibited", action="store_true")
     promote.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    probe = candidate_subparsers.add_parser("probe", help="run bounded probes for quarantined candidates")
+    probe.add_argument("--probe-command", dest="probe_command", default=os.environ.get("AIPOOL_CANDIDATE_PROBE_COMMAND"))
+    probe.add_argument("--max-candidates", type=int, default=3)
+    probe.add_argument("--timeout", type=float, default=120.0)
+    probe.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
@@ -190,6 +195,25 @@ def main(argv: list[str] | None = None) -> int:
             }, separators=(",", ":")))
             return 0
         except (KeyError, ValueError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
+    if args.command == "candidate" and args.candidate_action == "probe":
+        store = Store(args.db)
+        try:
+            if not args.probe_command:
+                print(json.dumps({"success": False, "error": "candidate probe command is not configured"}, separators=(",", ":")))
+                return 2
+            pipeline = QuarantineProbePipeline(
+                CandidateRegistry(store),
+                CommandCandidateProbe(tuple(shlex.split(args.probe_command)), timeout_seconds=args.timeout),
+                max_candidates=args.max_candidates,
+            )
+            reports = pipeline.run()
+            print(json.dumps({"reports": [json.loads(report.to_json()) for report in reports]}, separators=(",", ":")))
+            return 0
+        except (ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
             return 2
         finally:

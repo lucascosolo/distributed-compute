@@ -52,6 +52,10 @@ or the operator's environment.
 - The admin panel now also configures the operator-owned browser wrapper used
   for authorized no-key chat candidates; the shared repository and installed
   skill both document the panel and its non-evasion constraints.
+- `CommandCandidateProbe` and `aipool candidate probe` now provide a bounded
+  non-shell operator workflow for testing quarantined browser/API candidates.
+  Probe wrappers receive candidate metadata and return structured evidence;
+  discovered URLs are never executed directly.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and

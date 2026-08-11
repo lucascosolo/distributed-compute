@@ -215,6 +215,18 @@ only harmless benchmark tasks and respect provider limits.
 **Exit gate:** candidates remain isolated from production routing until adapter
 tests, policy checks, and probe results meet activation thresholds.
 
+### Chunk 5.3a: Operator probe runner
+
+Provide a bounded non-shell command boundary for harmless candidate probes. The
+wrapper receives candidate metadata and returns structured availability,
+authorization, output, restriction, cost, and automation evidence. Persist
+probe results, keep failed candidates quarantined, and never execute a discovered
+URL directly.
+
+**Exit gate:** `aipool candidate probe` can run a configured wrapper, enforce
+timeouts and output limits, persist evidence, and leave failed candidates out of
+activation.
+
 ### Chunk 5.4: Adapter generation and validation
 
 For candidates matching known transports, generate configuration rather than

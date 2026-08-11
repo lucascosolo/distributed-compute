@@ -1,11 +1,13 @@
 import unittest
 import tempfile
+import sys
 from pathlib import Path
 
 from aipool.discovery import (
     CandidateProvider,
     CandidateRegistry,
     CandidateState,
+    CommandCandidateProbe,
     ProbeResult,
     QuarantineProbePipeline,
     promote_lead,
@@ -153,6 +155,25 @@ class DiscoveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "explicit operator approval"):
             registry.activate(first.id)
         registry.activate(first.id, operator_approved=True)
+
+    def test_command_candidate_probe_receives_metadata_and_normalizes_result(self) -> None:
+        command = (
+            sys.executable, "-c",
+            "import json,sys; c=json.load(sys.stdin); print(json.dumps({"
+            "'candidate_id':c['id'],'available':True,'authorized':True,"
+            "'context_length':4096,'output_valid':True,'latency_ms':3.5,"
+            "'restrictions_clear':True,'cost_known':True,'automation_supported':True"
+            "}))",
+        )
+        result = CommandCandidateProbe(command)(self.candidate())
+        self.assertTrue(result.passed)
+        self.assertEqual(result.candidate_id, "catalog:model-a")
+
+    def test_command_candidate_probe_times_out_without_shell_execution(self) -> None:
+        command = (sys.executable, "-c", "import time; time.sleep(1)")
+        result = CommandCandidateProbe(command, timeout_seconds=0.01)(self.candidate())
+        self.assertFalse(result.passed)
+        self.assertIn("timed out", result.reason or "")
 
     def test_failed_probe_never_promotes_candidate(self) -> None:
         registry = CandidateRegistry()

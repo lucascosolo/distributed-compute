@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import subprocess
 from dataclasses import asdict, dataclass, replace
 from enum import Enum
 from typing import Any, Callable
@@ -89,6 +90,64 @@ class ProbeResult:
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), sort_keys=True, separators=(",", ":"))
+
+
+@dataclass(slots=True)
+class CommandCandidateProbe:
+    """Run one operator-owned, non-shell candidate probe.
+
+    The command receives one JSON candidate record on stdin and must return one
+    JSON ``ProbeResult`` object on stdout. It is the boundary for browser
+    wrappers, including wrappers that use a native model to operate visible
+    controls. Discovered URLs are data; this class never executes them.
+    """
+
+    command: tuple[str, ...]
+    timeout_seconds: float = 120.0
+    max_output_bytes: int = 64 * 1024
+
+    def __post_init__(self) -> None:
+        if not self.command:
+            raise ValueError("candidate probe command is required")
+        if self.timeout_seconds <= 0 or self.max_output_bytes <= 0:
+            raise ValueError("candidate probe limits must be positive")
+
+    def __call__(self, candidate: CandidateProvider) -> ProbeResult:
+        payload = json.dumps(asdict(candidate), sort_keys=True, separators=(",", ":")).encode()
+        try:
+            completed = subprocess.run(
+                self.command,
+                input=payload,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self.timeout_seconds,
+                check=False,
+                shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            return self._failed(candidate, "probe command timed out")
+        except OSError:
+            return self._failed(candidate, "probe command unavailable")
+        if completed.returncode:
+            return self._failed(candidate, "probe command failed")
+        if len(completed.stdout) > self.max_output_bytes:
+            return self._failed(candidate, "probe output exceeds limit")
+        try:
+            result = ProbeResult(**json.loads(completed.stdout))
+            if result.candidate_id != candidate.id:
+                raise ValueError("probe result candidate_id does not match candidate")
+            return result
+        except (TypeError, ValueError, KeyError, json.JSONDecodeError):
+            return self._failed(candidate, "probe output is invalid")
+
+    @staticmethod
+    def _failed(candidate: CandidateProvider, reason: str) -> ProbeResult:
+        return ProbeResult(
+            candidate_id=candidate.id, available=False, authorized=False,
+            context_length=0, output_valid=False, latency_ms=0.0,
+            restrictions_clear=False, cost_known=False,
+            automation_supported=False, reason=reason,
+        )
 
 
 def policy_rejection(candidate: CandidateProvider) -> str | None:

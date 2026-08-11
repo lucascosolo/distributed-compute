@@ -217,6 +217,13 @@ remote bindings, never displays existing secret values, writes the gitignored
 `.aipool.local` file with mode `0600`, and requires a coordinator restart before
 changes take effect.
 
+Quarantined candidates can be tested with `aipool candidate probe`. Set
+`AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an
+operator-owned, non-shell wrapper. It receives one candidate JSON object on
+stdin and must return one `ProbeResult` JSON object on stdout. The wrapper may
+use a browser and a native planner to operate visible controls, but it must
+not log in, bypass challenges, evade limits, or call hidden endpoints.
+
 ## Claude and Codex integration
 
 The reusable skill is included in the repository so other users can import it.
