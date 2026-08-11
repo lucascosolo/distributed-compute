@@ -7,7 +7,7 @@ import sqlite3
 import uuid
 from dataclasses import dataclass
 
-from .domain import ProviderState, Strategy, TaskEnvelope, TaskOutcome
+from .domain import Strategy, TaskEnvelope, TaskOutcome
 from .storage import Store
 
 
@@ -25,6 +25,18 @@ class QueueRecord:
     lease_until: float | None
     cancel_requested: bool
     outcome: TaskOutcome | None
+
+
+def record_to_dict(record: QueueRecord) -> dict[str, object]:
+    """Serialize queue state without echoing the task input reference."""
+    return {
+        "task_id": record.task_id,
+        "idempotency_key": record.idempotency_key,
+        "status": record.status,
+        "lease_until": record.lease_until,
+        "cancel_requested": record.cancel_requested,
+        "outcome": _outcome_to_dict(record.outcome) if record.outcome is not None else None,
+    }
 
 
 def _outcome_to_dict(outcome: TaskOutcome) -> dict[str, object]:
@@ -162,6 +174,24 @@ class TaskQueue:
                 """UPDATE queue_tasks SET status = ?, updated_at = ?, lease_id = NULL,
                 lease_until = NULL, outcome_json = ? WHERE task_id = ?""",
                 (status, now, json.dumps(_outcome_to_dict(outcome), separators=(",", ":")), task_id),
+            )
+            self.store.connection.commit()
+            return True
+
+    def cancel_claimed(self, task_id: str, lease_id: str, *, now: float = 0.0) -> bool:
+        """Acknowledge a cancellation without invoking the provider."""
+        with self.store._lock:
+            row = self.store.connection.execute(
+                "SELECT status, lease_id, cancel_requested FROM queue_tasks WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            if row is None or row["status"] != "running" or row["lease_id"] != lease_id:
+                return False
+            if not row["cancel_requested"]:
+                return False
+            self.store.connection.execute(
+                "UPDATE queue_tasks SET status = 'cancelled', updated_at = ?, lease_id = NULL, lease_until = NULL WHERE task_id = ?",
+                (now, task_id),
             )
             self.store.connection.commit()
             return True

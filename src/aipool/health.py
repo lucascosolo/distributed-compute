@@ -43,7 +43,14 @@ class HealthManager:
             last_failure_reason=None,
         )
 
-    def failure(self, provider: ProviderProfile, kind: ProviderErrorKind | None, reason: str) -> None:
+    def failure(
+        self,
+        provider: ProviderProfile,
+        kind: ProviderErrorKind | None,
+        reason: str,
+        *,
+        retry_after_seconds: float | None = None,
+    ) -> None:
         record = self.store.health(provider.id) or {"failure_streak": 0}
         streak = int(record["failure_streak"]) + 1
         if kind == ProviderErrorKind.AUTH:
@@ -52,6 +59,8 @@ class HealthManager:
         elif kind == ProviderErrorKind.RATE_LIMITED:
             state = ProviderState.RATE_LIMITED
             delay = min(self.max_backoff, self.base_backoff * (2 ** (streak - 1)))
+            if retry_after_seconds is not None:
+                delay = min(self.max_backoff, max(delay, retry_after_seconds))
         elif streak >= 3:
             state = ProviderState.BROKEN
             delay = min(self.max_backoff, self.base_backoff * (2 ** (streak - 3)))
@@ -63,5 +72,13 @@ class HealthManager:
             state=state,
             failure_streak=streak,
             next_probe_at=self.clock() + delay,
+            last_failure_reason=reason[:500],
+        )
+
+    def hold(self, provider: ProviderProfile, until: float, reason: str) -> None:
+        self.store.set_health(
+            provider.id,
+            state=ProviderState.RATE_LIMITED,
+            next_probe_at=until,
             last_failure_reason=reason[:500],
         )

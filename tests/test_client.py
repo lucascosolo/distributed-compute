@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from aipool.client import RemoteCoordinatorError, submit_remote
+from aipool.client import RemoteCoordinatorError, cancel_remote, enqueue_remote, get_remote_queue, submit_remote
 from aipool.domain import TaskEnvelope
 
 
@@ -44,6 +44,23 @@ class ClientTests(unittest.TestCase):
     def test_remote_rejects_empty_base_url(self) -> None:
         with self.assertRaises(RemoteCoordinatorError):
             submit_remote("", TaskEnvelope(task="classification", input_ref="x"), token=None, opener=lambda *_: None)
+
+    def test_queue_client_uses_authenticated_endpoints(self) -> None:
+        captured = []
+
+        def opener(req, timeout):
+            captured.append((req.full_url, req.get_method(), req.get_header("Idempotency-key")))
+            return Response({"status": "queued"})
+
+        task = TaskEnvelope(task="classification", input_ref="artifact:x")
+        self.assertEqual(enqueue_remote("http://localhost", task, token="t", idempotency_key="k", opener=opener)["status"], "queued")
+        self.assertEqual(get_remote_queue("http://localhost", task.task_id, token="t", opener=opener)["status"], "queued")
+        self.assertEqual(cancel_remote("http://localhost", task.task_id, token="t", opener=opener)["status"], "queued")
+        self.assertEqual(captured, [
+            ("http://localhost/queue", "POST", "k"),
+            (f"http://localhost/queue/{task.task_id}", "GET", None),
+            (f"http://localhost/queue/{task.task_id}/cancel", "POST", None),
+        ])
 
 
 if __name__ == "__main__":

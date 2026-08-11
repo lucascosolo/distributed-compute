@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `2bdd591`
+- Last pushed commit: pending this chunk
 - Working tree at the last checkpoint: clean
-- Verification at the last checkpoint: `59 tests passed` with
+- Verification for this chunk: `68 tests passed` with
   `-W error::ResourceWarning`
 - No VPS deployment has been performed.
 
@@ -32,7 +32,12 @@ or the operator's environment.
   example containing placeholders only.
 - Durable queue core in `src/aipool/queue.py`: idempotency keys, queue bounds,
   expiring worker leases, reclaim, wrong-lease protection, and cooperative
-  cancellation. The queue is not yet wired to a worker loop or HTTP endpoints.
+  cancellation. `QueueWorker` now claims, executes, completes, and skips queued
+  cancellations; the authenticated gateway exposes enqueue, inspect, and cancel
+  endpoints, and `serve` starts the worker unless `--no-worker` is specified.
+- Provider usage windows now support configured request/token limits with
+  persistent SQLite accounting. Exhausted providers enter `RATE_LIMITED` hold
+  until the window ends; HTTP 429 `Retry-After` values extend health backoff.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -55,18 +60,13 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Wire `TaskQueue` into a bounded worker loop and the authenticated gateway:
+Add service-supervision integration tests and operator-facing queue commands,
+then harden provider registration and discovery. Preserve the usage/backoff
+invariant: no provider call is attempted after a known request/token window is
+exhausted, and no 429 provider is retried before its hold expires.
 
-- add `Coordinator.process_queued_task` or an equivalent lease-owning worker;
-- enqueue, inspect, and cancel endpoints with bounded request bodies;
-- make completion idempotent and ensure expired leases are reclaimable;
-- keep synchronous `/task` behavior unchanged;
-- test worker success, failure/native fallback, cancellation, lease expiry, and
-  remote queue responses before committing.
-
-After that, add service-supervision integration tests and only then consider a
-VPS deployment using the deploy skill. Do not put a real VPS address or token in
-the repository.
+Only after those checks consider a VPS deployment using the deploy skill. Do not
+put a real VPS address or token in the repository.
 
 ## Verification command
 

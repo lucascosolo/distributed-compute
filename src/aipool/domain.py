@@ -142,12 +142,17 @@ class ProviderProfile:
     concurrency_limit: int = 1
     state: ProviderState = ProviderState.QUARANTINED
     max_complexity: int = 1
+    request_limit: int = 0
+    token_limit: int = 0
+    usage_window_seconds: float = 60.0
 
     def __post_init__(self) -> None:
         if not self.id or not self.name or not self.transport:
             raise ValueError("provider id, name, and transport are required")
         if self.context_limit < 0 or self.concurrency_limit < 1:
             raise ValueError("provider limits are invalid")
+        if self.request_limit < 0 or self.token_limit < 0 or self.usage_window_seconds <= 0:
+            raise ValueError("provider usage limits are invalid")
         if not 1 <= self.max_complexity <= 5:
             raise ValueError("max_complexity must be between 1 and 5")
         for field_name in ("reliability",):
@@ -165,6 +170,7 @@ class ProviderResult:
     error: str | None = None
     latency_ms: float = 0.0
     worker_tokens: int = 0
+    retry_after_seconds: float | None = None
 
 
 @dataclass(frozen=True, slots=True)

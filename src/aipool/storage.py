@@ -46,6 +46,11 @@ class Store:
                 cancel_requested INTEGER NOT NULL DEFAULT 0,
                 outcome_json TEXT
             );
+            CREATE TABLE IF NOT EXISTS provider_usage (
+                provider_id TEXT NOT NULL, window_start REAL NOT NULL,
+                requests INTEGER NOT NULL, tokens INTEGER NOT NULL,
+                PRIMARY KEY (provider_id, window_start)
+            );
             """
         )
         self.connection.commit()
@@ -161,6 +166,36 @@ class Store:
                 """INSERT OR REPLACE INTO cache(cache_key, task_id, provider_id, output, worker_tokens, created_at)
                 VALUES (?, ?, ?, ?, ?, ?)""",
                 (cache_key, outcome.task_id, outcome.provider_id, outcome.output, outcome.worker_tokens, created_at),
+            )
+            self.connection.commit()
+
+    def usage(self, provider_id: str, window_start: float) -> tuple[int, int]:
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT requests, tokens FROM provider_usage WHERE provider_id = ? AND window_start = ?",
+                (provider_id, window_start),
+            ).fetchone()
+        return (int(row["requests"]), int(row["tokens"])) if row else (0, 0)
+
+    def reserve_usage(self, provider_id: str, window_start: float) -> tuple[int, int]:
+        with self._lock:
+            self.connection.execute(
+                "INSERT INTO provider_usage(provider_id, window_start, requests, tokens) VALUES (?, ?, 1, 0) "
+                "ON CONFLICT(provider_id, window_start) DO UPDATE SET requests = requests + 1",
+                (provider_id, window_start),
+            )
+            self.connection.commit()
+            row = self.connection.execute(
+                "SELECT requests, tokens FROM provider_usage WHERE provider_id = ? AND window_start = ?",
+                (provider_id, window_start),
+            ).fetchone()
+        return int(row["requests"]), int(row["tokens"])
+
+    def add_usage_tokens(self, provider_id: str, window_start: float, tokens: int) -> None:
+        with self._lock:
+            self.connection.execute(
+                "UPDATE provider_usage SET tokens = tokens + ? WHERE provider_id = ? AND window_start = ?",
+                (max(0, tokens), provider_id, window_start),
             )
             self.connection.commit()
 

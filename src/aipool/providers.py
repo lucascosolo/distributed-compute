@@ -30,6 +30,7 @@ def _failure(
     kind: ProviderErrorKind,
     message: str,
     latency_ms: float,
+    retry_after_seconds: float | None = None,
 ) -> ProviderResult:
     return ProviderResult(
         provider_id=provider_id,
@@ -37,6 +38,7 @@ def _failure(
         error_kind=kind,
         error=message[:500],
         latency_ms=latency_ms,
+        retry_after_seconds=retry_after_seconds,
     )
 
 
@@ -152,7 +154,20 @@ class OpenAICompatibleAdapter:
             )
         except error.HTTPError as exc:
             kind = ProviderErrorKind.RATE_LIMITED if exc.code == 429 else ProviderErrorKind.AUTH if exc.code in (401, 403) else ProviderErrorKind.INTERNAL
-            return _failure(self.profile.id, kind, f"HTTP {exc.code}", (time.monotonic() - started) * 1000)
+            retry_after = None
+            if exc.code == 429:
+                raw_retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                try:
+                    retry_after = max(0.0, float(raw_retry_after)) if raw_retry_after is not None else None
+                except (TypeError, ValueError):
+                    retry_after = None
+            return _failure(
+                self.profile.id,
+                kind,
+                f"HTTP {exc.code}",
+                (time.monotonic() - started) * 1000,
+                retry_after_seconds=retry_after,
+            )
         except (error.URLError, TimeoutError) as exc:
             return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:

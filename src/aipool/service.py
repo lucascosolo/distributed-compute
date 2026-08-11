@@ -15,16 +15,18 @@ from .quality import validate_output
 from .routing import RoutingDecision, choose_provider
 from .scoping import ALLOWED_SUBTASKS, split_task
 from .storage import Store
+from .usage import UsageManager
 
 
 MAX_MAP_REDUCE_INPUT_BYTES = 256 * 1024
 
 
 class Coordinator:
-    def __init__(self, registry: ProviderRegistry, store: Store, health: HealthManager | None = None) -> None:
+    def __init__(self, registry: ProviderRegistry, store: Store, health: HealthManager | None = None, usage: UsageManager | None = None) -> None:
         self.registry = registry
         self.store = store
         self.health = health or HealthManager(store)
+        self.usage = usage or UsageManager(store)
 
     def submit(self, task: TaskEnvelope) -> TaskOutcome:
         if task.strategy == Strategy.VERIFY:
@@ -79,6 +81,7 @@ class Coordinator:
             return outcome
 
         attempted: set[str] = set()
+        dispatched = False
         candidates = [decision.provider] + [profile for profile in profiles if profile.id != decision.provider.id]
         for profile in candidates:
             if profile.id in excluded or profile.id in attempted or profile.state not in {ProviderState.HEALTHY, ProviderState.DEGRADED}:
@@ -94,7 +97,17 @@ class Coordinator:
                 )
                 self.store.record_outcome(outcome)
                 return outcome
+            reserved, hold_until = self.usage.reserve(profile)
+            if not reserved:
+                self.health.hold(profile, hold_until, "configured_usage_limit_reached")
+                continue
+            dispatched = True
             result = self.registry.get(profile.id).complete(task)
+            usage_hold_until = self.usage.record_tokens(profile, result.worker_tokens)
+            usage_exhausted = bool(
+                profile.token_limit
+                and self.store.usage(profile.id, self.usage.window(profile, time.time())[0])[1] >= profile.token_limit
+            )
             report = validate_output(
                 result.output,
                 require_json=task.requirements.get("output") == "json",
@@ -110,11 +123,28 @@ class Coordinator:
                 self.store.record_outcome(outcome)
                 self.store.record_observation(profile, decision.assessment.capabilities, True)
                 self.health.success(profile)
+                if usage_exhausted:
+                    self.health.hold(profile, usage_hold_until, "configured_token_limit_reached")
                 self.store.cache_put(cache_key, outcome, time.time())
                 return outcome
             reason = report.reason if report else (result.error_kind.value if result.error_kind else "provider_failure")
             self.store.record_observation(profile, decision.assessment.capabilities, False)
-            self.health.failure(profile, result.error_kind, reason)
+            self.health.failure(
+                profile,
+                result.error_kind,
+                reason,
+                retry_after_seconds=result.retry_after_seconds,
+            )
+            if usage_exhausted:
+                self.health.hold(profile, usage_hold_until, "configured_token_limit_reached")
+
+        if not dispatched:
+            outcome = TaskOutcome(
+                task.task_id, Strategy.NO_DELEGATION, None, None, True, True,
+                "provider_usage_limit_reached", native_fallback=True,
+            )
+            self.store.record_outcome(outcome)
+            return outcome
 
         outcome = TaskOutcome(
             task.task_id, decision.strategy, decision.provider.id, None, False, False,

@@ -30,6 +30,16 @@ class HealthTests(unittest.TestCase):
         now[0] = 110.0
         self.assertEqual(manager.profiles([provider])[0].state, ProviderState.DEGRADED)
 
+    def test_rate_limit_retry_after_extends_hold(self) -> None:
+        now = [100.0]
+        store = Store()
+        self.addCleanup(store.close)
+        manager = HealthManager(store, clock=lambda: now[0], base_backoff=10, max_backoff=300)
+        provider = ProviderProfile("p", "P", "fixture", state=ProviderState.HEALTHY)
+        manager.profiles([provider])
+        manager.failure(provider, ProviderErrorKind.RATE_LIMITED, "429", retry_after_seconds=120)
+        self.assertEqual(store.health("p")["next_probe_at"], 220.0)
+
     def test_auth_failure_stays_auth_required(self) -> None:
         store = Store()
         self.addCleanup(store.close)

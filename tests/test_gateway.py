@@ -63,6 +63,27 @@ class GatewayTests(unittest.TestCase):
         status, _ = self.request("GET", "/stats", token=None)
         self.assertEqual(status, 401)
 
+    def test_queue_enqueue_status_and_cancel(self) -> None:
+        task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}
+        status, queued = self.request("POST", "/queue", {"task": task, "idempotency_key": "queued-1"})
+        self.assertEqual(status, 202)
+        self.assertEqual(queued["status"], "queued")
+        status, duplicate = self.request("POST", "/queue", {"task": task, "idempotency_key": "queued-1"})
+        self.assertEqual(status, 202)
+        self.assertEqual(duplicate["task_id"], queued["task_id"])
+        status, record = self.request("GET", f"/queue/{queued['task_id']}")
+        self.assertEqual(status, 200)
+        self.assertEqual(record["status"], "queued")
+        status, cancelled = self.request("POST", f"/queue/{queued['task_id']}/cancel", {})
+        self.assertEqual(status, 200)
+        self.assertEqual(cancelled["status"], "cancelled")
+        status, _ = self.request("GET", "/queue/does-not-exist")
+        self.assertEqual(status, 404)
+
+    def test_queue_requires_token(self) -> None:
+        status, _ = self.request("POST", "/queue", {"task": "classification", "input_ref": "x"}, token=None)
+        self.assertEqual(status, 401)
+
     def test_non_loopback_requires_token(self) -> None:
         store = Store()
         self.addCleanup(store.close)

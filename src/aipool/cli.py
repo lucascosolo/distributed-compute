@@ -7,14 +7,17 @@ import json
 import os
 import shlex
 import sys
+import threading
 from pathlib import Path
 
 from .client import RemoteCoordinatorError, submit_remote
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
+from .queue import TaskQueue
 from .providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .service import Coordinator
 from .storage import Store
+from .worker import QueueWorker
 
 
 def _load_local_config() -> None:
@@ -81,6 +84,7 @@ def _parser() -> argparse.ArgumentParser:
     serve.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     serve.add_argument("--host", default=os.environ.get("AIPOOL_HOST", "127.0.0.1"))
     serve.add_argument("--port", type=int, default=int(os.environ.get("AIPOOL_PORT", "8765")))
+    serve.add_argument("--no-worker", action="store_true", help="serve HTTP without processing queued tasks")
     return parser
 
 
@@ -90,16 +94,35 @@ def main(argv: list[str] | None = None) -> int:
     registry = _build_registry(args)
     if args.command == "serve":
         store = Store(args.db)
+        stop_event = threading.Event()
+        worker_thread = None
         try:
+            coordinator = Coordinator(registry, store)
+            task_queue = TaskQueue(store, max_pending=int(os.environ.get("AIPOOL_MAX_PENDING", "1000")))
             server = make_server(
-                Coordinator(registry, store),
+                coordinator,
                 host=args.host,
                 port=args.port,
                 token=os.environ.get("AIPOOL_TOKEN") or None,
+                queue=task_queue,
+                max_pending=task_queue.max_pending,
             )
+            if not args.no_worker:
+                worker = QueueWorker(
+                    task_queue,
+                    coordinator,
+                    worker_id=os.environ.get("AIPOOL_WORKER_ID", "worker-1"),
+                    lease_seconds=float(os.environ.get("AIPOOL_LEASE_SECONDS", "60")),
+                    poll_seconds=float(os.environ.get("AIPOOL_POLL_SECONDS", "0.1")),
+                )
+                worker_thread = threading.Thread(target=worker.run_forever, args=(stop_event,), daemon=True)
+                worker_thread.start()
             try:
                 server.serve_forever()
             finally:
+                stop_event.set()
+                if worker_thread is not None:
+                    worker_thread.join(timeout=2)
                 server.server_close()
         except KeyboardInterrupt:
             return 0

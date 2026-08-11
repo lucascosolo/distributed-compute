@@ -3,6 +3,7 @@ import unittest
 from aipool.domain import Strategy, TaskEnvelope, TaskOutcome
 from aipool.queue import QueueFull, TaskQueue
 from aipool.storage import Store
+from aipool.worker import QueueWorker
 
 
 class QueueTests(unittest.TestCase):
@@ -46,6 +47,37 @@ class QueueTests(unittest.TestCase):
         outcome = TaskOutcome(record.task_id, Strategy.SINGLE, "p", "ok", True, True)
         self.assertFalse(self.queue.complete(record.task_id, claimed.lease_id, outcome, now=102))
         self.assertEqual(self.queue.get(record.task_id).status, "cancelled")
+
+    def test_worker_claims_submits_and_completes(self) -> None:
+        self.queue.enqueue(self.task)
+        outcome = TaskOutcome(self.task.task_id, Strategy.SINGLE, "p", "ok", True, True)
+        submitted = []
+
+        class Coordinator:
+            def submit(_, task):
+                submitted.append(task.task_id)
+                return outcome
+
+        worker = QueueWorker(self.queue, Coordinator(), worker_id="w", clock=lambda: 10.0)
+        self.assertTrue(worker.run_once(now=10.0))
+        record = self.queue.get(self.task.task_id)
+        self.assertEqual(submitted, [self.task.task_id])
+        self.assertEqual(record.status, "succeeded")
+        self.assertEqual(record.outcome.output, "ok")
+
+    def test_worker_skips_queued_cancellation(self) -> None:
+        self.queue.enqueue(self.task)
+        self.assertTrue(self.queue.cancel(self.task.task_id, now=10.0))
+        submitted = []
+
+        class Coordinator:
+            def submit(_, task):
+                submitted.append(task.task_id)
+                raise AssertionError("cancelled task was submitted")
+
+        worker = QueueWorker(self.queue, Coordinator(), worker_id="w", clock=lambda: 11.0)
+        self.assertFalse(worker.run_once(now=11.0))
+        self.assertEqual(submitted, [])
 
 
 if __name__ == "__main__":

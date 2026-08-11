@@ -5,7 +5,7 @@
 Start with a Python 3.13 modular monolith named `aipool`. The local CLI and HTTP
 gateway share the same application services; the VPS can run the gateway as a
 persistent process without requiring microservices. SQLite stores provider
-metadata, health observations, task outcomes, and cache records. Files and large
+metadata, health observations, usage windows, task outcomes, and cache records. Files and large
 payloads are represented by content-addressed artifact references.
 
 The first vertical slice is intentionally narrow:
@@ -38,8 +38,10 @@ orchestration overhead, worker usage, latency, validity, and whether delegation
 was predicted to save primary-model work; it declines delegation when estimated
 overhead exceeds the local-work estimate.
 
-Unknown or discovered providers enter `QUARANTINED` and cannot route production
-tasks until probes and adapter tests pass. Health failures use exponential backoff;
+Configured request/token windows are persisted per provider. Exhausted providers
+enter a time-bounded `RATE_LIMITED` hold, and HTTP 429 `Retry-After` values extend
+that hold. Unknown or discovered providers enter `QUARANTINED` and cannot route
+production tasks until probes and adapter tests pass. Health failures use exponential backoff;
 rate-limited, auth-required, broken, and disabled providers are excluded from the
 active pool.
 
