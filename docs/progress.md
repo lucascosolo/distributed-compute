@@ -46,6 +46,10 @@ or the operator's environment.
   directories (`~/.claude/skills` or `~/.codex/skills`); CLI config discovery
   supports matching per-agent operator environment files while retaining the
   legacy shared operator path for compatibility.
+- Provider registration now validates identity, adapter shape, finite limits,
+  and capability scores. `aipool.discovery` keeps sourced candidates separate
+  from active adapters, rejects prohibited access/evasion language, and
+  requires explicit operator approval before activation.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -68,8 +72,8 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Add deeper service-supervision integration tests and harden provider
-registration and discovery. Preserve the usage/backoff
+Persist candidate records and add a bounded, policy-filtered quarantine probe
+pipeline. Preserve the usage/backoff
 invariant: no provider call is attempted after a known request/token window is
 exhausted, and no 429 provider is retried before its hold expires.
 

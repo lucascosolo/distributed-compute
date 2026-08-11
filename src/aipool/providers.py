@@ -176,10 +176,18 @@ class OpenAICompatibleAdapter:
 
 class ProviderRegistry:
     def __init__(self, adapters: Mapping[str, ProviderAdapter] | None = None) -> None:
-        self._adapters = dict(adapters or {})
+        self._adapters: dict[str, ProviderAdapter] = {}
+        for provider_id, adapter in (adapters or {}).items():
+            if provider_id != adapter.profile.id:
+                raise ValueError("provider mapping key must match profile id")
+            self.register(adapter)
 
     def register(self, adapter: ProviderAdapter) -> None:
+        if not callable(getattr(adapter, "complete", None)):
+            raise ValueError("provider adapter must expose a callable complete method")
         provider_id = adapter.profile.id
+        if not provider_id.strip():
+            raise ValueError("provider id must not be blank")
         if provider_id in self._adapters:
             raise ValueError(f"provider already registered: {provider_id}")
         self._adapters[provider_id] = adapter

@@ -50,6 +50,8 @@ providers.
 - Explicit-scope `map` and bounded `map_reduce` strategies.
 - Durable, bounded queueing with idempotent enqueue, inspection, cancellation,
   expiring worker leases, and a supervised background worker.
+- Policy-first candidate quarantine that requires documented authorization and
+  explicit operator approval before a discovered source can be activated.
 - Native-model fallback when no capable provider exists, quality validation
   fails, a composite subtask cannot be delegated, or delegation is not cheaper.
 - Content-addressed artifact storage and a concise Claude/Codex skill under

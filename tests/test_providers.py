@@ -60,6 +60,16 @@ class ProvidersTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "already registered"):
             registry.register(FixtureAdapter(profile, lambda _: "again"))
 
+    def test_registry_rejects_key_mismatch_and_malformed_capabilities(self) -> None:
+        profile = ProviderProfile("profile-id", "Provider", "fixture")
+        with self.assertRaisesRegex(ValueError, "mapping key"):
+            ProviderRegistry({"different-id": FixtureAdapter(profile, lambda _: "ok")})
+        with self.assertRaisesRegex(ValueError, "capability score"):
+            ProviderRegistry().register(FixtureAdapter(
+                ProviderProfile("bad", "Bad", "fixture", capabilities={"coding": 1.1}),
+                lambda _: "ok",
+            ))
+
 
 if __name__ == "__main__":
     unittest.main()

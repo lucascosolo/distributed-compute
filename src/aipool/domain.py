@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
@@ -151,6 +152,10 @@ class ProviderProfile:
             raise ValueError("provider id, name, and transport are required")
         if self.context_limit < 0 or self.concurrency_limit < 1:
             raise ValueError("provider limits are invalid")
+        for field_name in ("latency_ms", "estimated_cost"):
+            value = float(getattr(self, field_name))
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"{field_name} must be a finite non-negative number")
         if self.request_limit < 0 or self.token_limit < 0 or self.usage_window_seconds <= 0:
             raise ValueError("provider usage limits are invalid")
         if not 1 <= self.max_complexity <= 5:
@@ -159,6 +164,10 @@ class ProviderProfile:
             value = getattr(self, field_name)
             if not 0 <= value <= 1:
                 raise ValueError(f"{field_name} must be between 0 and 1")
+        for capability, score in self.capabilities.items():
+            value = float(score)
+            if not capability or not math.isfinite(value) or not 0 <= value <= 1:
+                raise ValueError(f"capability score for {capability!r} must be between 0 and 1")
 
 
 @dataclass(frozen=True, slots=True)
