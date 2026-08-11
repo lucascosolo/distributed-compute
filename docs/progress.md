@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `68a1fa1`
+- Last pushed commit: `eedaa6b`
 - Working tree at the last checkpoint: clean
 - Verification for this chunk: `162 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -259,6 +259,10 @@ or the operator's environment.
 - Added NVIDIA NIM's official free-endpoint candidate with separate 8B and 70B
   model cards; both remain quarantined until live model discovery and a bounded
   smoke test confirm availability for the operator's key.
+- Added Mistral AI and SambaNova Cloud as additional OpenAI-compatible candidate
+  families, with separate general, coding, and stronger model cards. Their free
+  or trial status and limits remain operator-verified metadata, not an activation
+  claim.
 - Added the repository-local `scripts/aipool` launcher so the distributed-compute
   skill works before editable package installation. The panel now exposes an
   explicit bounded smoke-test button for configured catalog models.
