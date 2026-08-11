@@ -130,6 +130,13 @@ class CliTests(unittest.TestCase):
         self.assertEqual(adapter.profile.transport, "tokenrouter-responses")
         self.assertTrue(adapter.endpoint.endswith("/v1"))
 
+    def test_kilo_catalog_uses_documented_free_model_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        providers = [item for item in load_catalog() if item.provider_name == "Kilo Gateway"]
+        self.assertEqual({item.model for item in providers}, {
+            "minimax/minimax-m2.1:free", "z-ai/glm-5:free",
+        })
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog

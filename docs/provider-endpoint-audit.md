@@ -19,7 +19,7 @@ send model requests, validate credentials, or prove that a tier is free.
 | Mistral AI | `api.mistral.ai/v1` / OpenAI-compatible | verified | Official docs use `/v1/chat/completions`. |
 | SambaNova Cloud | `api.sambanova.ai/v1` / OpenAI-compatible | verified | Official API-key docs show `/v1/chat/completions`; current free availability remains account-dependent. |
 | Aion Labs | `api.aionlabs.ai/v1` / OpenAI-compatible | verified | Official documentation confirms OpenAI-compatible chat completions and a `/v1/models` discovery endpoint. |
-| Kilo Gateway | `api.kilo.ai/api/gateway` / OpenAI-compatible | operator-supplied, primary-doc check pending | Keep quarantined until the gateway’s own API documentation confirms the path. |
+| Kilo Gateway | `api.kilo.ai/api/gateway` / OpenAI-compatible | verified, model availability pending | Official Kilo docs confirm `/chat/completions`, `/models`, Bearer authentication, and anonymous free-model access. The catalog now uses the documented `minimax/minimax-m2.1:free` and `z-ai/glm-5:free` IDs; a no-generation `/models` check must confirm they remain available. |
 | Ollama Cloud | `ollama.com/v1` / OpenAI-compatible | verified | Official Ollama compatibility material documents this cloud base URL. |
 | BazaarLink | `bazaarlink.ai/api/v1` / OpenAI-compatible | verified, model discovery pending | Official documentation confirms the OpenAI-compatible base path and says full provider/model IDs are required; catalog IDs still need a no-generation `/models` check. |
 | xAI | `api.x.ai/v1` / OpenAI-compatible | verified | Official xAI docs use `/v1/chat/completions`. |
@@ -36,7 +36,7 @@ wasting a full three-case benchmark on an obvious integration mismatch.
 ## Next implementation chunk
 
 Finish the remaining provider-contract audit, starting with TokenRouter’s
-conflicting `.com` versus `.io` documentation and Kilo’s gateway contract.
+conflicting `.com` versus `.io` documentation and Kilo’s live model catalog.
 Then add any required provider-specific adapters or quarantine entries. Keep
 Cloudflare unloaded until the operator saves its account ID, and do not run a
 live smoke call while any provider contract remains unresolved.

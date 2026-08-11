@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: `1148a6f`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `173 tests passed` with
+- Verification for the current implementation: `174 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -349,6 +349,10 @@ new batch plan. No provider calls were made during the endpoint audit.
 - TokenRouter now has a dedicated Responses API adapter and only the documented
   `auto:balance` routing mode in the catalog; it is still quarantined because
   the supplied `.com` host conflicts with the detailed `.io` documentation.
+- Kilo Gateway's endpoint is now confirmed from its official docs. Its catalog
+  was narrowed to the documented anonymous-free IDs `minimax/minimax-m2.1:free`
+  and `z-ai/glm-5:free`; availability still needs a no-generation `/models`
+  check before smoke testing.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the
