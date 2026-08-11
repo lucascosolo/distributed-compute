@@ -334,11 +334,11 @@ new batch plan. No provider calls were made during the endpoint audit.
 - Next session: resume with the remaining-provider integration audit, keep all
   changes scoped and tested, and pause again before any external model calls.
 - First implementation task after compaction: add the Cloudflare account ID and
-  any other required non-secret fields to the panel. If the deployment already
-  contains the value in operator configuration, inspect and reuse it rather than
-  asking for duplicate input; otherwise present a clear human checkpoint telling
-  the operator where to find and save it. Keep the adapter unloaded until its
-  required configuration is complete.
+  any other required non-secret fields to the panel. This is now implemented in
+  the working tree and covered by fixture tests; the panel explains where the
+  account ID comes from, never echoes the API token, and keeps the family
+  unloaded until both values are present. Deploy this chunk, then perform only
+  a no-network readiness check before requesting any live provider call.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the

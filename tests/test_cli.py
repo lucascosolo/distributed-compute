@@ -89,6 +89,21 @@ class CliTests(unittest.TestCase):
         self.assertEqual(adapter.profile.transport, "openai-compatible")
         self.assertIn("/v1beta/openai/", adapter.endpoint)
 
+    def test_cloudflare_requires_account_id_and_registers_native_adapter(self) -> None:
+        from aipool.provider_catalog import config_prefix, load_catalog
+        provider = next(item for item in load_catalog() if item.provider_name == "Cloudflare Workers AI")
+        prefix = config_prefix(provider)
+        with patch.dict(os.environ, {f"{prefix}_API_KEY": "cf-token"}, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        self.assertNotIn(f"catalog:{provider.slug}", {adapter.profile.id for adapter in registry.all()})
+        with patch.dict(os.environ, {
+            f"{prefix}_API_KEY": "cf-token", f"{prefix}_ACCOUNT_ID": "account-123",
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        adapter = registry.get(f"catalog:{provider.slug}")
+        self.assertEqual(adapter.profile.transport, "cloudflare-workers-ai")
+        self.assertEqual(adapter.endpoint, provider.endpoint)
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog

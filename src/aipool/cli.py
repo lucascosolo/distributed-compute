@@ -24,8 +24,8 @@ from .discovered import build_discovered_adapter
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
-from .providers import AgentCommandAdapter, BrowserCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
-from .provider_catalog import config_prefix, load_catalog, model_config_prefix
+from .providers import AgentCommandAdapter, BrowserCommandAdapter, CandidateCommandAdapter, CloudflareWorkersAIAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from .provider_catalog import config_prefix, load_catalog, model_config_prefix, provider_config_name
 from .service import Coordinator
 from .storage import Store
 from .worker import QueueWorker
@@ -189,6 +189,8 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             continue
         if not enabled_setting and not family_key_present:
             continue
+        if any(not os.environ.get(provider_config_name(catalog_provider, field)) for field in catalog_provider.required_config):
+            continue
         api_key_env = f"{provider_prefix}_API_KEY"
         if not os.environ.get(api_key_env) and catalog_provider.transport == "huggingface-api":
             api_key_env = "HF_TOKEN"
@@ -218,6 +220,12 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             if not endpoint.rstrip("/").endswith("/chat/completions"):
                 endpoint = endpoint.rstrip("/") + "/chat/completions"
             registry.register(OpenAICompatibleAdapter(profile, endpoint, model, api_key_env))
+        elif catalog_provider.transport == "cloudflare-workers-ai":
+            registry.register(CloudflareWorkersAIAdapter(
+                profile, model, api_key_env,
+                provider_config_name(catalog_provider, "account_id"),
+                endpoint=os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint,
+            ))
         elif catalog_provider.transport == "huggingface-api":
             registry.register(HuggingFaceInferenceAdapter(profile, model, api_key_env, catalog_provider.endpoint))
     if store is not None:

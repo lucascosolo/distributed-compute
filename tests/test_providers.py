@@ -11,7 +11,7 @@ from aipool.browser_ui import UIAction, UIPlan
 from aipool.providers import ModelGuidedBrowserAdapter
 import tempfile
 from pathlib import Path
-from aipool.providers import AgentCommandAdapter, CandidateCommandAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from aipool.providers import AgentCommandAdapter, CandidateCommandAdapter, CloudflareWorkersAIAdapter, CommandAdapter, FixtureAdapter, HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderRegistry
 
 
 def task() -> TaskEnvelope:
@@ -278,6 +278,63 @@ class ProvidersTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.RATE_LIMITED)
         self.assertEqual(result.retry_after_seconds, 12.0)
+
+    def test_cloudflare_workers_ai_uses_account_aware_native_envelope(self) -> None:
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self):
+                return json.dumps({"success": True, "result": {"response": "Cloudflare result"}}).encode()
+
+        requests = []
+        def opener(req, timeout):
+            requests.append((req, timeout))
+            return Response()
+
+        adapter = CloudflareWorkersAIAdapter(
+            ProviderProfile("cf", "Cloudflare", "cloudflare-workers-ai", state=ProviderState.HEALTHY),
+            "@cf/meta/llama-3.1-8b-instruct", "CF_API_TOKEN", "CF_ACCOUNT_ID",
+            endpoint="https://api.cloudflare.com/client/v4/accounts", opener=opener,
+        )
+        with patch.dict(os.environ, {"CF_API_TOKEN": "cf-token", "CF_ACCOUNT_ID": "account-123"}, clear=True):
+            result = adapter.complete(task())
+        self.assertTrue(result.success)
+        self.assertEqual(result.output, "Cloudflare result")
+        self.assertEqual(requests[0][0].full_url, "https://api.cloudflare.com/client/v4/accounts/account-123/ai/run/@cf/meta/llama-3.1-8b-instruct")
+        self.assertEqual(requests[0][0].get_header("Authorization"), "Bearer cf-token")
+        payload = json.loads(requests[0][0].data)
+        self.assertEqual(payload["messages"][0]["role"], "user")
+        self.assertIn('"input_ref":"artifact:sha256:test"', payload["messages"][0]["content"])
+
+    def test_cloudflare_workers_ai_requires_account_and_token_without_request(self) -> None:
+        calls = []
+        adapter = CloudflareWorkersAIAdapter(
+            ProviderProfile("cf", "Cloudflare", "cloudflare-workers-ai", state=ProviderState.HEALTHY),
+            "model", "CF_API_TOKEN", "CF_ACCOUNT_ID", opener=lambda *args: calls.append(args),
+        )
+        with patch.dict(os.environ, {}, clear=True):
+            result = adapter.complete(task())
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
+        self.assertEqual(calls, [])
+
+    def test_cloudflare_workers_ai_holds_on_rate_limit(self) -> None:
+        class RateLimited:
+            def __enter__(self):
+                raise __import__("urllib.error", fromlist=["HTTPError"]).HTTPError(
+                    "https://api.cloudflare.com", 429, "slow down", {"Retry-After": "9"}, None,
+                )
+            def __exit__(self, *args): return False
+
+        adapter = CloudflareWorkersAIAdapter(
+            ProviderProfile("cf", "Cloudflare", "cloudflare-workers-ai", state=ProviderState.HEALTHY),
+            "model", "CF_API_TOKEN", "CF_ACCOUNT_ID", opener=lambda *args, **kwargs: RateLimited(),
+        )
+        with patch.dict(os.environ, {"CF_API_TOKEN": "token", "CF_ACCOUNT_ID": "account"}, clear=True):
+            result = adapter.complete(task())
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind, ProviderErrorKind.RATE_LIMITED)
+        self.assertEqual(result.retry_after_seconds, 9.0)
 
     def test_registry_rejects_duplicate_ids(self) -> None:
         profile = ProviderProfile("fixture", "Fixture", "fixture")

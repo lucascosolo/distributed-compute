@@ -11,7 +11,7 @@ send model requests, validate credentials, or prove that a tier is free.
 | Cerebras | `api.cerebras.ai/v1` / OpenAI-compatible | verified | Official quickstart uses `/v1/chat/completions`; current public models and non-permanent-free status are recorded in the catalog. |
 | Groq | `api.groq.com/openai/v1` / OpenAI-compatible | verified | Official API reference uses `/openai/v1/chat/completions`. |
 | Cohere | `api.cohere.ai/compatibility/v1` / OpenAI-compatible | corrected | The catalog previously pointed at the native `/v1` API while claiming a generic adapter. Official docs show the compatibility path; model metadata was refreshed. |
-| Cloudflare Workers AI | `api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}` / native REST | verified, not loaded | The path requires an account ID and Cloudflare-specific request/response handling. It is not eligible for the generic OpenAI adapter yet. |
+| Cloudflare Workers AI | `api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}` / native REST | adapter implemented, configuration pending | The panel now accepts the non-secret account ID beside the API token. The native adapter handles the account-scoped path, `result.response` envelope, authentication errors, and retry-after rate limits; it remains unloaded until both values are present. |
 | OpenRouter | `openrouter.ai/api/v1` / OpenAI-compatible | verified | Official docs show `/api/v1/chat/completions`. |
 | Z.AI GLM | `api.z.ai/api/paas/v4` / OpenAI-compatible | endpoint verified, model access pending | Z.AI’s official SDK documentation confirms the overseas base path. Model IDs and account-region access still need confirmation before testing. |
 | TokenRouter | `api.tokenrouter.com/v1` / OpenAI-compatible | base path provisionally verified, model access pending | The provider’s official site/console references this base URL; the separate `.io` documentation uses a different host, so model IDs and the applicable documentation must be reconciled before testing. |
@@ -35,11 +35,7 @@ wasting a full three-case benchmark on an obvious integration mismatch.
 
 ## Next implementation chunk
 
-Add Cloudflare-specific configuration fields to the admin panel, at minimum the
-Cloudflare account ID alongside the existing secret field. The adapter must use
-the account-aware Workers AI REST path and translate its native response and
-rate-limit errors; it must not silently send Cloudflare through the generic
-OpenAI adapter. The panel should explain where the account ID comes from, show
-whether it is saved without revealing secrets, and keep the family unloaded
-until both required values are present. Verify with fixture tests before any
-live provider call.
+Cloudflare-specific configuration fields and its native adapter are now
+implemented. The next step is deployment and a no-generation readiness check;
+only after the operator confirms the account ID and reviews the remaining
+provider states should any live smoke call be considered.

@@ -31,6 +31,7 @@ class CatalogProvider:
     quota_reset: str = "unknown"
     quota_summary: str = "No provider quota research recorded yet. Treat limits as unknown."
     quota_checked_at: str = ""
+    required_config: tuple[str, ...] = ()
 
 
 def provider_slug(name: str) -> str:
@@ -58,7 +59,7 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
         name = str(item.get("name", "")).strip()
         endpoint_url = urlsplit(endpoint)
         source = urlsplit(source_url)
-        if transport not in {"api", "openai-compatible", "huggingface-api"} or not name:
+        if transport not in {"api", "openai-compatible", "huggingface-api", "cloudflare-workers-ai"} or not name:
             continue
         if endpoint_url.scheme not in {"http", "https"} or not endpoint_url.netloc:
             continue
@@ -75,6 +76,8 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
         quota_reset = str(quota.get("reset", "unknown")).strip() or "unknown"
         quota_summary = str(quota.get("summary", "No provider quota research recorded yet. Treat limits as unknown.")).strip() or "No provider quota research recorded yet. Treat limits as unknown."
         quota_checked_at = str(quota.get("checked_at", "")).strip()
+        raw_required_config = item.get("required_config", ())
+        required_config = tuple(str(value).strip().casefold() for value in raw_required_config if str(value).strip()) if isinstance(raw_required_config, list) else ()
         base_slug = provider_slug(name)
         for model_item in models:
             if isinstance(model_item, str):
@@ -96,7 +99,7 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
             if slug in seen:
                 continue
             seen.add(slug)
-            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport, quota_status, quota_scope, quota_dimensions, quota_reset, quota_summary, quota_checked_at))
+            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport, quota_status, quota_scope, quota_dimensions, quota_reset, quota_summary, quota_checked_at, required_config))
     return tuple(result)
 
 
@@ -106,3 +109,11 @@ def config_prefix(provider: CatalogProvider) -> str:
 
 def model_config_prefix(provider: CatalogProvider) -> str:
     return f"AIPOOL_MODEL_{provider.slug.upper().replace('-', '_')}"
+
+
+def provider_config_name(provider: CatalogProvider, field: str) -> str:
+    """Return an allowlisted environment key for a non-secret family field."""
+    normalized = str(field).strip().upper().replace("-", "_")
+    if not normalized or not re.fullmatch(r"[A-Z][A-Z0-9_]*", normalized):
+        raise ValueError("provider config field must be a simple identifier")
+    return f"{config_prefix(provider)}_{normalized}"

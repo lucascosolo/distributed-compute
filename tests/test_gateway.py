@@ -148,6 +148,7 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"Requests per window", body)
         self.assertIn(b"Tokens per window", body)
         self.assertIn(b"Quota guidance", body)
+        self.assertIn(b"Cloudflare account ID", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
@@ -230,6 +231,24 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(family[0]["request_limit"], "5")
         self.assertEqual(family[0]["token_limit"], "1200")
         self.assertEqual(family[0]["usage_window_seconds"], "86400")
+
+    def test_cloudflare_account_id_is_configurable_and_redacted_as_nonsecret_metadata(self) -> None:
+        status, snapshot = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        provider = next(item for item in snapshot["providers"] if item["provider_name"] == "Cloudflare Workers AI")
+        account_field = next(field for field in provider["config_fields"] if field["name"] == "account_id")
+        self.assertFalse(account_field["present"])
+        status, data = self.request("POST", "/admin/config", {
+            account_field["key"]: "account-123",
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(data["updated"])
+        status, snapshot = self.request("GET", "/admin/config")
+        provider = next(item for item in snapshot["providers"] if item["provider_name"] == "Cloudflare Workers AI")
+        account_field = next(field for field in provider["config_fields"] if field["name"] == "account_id")
+        self.assertTrue(account_field["present"])
+        self.assertEqual(account_field["value"], "account-123")
+        self.assertNotIn("account-123", json.dumps(snapshot["secrets"]))
 
     def test_configured_catalog_provider_has_explicit_bounded_smoke_test(self) -> None:
         from aipool.benchmark import BenchmarkResult

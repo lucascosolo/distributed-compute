@@ -9,6 +9,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol
 from urllib import error, request
+from urllib.parse import quote
 
 from .artifacts import ArtifactStore
 from .browser_ui import BrowserSession, TASK_PROMPT_TOKEN, UIAction, UIPlan, UIPlannerRequest
@@ -457,6 +458,80 @@ class OpenAICompatibleAdapter:
             return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
         except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
             return _failure(self.profile.id, ProviderErrorKind.INTERNAL, f"invalid provider response: {exc}", (time.monotonic() - started) * 1000)
+
+
+@dataclass(slots=True)
+class CloudflareWorkersAIAdapter:
+    """Cloudflare Workers AI's account-scoped native REST adapter.
+
+    Workers AI exposes a different response envelope from OpenAI-compatible
+    gateways. The account ID is deliberately read separately from the API
+    token because it is required to construct the request path but is not a
+    credential.
+    """
+
+    profile: ProviderProfile
+    model: str
+    api_key_env: str
+    account_id_env: str
+    endpoint: str = "https://api.cloudflare.com/client/v4/accounts"
+    timeout_seconds: float = 30.0
+    opener: Callable[..., object] = request.urlopen
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        api_key = os.environ.get(self.api_key_env, "")
+        account_id = os.environ.get(self.account_id_env, "").strip()
+        if not api_key:
+            return _failure(self.profile.id, ProviderErrorKind.AUTH, "configured Cloudflare API token is unavailable", 0)
+        if not account_id:
+            return _failure(self.profile.id, ProviderErrorKind.AUTH, "Cloudflare account ID is unavailable", 0)
+        body = json.dumps({
+            "messages": [{
+                "role": "user",
+                "content": json.dumps(task.to_dict(), separators=(",", ":")),
+            }],
+        }).encode()
+        url = f"{self.endpoint.rstrip('/')}/{quote(account_id, safe='')}/ai/run/{quote(self.model, safe='@/')}"
+        req = request.Request(
+            url,
+            data=body,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with self.opener(req, timeout=self.timeout_seconds) as response:  # type: ignore[attr-defined]
+                raw = response.read()
+            data = json.loads(raw)
+            result = data.get("result")
+            output = result.get("response") if isinstance(result, dict) else result
+            if not isinstance(output, str):
+                raise ValueError("Cloudflare response did not contain result.response text")
+            return ProviderResult(
+                provider_id=self.profile.id,
+                output=output,
+                latency_ms=(time.monotonic() - started) * 1000,
+            )
+        except error.HTTPError as exc:
+            retry_after = None
+            if exc.code == 429:
+                raw_retry_after = exc.headers.get("Retry-After") if exc.headers else None
+                try:
+                    retry_after = max(0.0, float(raw_retry_after)) if raw_retry_after is not None else None
+                except (TypeError, ValueError):
+                    retry_after = None
+            kind = ProviderErrorKind.RATE_LIMITED if exc.code == 429 else ProviderErrorKind.AUTH if exc.code in (401, 403) else ProviderErrorKind.INTERNAL
+            return _failure(
+                self.profile.id,
+                kind,
+                f"Cloudflare HTTP {exc.code}",
+                (time.monotonic() - started) * 1000,
+                retry_after_seconds=retry_after,
+            )
+        except (error.URLError, TimeoutError) as exc:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, f"invalid Cloudflare response: {exc}", (time.monotonic() - started) * 1000)
 
 
 @dataclass(slots=True)
