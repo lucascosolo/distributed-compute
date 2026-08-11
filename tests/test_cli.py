@@ -56,6 +56,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(profile.token_limit, 1200)
         self.assertEqual(profile.usage_window_seconds, 86400)
 
+    def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
+        from aipool.benchmark import BenchmarkResult
+        from aipool.provider_catalog import config_prefix, load_catalog
+        provider = load_catalog()[0]
+        store = Store()
+        self.addCleanup(store.close)
+        store.save_discovered_models(provider, [{"id": "approved-model", "power": "medium", "quota_weight": 1.0,
+                                                   "capabilities": ["classification"], "metadata_confidence": "medium"}], now=1.0)
+        model_key = store.discovered_model_rows()[0]["model_key"]
+        store.review_discovered_model(model_key, "approve", "reviewed", now=2.0)
+        store.record_discovered_probe(model_key, BenchmarkResult("probe", {"classification": 1.0}, 1, 1), now=3.0)
+        store.activate_discovered_model(model_key, "approved for bounded routing", now=4.0)
+        with patch.dict(os.environ, {f"{config_prefix(provider)}_API_KEY": "key"}, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="serve"), store)
+        self.assertIn("discovered:" + model_key, {adapter.profile.id for adapter in registry.all()})
+
     def test_discord_check_uses_operator_config_without_printing_token(self) -> None:
         output = io.StringIO()
         fake = __import__("unittest").mock.Mock()

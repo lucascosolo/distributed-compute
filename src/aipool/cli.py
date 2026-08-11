@@ -17,6 +17,7 @@ from .benchmark import run_benchmark
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
 from .discord_api import DiscordApiClient, DiscordChannelAdapter
+from .discovered import build_discovered_adapter
 from .domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -69,7 +70,7 @@ def _positive_float(value: str | None, default: float) -> float:
         return default
 
 
-def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
+def _build_registry(args: argparse.Namespace, store: Store | None = None) -> ProviderRegistry:
     registry = ProviderRegistry()
     fixture_output = os.environ.get("AIPOOL_FIXTURE_OUTPUT")
     if fixture_output is not None:
@@ -142,6 +143,29 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             registry.register(OpenAICompatibleAdapter(profile, endpoint, model, api_key_env))
         elif catalog_provider.transport == "huggingface-api":
             registry.register(HuggingFaceInferenceAdapter(profile, model, api_key_env, catalog_provider.endpoint))
+    if store is not None:
+        catalog_by_family = {provider.provider_slug: provider for provider in load_catalog()}
+        for row in store.discovered_model_rows():
+            if row["state"] != "active":
+                continue
+            catalog_provider = catalog_by_family.get(str(row["provider_slug"]))
+            if catalog_provider is None:
+                continue
+            provider_prefix = config_prefix(catalog_provider)
+            api_key_env = f"{provider_prefix}_API_KEY"
+            if not os.environ.get(api_key_env) and row["transport"] == "huggingface-api":
+                api_key_env = "HF_TOKEN"
+            try:
+                adapter = build_discovered_adapter(
+                    row, api_key_env=api_key_env,
+                    request_limit=_nonnegative_int(os.environ.get(f"{provider_prefix}_REQUEST_LIMIT")),
+                    token_limit=_nonnegative_int(os.environ.get(f"{provider_prefix}_TOKEN_LIMIT")),
+                    usage_window_seconds=_positive_float(os.environ.get(f"{provider_prefix}_USAGE_WINDOW_SECONDS"), 60.0),
+                    state=ProviderState.HEALTHY,
+                )
+                registry.register(adapter)
+            except (TypeError, ValueError, KeyError):
+                continue
     browser_command = os.environ.get("AIPOOL_BROWSER_COMMAND")
     if browser_command:
         profile = ProviderProfile(
@@ -491,7 +515,7 @@ def main(argv: list[str] | None = None) -> int:
                     message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
                     artifacts=ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
                 ))
-            coordinator = Coordinator(registry, store)
+            coordinator = Coordinator(_build_registry(args, store), store)
             results = []
             skipped = []
             shared_rate_limited = False
@@ -592,7 +616,7 @@ def main(argv: list[str] | None = None) -> int:
             def reload_registry() -> None:
                 """Apply panel changes to the live coordinator without a process restart."""
                 _load_local_config()
-                coordinator.registry = _build_registry(args)
+                coordinator.registry = _build_registry(args, store)
 
             server = make_server(
                 coordinator,

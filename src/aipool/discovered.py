@@ -16,6 +16,7 @@ def build_discovered_adapter(
     request_limit: int = 0,
     token_limit: int = 0,
     usage_window_seconds: float = 60.0,
+    state: ProviderState = ProviderState.QUARANTINED,
 ) -> ProviderAdapter:
     """Create a quarantined adapter for one bounded smoke test.
 
@@ -36,7 +37,7 @@ def build_discovered_adapter(
     profile = ProviderProfile(
         f"discovered:{model_key}", f"Discovered {model_id}", transport,
         capabilities={capability: score for capability in capabilities if capability},
-        reliability=0.2, state=ProviderState.QUARANTINED, max_complexity=2,
+        reliability=0.2, state=state, max_complexity=2,
         quota_weight=float(row["quota_weight"]), quota_group=f"catalog:{provider_slug}",
         request_limit=request_limit, token_limit=token_limit,
         usage_window_seconds=usage_window_seconds,

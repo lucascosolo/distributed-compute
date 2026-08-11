@@ -241,6 +241,10 @@ or the operator's environment.
   The adapter is constructed conservatively, benchmark evidence is persisted
   without response text or credentials, and a passing test remains non-routing
   until a later explicit activation decision.
+- Activation is now a separate authenticated human decision. A passed finding
+  requires an activation note before it enters the live registry; the panel also
+  offers an audited disable/rollback action that removes it from routing while
+  retaining its review and smoke-test evidence.
 
 ## Non-negotiable design decisions
 

@@ -109,6 +109,8 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"human review required", body)
         self.assertIn(b"Approve for bounded smoke test", body)
         self.assertIn(b"Run bounded smoke test", body)
+        self.assertIn(b"Activate routing", body)
+        self.assertIn(b"Disable routing", body)
         self.assertIn(b"Requests per window", body)
         self.assertIn(b"Tokens per window", body)
         status, data = self.request("GET", "/admin/config")
@@ -270,6 +272,37 @@ class GatewayTests(unittest.TestCase):
         })
         self.assertEqual(status, 404)
         self.assertEqual(data["error"], "unknown_discovered_model")
+
+    def test_activation_requires_passed_smoke_test_and_supports_explicit_rollback(self) -> None:
+        status, config = self.request("GET", "/admin/config")
+        slug = config["providers"][0]["slug"]
+        with patch("aipool.gateway.discover_models") as discover:
+            from aipool.model_discovery import ModelDiscovery
+            discover.return_value = ModelDiscovery(True, ("activate-me",), "https://router.example/v1/models")
+            self.request("GET", f"/admin/discover-models?slug={slug}")
+        finding = next(row for row in self.request("GET", "/admin/config")[1]["discovered_models"] if row["model_id"] == "activate-me")
+        status, data = self.request("POST", "/admin/discovered-model/activate", {
+            "model_key": finding["model_key"], "note": "must fail before evidence",
+        })
+        self.assertEqual(status, 400)
+        self.assertIn("smoke test", data["error"])
+        self.request("POST", "/admin/discovered-model/review", {
+            "model_key": finding["model_key"], "decision": "approve", "note": "bounded test required",
+        })
+        from aipool.benchmark import BenchmarkResult
+        with patch("aipool.gateway.run_benchmark", return_value=BenchmarkResult("probe", {"classification": 1.0}, 1, 1)):
+            self.request("POST", "/admin/discovered-model/smoke-test", {"model_key": finding["model_key"]})
+        status, data = self.request("POST", "/admin/discovered-model/activate", {
+            "model_key": finding["model_key"], "note": "smoke evidence is sufficient for this bounded provider",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(data["state"], "active")
+        self.assertTrue(data["reloaded"])
+        status, data = self.request("POST", "/admin/discovered-model/deactivate", {
+            "model_key": finding["model_key"], "note": "rollback for further review",
+        })
+        self.assertEqual(status, 200)
+        self.assertEqual(data["state"], "smoke_tested")
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}

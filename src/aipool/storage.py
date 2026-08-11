@@ -75,6 +75,7 @@ class Store:
                 first_seen REAL NOT NULL, last_seen REAL NOT NULL,
                 probe_status TEXT NOT NULL DEFAULT 'not_run', probe_json TEXT NOT NULL DEFAULT '{}',
                 probed_at REAL,
+                activation_note TEXT, activated_at REAL,
                 UNIQUE(provider_slug, model_id)
             );
             CREATE TABLE IF NOT EXISTS discovered_model_reviews (
@@ -89,6 +90,7 @@ class Store:
             ("review_note", "TEXT"), ("reviewed_at", "REAL"),
             ("probe_status", "TEXT NOT NULL DEFAULT 'not_run'"),
             ("probe_json", "TEXT NOT NULL DEFAULT '{}'"), ("probed_at", "REAL"),
+            ("activation_note", "TEXT"), ("activated_at", "REAL"),
         ):
             if name not in columns:
                 self.connection.execute(f"ALTER TABLE discovered_models ADD COLUMN {name} {definition}")
@@ -290,6 +292,50 @@ class Store:
             self.connection.commit()
             return self.connection.execute(
                 "SELECT * FROM discovered_models WHERE model_key = ?", (str(model_key),)
+            ).fetchone()
+
+    def activate_discovered_model(self, model_key: str, note: str, *, now: float) -> sqlite3.Row:
+        return self._set_discovered_activation(model_key, "active", note, now=now)
+
+    def deactivate_discovered_model(self, model_key: str, note: str, *, now: float) -> sqlite3.Row:
+        return self._set_discovered_activation(model_key, "smoke_tested", note, now=now)
+
+    def _set_discovered_activation(self, model_key: str, state: str, note: str, *, now: float) -> sqlite3.Row:
+        model_key = str(model_key).strip()
+        note = str(note).strip()
+        if not model_key:
+            raise ValueError("model_key is required")
+        if not note or len(note) > 1_000:
+            raise ValueError("an activation note between 1 and 1000 characters is required")
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT * FROM discovered_models WHERE model_key = ?", (model_key,)
+            ).fetchone()
+            if row is None:
+                raise LookupError("unknown_discovered_model")
+            if state == "active":
+                if row["state"] != "smoke_tested" or row["probe_status"] != "passed":
+                    raise ValueError("discovered model must pass its smoke test before activation")
+                decision = "activate"
+                activation_note = note
+                activated_at = now
+            else:
+                if row["state"] != "active":
+                    raise ValueError("discovered model is not active")
+                decision = "deactivate"
+                activation_note = None
+                activated_at = None
+            self.connection.execute(
+                "UPDATE discovered_models SET state = ?, activation_note = ?, activated_at = ? WHERE model_key = ?",
+                (state, activation_note, activated_at, model_key),
+            )
+            self.connection.execute(
+                "INSERT INTO discovered_model_reviews(model_key, decision, note, reviewed_at) VALUES (?, ?, ?, ?)",
+                (model_key, decision, note, now),
+            )
+            self.connection.commit()
+            return self.connection.execute(
+                "SELECT * FROM discovered_models WHERE model_key = ?", (model_key,)
             ).fetchone()
 
     def cache_get(self, cache_key: str) -> sqlite3.Row | None:

@@ -319,6 +319,9 @@ routing by itself.
 Approved API findings can now run a bounded synthetic smoke test using the shared
 provider credential and quota group. Results are redacted benchmark evidence;
 passing changes the finding to `smoke_tested` but does not register it for routing.
+The panel then requires a second human activation note before adding the model to
+the live registry; disabling it is an explicit, audited rollback that removes it
+from routing without deleting its evidence.
 
 Provider-family quota controls are now available in the panel for request limits,
 token limits, and window duration. Model cards in one family share the same
