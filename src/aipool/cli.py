@@ -149,6 +149,7 @@ def _parser() -> argparse.ArgumentParser:
     discord_bots.add_argument("--limit", type=int, default=1000)
     discord_benchmark = discord_subparsers.add_parser("benchmark", help="run bounded capability cases against discovered worker bots")
     discord_benchmark.add_argument("--max-bots", type=int, default=3)
+    discord_benchmark.add_argument("--include-degraded", action="store_true", help="retest workers already showing failures")
     discord_benchmark.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
     discover_input = discover.add_mutually_exclusive_group(required=True)
@@ -389,7 +390,20 @@ def main(argv: list[str] | None = None) -> int:
                 ))
             coordinator = Coordinator(registry, store)
             results = []
+            skipped = []
+            effective_profiles = {
+                profile.id: profile for profile in coordinator.health.profiles(
+                    adapter.profile for adapter in registry.all()
+                )
+            }
             for adapter in registry.all():
+                state = effective_profiles[adapter.profile.id].state
+                held_states = {ProviderState.RATE_LIMITED, ProviderState.AUTH_REQUIRED, ProviderState.BROKEN}
+                if not args.include_degraded:
+                    held_states.add(ProviderState.DEGRADED)
+                if state in held_states:
+                    skipped.append({"provider_id": adapter.profile.id, "state": state.value})
+                    continue
                 result = coordinator.benchmark_provider(adapter.profile.id)
                 results.append({
                     "provider_id": result.provider_id, "scores": result.scores,
@@ -397,7 +411,7 @@ def main(argv: list[str] | None = None) -> int:
                     "stopped_error": result.stopped_error.value if result.stopped_error else None,
                     "retry_after_seconds": result.retry_after_seconds,
                 })
-            print(json.dumps({"workers": results}, separators=(",", ":")))
+            print(json.dumps({"workers": results, "skipped": skipped}, separators=(",", ":")))
             return 0
         except (KeyError, ValueError, TypeError) as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))

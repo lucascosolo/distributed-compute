@@ -177,6 +177,25 @@ class DiscordApiTests(unittest.TestCase):
         self.assertEqual(result.retry_after_seconds, 42.0)
         self.assertEqual(calls, 1)
 
+    def test_channel_adapter_bounds_poll_request_to_remaining_deadline(self) -> None:
+        timeouts: list[float] = []
+        now = [0.0]
+
+        def opener(req, timeout):
+            timeouts.append(timeout)
+            if req.method == "POST":
+                return Response({"id": "controller-message"})
+            return Response([])
+
+        result = DiscordChannelAdapter(
+            ProviderProfile("discord", "Discord", "discord", state=ProviderState.HEALTHY),
+            token="secret", channel_id="channel", target_bot_id="worker",
+            timeout_seconds=15, max_wait_seconds=2, poll_seconds=0,
+            opener=opener, sleep=lambda _: now.__setitem__(0, 2.0), clock=lambda: now[0],
+        ).complete(TaskEnvelope("classification", "input"))
+        self.assertFalse(result.success)
+        self.assertLessEqual(timeouts[1], 2.0)
+
 
 if __name__ == "__main__":
     unittest.main()

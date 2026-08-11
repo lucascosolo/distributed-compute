@@ -159,6 +159,11 @@ or the operator's environment.
 - Discord benchmarking now stops immediately on authentication or rate-limit
   responses and preserves `Retry-After` for the provider health hold, preventing
   the benchmark itself from consuming a limited worker's remaining quota.
+- First live Discord run found `CommunityOne` and `Quickchat AI`. Both returned
+  rate-limit behavior before producing a valid benchmark result; the database
+  recorded their observations and health holds, and a follow-up task returned
+  the required native fallback (`no_healthy_capable_provider`). The benchmark
+  now reports held/degraded workers as skipped rather than probing them again.
 
 ## Non-negotiable design decisions
 

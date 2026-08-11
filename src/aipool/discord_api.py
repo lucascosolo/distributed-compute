@@ -176,8 +176,12 @@ class DiscordChannelAdapter:
                 raise ValueError("Discord send response has no message ID")
             deadline = self.clock() + self.max_wait_seconds
             while self.clock() <= deadline:
+                remaining = max(0.0, deadline - self.clock())
+                if remaining <= 0:
+                    break
                 messages = self._request(
                     "GET", f"/channels/{self.channel_id}/messages?{parse.urlencode({'after': message_id, 'limit': '100'})}",
+                    timeout_seconds=min(self.timeout_seconds, remaining),
                 )
                 if not isinstance(messages, list):
                     raise ValueError("Discord messages response is not a list")
@@ -199,14 +203,17 @@ class DiscordChannelAdapter:
         except (TypeError, ValueError, json.JSONDecodeError) as exc:
             return _discord_failure(self.profile.id, ProviderErrorKind.INTERNAL, str(exc), started, self.clock)
 
-    def _request(self, method: str, path: str, body: dict[str, object] | None = None) -> object:
+    def _request(
+        self, method: str, path: str, body: dict[str, object] | None = None,
+        *, timeout_seconds: float | None = None,
+    ) -> object:
         data = json.dumps(body, separators=(",", ":")).encode() if body is not None else None
         headers = {"Authorization": f"Bot {self.token}", "User-Agent": "aipool/0.1"}
         if body is not None:
             headers["Content-Type"] = "application/json"
         req = request.Request(self.api_base_url.rstrip("/") + path, data=data, headers=headers, method=method)
         try:
-            with self.opener(req, timeout=self.timeout_seconds) as response:  # type: ignore[attr-defined]
+            with self.opener(req, timeout=timeout_seconds or self.timeout_seconds) as response:  # type: ignore[attr-defined]
                 payload = json.loads(response.read())
         except error.HTTPError as exc:
             retry = None
