@@ -249,6 +249,12 @@ After that, obtain a Cloudflare Access service token through the operator
 dashboard if CLI-over-HTTPS use is needed, then run a human-approved bounded
 provider benchmark. Retired transports are not reintroduced.
 
+Follow-up documentation chunk: refresh the repository skill and installed skill
+instructions so a new Claude/Codex session can use the deployed HTTPS orchestrator
+correctly, including remote configuration discovery, Access credentials, bounded
+delegation, native fallback, and the human approval boundary. Keep operator host
+names and secrets out of both skill copies.
+
 The VPS service is already deployed behind the operator's Cloudflare HTTPS
 hostname. Do not put a real VPS address, service token, or provider credential in
 the repository.
