@@ -24,6 +24,8 @@ class Coordinator:
     def submit(self, task: TaskEnvelope) -> TaskOutcome:
         if task.strategy == Strategy.VERIFY:
             return self._submit_verified(task)
+        if task.strategy == Strategy.CONSENSUS:
+            return self._submit_consensus(task)
         return self._submit_single(task)
 
     def _submit_single(self, task: TaskEnvelope, excluded: frozenset[str] = frozenset()) -> TaskOutcome:
@@ -65,8 +67,8 @@ class Coordinator:
             if result.success and report and report.valid:
                 outcome = TaskOutcome(
                     task.task_id, decision.strategy, profile.id, result.output, True, True,
-                    orchestration_cost=decision.assessment.delegation_cost,
-                    delegated_compute_saved=max(0.0, task.local_estimate - decision.assessment.delegation_cost),
+                    orchestration_cost=decision.assessment.single_cost,
+                    delegated_compute_saved=max(0.0, task.local_estimate - decision.assessment.single_cost),
                     worker_tokens=result.worker_tokens,
                 )
                 self.store.record_outcome(outcome)
@@ -81,7 +83,7 @@ class Coordinator:
         outcome = TaskOutcome(
             task.task_id, decision.strategy, decision.provider.id, None, False, False,
             "all_candidate_providers_failed",
-            orchestration_cost=decision.assessment.delegation_cost,
+            orchestration_cost=decision.assessment.single_cost * len(attempted),
         )
         self.store.record_outcome(outcome)
         return outcome
@@ -109,6 +111,53 @@ class Coordinator:
             reason="verified",
             orchestration_cost=first.orchestration_cost + second.orchestration_cost,
             delegated_compute_saved=max(0.0, task.local_estimate - first.orchestration_cost - second.orchestration_cost),
+        )
+        self.store.record_outcome(outcome)
+        return outcome
+
+    def _submit_consensus(self, task: TaskEnvelope) -> TaskOutcome:
+        """Run at most three independent providers and accept a two-result majority."""
+        first = self._submit_single(task)
+        if not first.success or not first.valid or first.provider_id is None or first.output is None:
+            return first
+
+        results = [first]
+        excluded = {first.provider_id}
+        for _ in range(2):
+            result = self._submit_single(
+                replace(task, strategy=Strategy.SINGLE),
+                frozenset(excluded),
+            )
+            if not result.success or not result.valid or result.provider_id is None or result.output is None:
+                break
+            results.append(result)
+            excluded.add(result.provider_id)
+
+        groups: dict[str, list[TaskOutcome]] = {}
+        for result in results:
+            key = json.dumps(self._normalized_output(task, result.output), sort_keys=True, separators=(",", ":"))
+            groups.setdefault(key, []).append(result)
+        majority = max(groups.values(), key=len)
+        total_cost = sum(result.orchestration_cost for result in results)
+        if len(majority) < 2:
+            outcome = TaskOutcome(
+                task.task_id, Strategy.CONSENSUS, None, None, True, False,
+                "consensus_disagreement" if len(results) >= 2 else "consensus_provider_unavailable",
+                orchestration_cost=total_cost,
+                delegated_compute_saved=max(0.0, task.local_estimate - total_cost),
+                native_fallback=True,
+            )
+            self.store.record_outcome(outcome)
+            return outcome
+
+        winner = majority[0]
+        outcome = replace(
+            winner,
+            strategy=Strategy.CONSENSUS,
+            reason="consensus",
+            orchestration_cost=total_cost,
+            delegated_compute_saved=max(0.0, task.local_estimate - total_cost),
+            worker_tokens=sum(result.worker_tokens for result in results),
         )
         self.store.record_outcome(outcome)
         return outcome

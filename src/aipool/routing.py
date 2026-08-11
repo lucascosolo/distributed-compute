@@ -13,6 +13,7 @@ class TaskAssessment:
     kind: str
     capabilities: tuple[str, ...]
     complexity: int
+    single_cost: float
     delegation_cost: float
 
 
@@ -52,7 +53,7 @@ def assess(task: TaskEnvelope) -> TaskAssessment:
     base_cost = 0.05 + (0.01 * input_units) + (0.02 * complexity)
     strategy = task.strategy if task.strategy != Strategy.NO_DELEGATION else Strategy.SINGLE
     delegation_cost = base_cost * _STRATEGY_MULTIPLIER.get(strategy, 1.0)
-    return TaskAssessment(kind, capabilities, complexity, delegation_cost)
+    return TaskAssessment(kind, capabilities, complexity, base_cost, delegation_cost)
 
 
 def _meets(profile: ProviderProfile, capabilities: tuple[str, ...], complexity: int) -> bool:

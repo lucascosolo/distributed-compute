@@ -60,6 +60,7 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(outcome.reason, "verified")
         self.assertEqual(first_calls[0], 1)
         self.assertEqual(second_calls[0], 1)
+        self.assertEqual(outcome.orchestration_cost, 0.16)
 
     def test_verify_disagreement_falls_back_to_native_model(self) -> None:
         first = FixtureAdapter(profile("first", classification=0.9, structured_json=0.9), lambda _: '{"label":"docs"}')
@@ -72,6 +73,62 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(outcome.native_fallback)
         self.assertFalse(outcome.valid)
         self.assertEqual(outcome.reason, "verification_disagreement")
+
+    def test_consensus_accepts_two_matching_independent_results(self) -> None:
+        calls = {provider_id: [0] for provider_id in ("first", "second", "third")}
+
+        def response(provider_id: str, output: str):
+            def complete(_: TaskEnvelope) -> str:
+                calls[provider_id][0] += 1
+                return output
+            return complete
+
+        adapters = {
+            "first": FixtureAdapter(profile("first", classification=0.9, structured_json=0.9), response("first", '{"label":"docs"}')),
+            "second": FixtureAdapter(profile("second", classification=0.9, structured_json=0.9), response("second", '{"label":"code"}')),
+            "third": FixtureAdapter(profile("third", classification=0.9, structured_json=0.9), response("third", '{"label":"docs"}')),
+        }
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry(adapters), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:consensus", requirements={"output": "json"}, strategy=Strategy.CONSENSUS, local_estimate=10)
+        )
+        self.assertTrue(outcome.success)
+        self.assertTrue(outcome.valid)
+        self.assertEqual(outcome.reason, "consensus")
+        self.assertEqual(outcome.provider_id, "first")
+        self.assertEqual(calls, {"first": [1], "second": [1], "third": [1]})
+        self.assertEqual(outcome.orchestration_cost, 0.24)
+
+    def test_consensus_disagreement_falls_back_to_native_model(self) -> None:
+        adapters = {
+            provider_id: FixtureAdapter(
+                profile(provider_id, classification=0.9, structured_json=0.9),
+                lambda _, provider_id=provider_id: '{"label":"' + provider_id + '"}',
+            )
+            for provider_id in ("first", "second", "third")
+        }
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry(adapters), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:consensus-disagree", requirements={"output": "json"}, strategy=Strategy.CONSENSUS, local_estimate=10)
+        )
+        self.assertTrue(outcome.native_fallback)
+        self.assertFalse(outcome.valid)
+        self.assertEqual(outcome.reason, "consensus_disagreement")
+
+    def test_consensus_budget_gate_uses_all_three_provider_calls(self) -> None:
+        adapters = {
+            provider_id: FixtureAdapter(profile(provider_id, classification=0.9, structured_json=0.9), lambda _: '{"label":"docs"}')
+            for provider_id in ("first", "second", "third")
+        }
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry(adapters), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:budget", requirements={"output": "json"}, strategy=Strategy.CONSENSUS, local_estimate=0.23)
+        )
+        self.assertTrue(outcome.native_fallback)
+        self.assertEqual(outcome.reason, "delegation_cost_not_lower_than_local_estimate")
 
 
 if __name__ == "__main__":
