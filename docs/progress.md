@@ -100,6 +100,9 @@ or the operator's environment.
   cases to an explicitly supplied native wrapper and the coordinator, returning
   quality, latency, context, fallback, and cost evidence without registering
   accounts or providers automatically.
+- Added `scripts/codex-baseline.sh` as a read-only, ephemeral Codex baseline
+  wrapper. It is a template for operator-approved comparison runs and has not
+  been invoked automatically or used to claim native-model benchmark results.
 - Discovery requirements now include bounded public chatbot directories,
   search results, and community discussions as candidate leads, while keeping
   provenance and terms review separate from activation.

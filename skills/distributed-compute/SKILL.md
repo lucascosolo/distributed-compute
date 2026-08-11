@@ -30,7 +30,8 @@ not put a host, token, or VPS-specific value in this skill.
 To configure providers, open the gateway's authenticated `/admin` page. It can
 save API endpoint/model settings, API keys, and an operator-owned browser
 wrapper command to the gitignored `.aipool.local` file. Existing secrets are
-never displayed; restart the coordinator after saving. Browser wrappers must
+never displayed; the running `serve` process reloads saved provider settings
+without a manual restart. Browser wrappers must
 use only authorized, visible chat interactions and must not bypass login,
 CAPTCHAs, quotas, rate limits, or provider terms.
 
@@ -51,3 +52,14 @@ synthesis, and any action affecting files, credentials, money, or production.
 If the JSON result has `native_fallback: true` or `next_action: "native_model"`,
 do not retry the same task through the pool. Complete that task with the native
 Claude/Codex model and continue asking `aipool` for later independent subtasks.
+
+For a controlled baseline comparison, provide an operator-owned native wrapper:
+
+```bash
+aipool compare --baseline-command './scripts/codex-baseline.sh' --local-estimate 1
+```
+
+This runs bounded synthetic cases and reports quality, latency, context size,
+fallbacks, and whether delegation was actually cheaper. Do not treat a fixed
+stub or synthetic baseline as evidence of native-model quality. Review the
+requested model and expected usage before invoking a real native wrapper.
