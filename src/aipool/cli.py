@@ -184,6 +184,8 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
         if os.environ.get(f"{model_prefix}_ENABLED", "").casefold() not in {"1", "true", "yes", "on"}:
             continue
         api_key_env = f"{provider_prefix}_API_KEY"
+        if not os.environ.get(api_key_env) and catalog_provider.transport == "huggingface-api":
+            api_key_env = "HF_TOKEN"
         if not os.environ.get(api_key_env):
             continue
         model = os.environ.get(f"{model_prefix}_MODEL") or catalog_provider.model

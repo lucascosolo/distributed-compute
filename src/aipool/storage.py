@@ -29,6 +29,11 @@ class Store:
                 attempts INTEGER NOT NULL, successes INTEGER NOT NULL,
                 PRIMARY KEY (provider_id, capability)
             );
+            CREATE TABLE IF NOT EXISTS benchmark_results (
+                provider_id TEXT PRIMARY KEY, attempts INTEGER NOT NULL,
+                valid INTEGER NOT NULL, scores_json TEXT NOT NULL,
+                stopped_error TEXT, recorded_at REAL NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS provider_health (
                 provider_id TEXT PRIMARY KEY, state TEXT NOT NULL,
                 failure_streak INTEGER NOT NULL, next_probe_at REAL NOT NULL,
@@ -123,6 +128,12 @@ class Store:
         """Persist one bounded benchmark score per capability as provider evidence."""
         provider_id = str(result.provider_id)
         with self._lock:
+            self.connection.execute(
+                """INSERT OR REPLACE INTO benchmark_results
+                (provider_id, attempts, valid, scores_json, stopped_error, recorded_at)
+                VALUES (?, ?, ?, ?, ?, strftime('%s','now'))""",
+                (provider_id, result.attempts, result.valid, json.dumps(result.scores, sort_keys=True), result.stopped_error),
+            )
             for capability, score in result.scores.items():
                 self.connection.execute(
                     """INSERT INTO observations(provider_id, capability, attempts, successes) VALUES (?, ?, 1, ?)
@@ -131,6 +142,20 @@ class Store:
                     (provider_id, str(capability), float(score)),
                 )
             self.connection.commit()
+
+    def latest_benchmark(self, provider_id: str) -> dict[str, object] | None:
+        with self._lock:
+            row = self.connection.execute(
+                "SELECT attempts, valid, scores_json, stopped_error, recorded_at FROM benchmark_results WHERE provider_id = ?",
+                (provider_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        return {
+            "attempts": int(row["attempts"]), "valid": int(row["valid"]),
+            "scores": json.loads(row["scores_json"]), "stopped_error": row["stopped_error"],
+            "recorded_at": float(row["recorded_at"]),
+        }
 
     def observation(self, provider_id: str, capability: str) -> tuple[int, float]:
         with self._lock:
