@@ -12,7 +12,7 @@ or the operator's environment.
 - Working tree at the last checkpoint: uncommitted provider catalog/readiness changes
 - Verification for this chunk: gateway tests passed (`17 tests`) with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
-- No VPS deployment has been performed.
+- VPS deployment is active; host, service, and operator configuration details remain outside the repository.
 
 ## Implemented
 

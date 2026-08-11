@@ -19,3 +19,6 @@ __pycache__/
 dist/
 build/
 *.egg-info/
+
+# Local deployment manifest (contains operator-specific target/unit details)
+.claude/deploy.json
