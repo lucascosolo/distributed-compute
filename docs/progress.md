@@ -341,7 +341,11 @@ new batch plan. No provider calls were made during the endpoint audit.
 - Cloudflare's catalog was also refreshed to current documented text models
   (`@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3-30b-a3b-fp8`) instead of the
   deprecated Llama/Qwen entries. This metadata change has fixture coverage and
-  still requires deployment before it appears on the VPS.
+  is deployed.
+- The next contract-audit target is TokenRouter: its operator-supplied `.com`
+  endpoint conflicts with the provider's detailed public `.io` Responses API
+  documentation, so it is quarantine-only until the contract is resolved. Z.AI
+  was refreshed to the officially documented `glm-4.7` and `glm-4.7-flash` IDs.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the

@@ -115,6 +115,12 @@ class CliTests(unittest.TestCase):
             "@cf/qwen/qwen3-30b-a3b-fp8",
         })
 
+    def test_zai_catalog_uses_current_official_model_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        providers = [item for item in load_catalog() if item.provider_name == "Z.AI GLM API"]
+        self.assertEqual({item.model for item in providers}, {"glm-4.7-flash", "glm-4.7"})
+        self.assertTrue(all(item.source_url.startswith("https://docs.z.ai/") for item in providers))
+
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import config_prefix, load_catalog

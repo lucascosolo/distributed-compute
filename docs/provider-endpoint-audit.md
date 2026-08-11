@@ -13,8 +13,8 @@ send model requests, validate credentials, or prove that a tier is free.
 | Cohere | `api.cohere.ai/compatibility/v1` / OpenAI-compatible | corrected | The catalog previously pointed at the native `/v1` API while claiming a generic adapter. Official docs show the compatibility path; model metadata was refreshed. |
 | Cloudflare Workers AI | `api.cloudflare.com/client/v4/accounts/{account}/ai/run/{model}` / native REST | adapter implemented, configuration pending | The panel now accepts the non-secret account ID beside the API token. The native adapter handles the account-scoped path, `result.response` envelope, authentication errors, and retry-after rate limits; it remains unloaded until both values are present. The catalog was refreshed away from deprecated Llama/Qwen IDs to `@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3-30b-a3b-fp8`. |
 | OpenRouter | `openrouter.ai/api/v1` / OpenAI-compatible | verified | Official docs show `/api/v1/chat/completions`. |
-| Z.AI GLM | `api.z.ai/api/paas/v4` / OpenAI-compatible | endpoint verified, model access pending | Z.AI’s official SDK documentation confirms the overseas base path. Model IDs and account-region access still need confirmation before testing. |
-| TokenRouter | `api.tokenrouter.com/v1` / OpenAI-compatible | base path provisionally verified, model access pending | The provider’s official site/console references this base URL; the separate `.io` documentation uses a different host, so model IDs and the applicable documentation must be reconciled before testing. |
+| Z.AI GLM | `api.z.ai/api/paas/v4` / OpenAI-compatible | endpoint and catalog IDs verified, account access pending | Z.AI’s official documentation confirms the overseas base path and `glm-4.7`/`glm-4.7-flash` IDs. Account-region access and quota status still need confirmation before testing. |
+| TokenRouter | `api.tokenrouter.com/v1` / OpenAI-compatible | not verified; quarantine | The operator supplied the `.com` endpoint, but the provider’s detailed public API documentation currently documents a different `.io` host and a Responses API rather than the chat-completions contract. Do not send traffic until the `.com` contract is confirmed or a dedicated Responses adapter is approved. |
 | NVIDIA NIM hosted API | `integrate.api.nvidia.com/v1` / OpenAI-compatible | shape verified | NVIDIA’s NIM API is OpenAI-compatible; hosted build.nvidia.com model IDs still require live discovery before testing. |
 | Mistral AI | `api.mistral.ai/v1` / OpenAI-compatible | verified | Official docs use `/v1/chat/completions`. |
 | SambaNova Cloud | `api.sambanova.ai/v1` / OpenAI-compatible | verified | Official API-key docs show `/v1/chat/completions`; current free availability remains account-dependent. |
@@ -35,7 +35,8 @@ wasting a full three-case benchmark on an obvious integration mismatch.
 
 ## Next implementation chunk
 
-Cloudflare-specific configuration fields and its native adapter are now
-implemented. The next step is deployment and a no-generation readiness check;
-only after the operator confirms the account ID and reviews the remaining
-provider states should any live smoke call be considered.
+Finish the remaining provider-contract audit, starting with TokenRouter’s
+conflicting `.com` versus `.io` documentation and Kilo’s gateway contract.
+Then add any required provider-specific adapters or quarantine entries. Keep
+Cloudflare unloaded until the operator saves its account ID, and do not run a
+live smoke call while any provider contract remains unresolved.
