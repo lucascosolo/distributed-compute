@@ -212,9 +212,11 @@ or the operator's environment.
   configured keys are shared once per provider family and remain masked; each
   model card remains quarantined until a later smoke-test/activation path.
 - Added bounded live model discovery. The running panel successfully queried
-  Hugging Face's authorized `/v1/models` endpoint and found 128 model IDs without
-  exposing the token. Live results are currently diagnostic; hydrating new model
-  cards and assigning capability/quota metadata remains a follow-up step.
+  Hugging Face's authorized `/v1/models` endpoint and found 129 model IDs without
+  exposing the token. Live results now receive conservative, explainable power,
+  capability, quota-weight, and metadata-confidence hints. They are still
+  diagnostic only; automatic persistence and benchmark promotion remain a
+  follow-up step.
 
 ## Non-negotiable design decisions
 

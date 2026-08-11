@@ -1,7 +1,7 @@
 import json
 import unittest
 
-from aipool.model_discovery import discover_models, models_endpoint
+from aipool.model_discovery import classify_model, discover_models, models_endpoint
 
 
 class _Response:
@@ -19,6 +19,12 @@ class _Response:
 
 
 class ModelDiscoveryTests(unittest.TestCase):
+    def test_classification_is_conservative_and_explainable(self) -> None:
+        coder = classify_model("Qwen/Qwen3-Coder-30B-Instruct")
+        self.assertEqual(coder["power"], "strong")
+        self.assertIn("coding", coder["capabilities"])
+        self.assertEqual(classify_model("mystery-model")["metadata_confidence"], "low")
+
     def test_models_endpoint_normalizes_chat_completion_url(self) -> None:
         self.assertEqual(
             models_endpoint("https://router.example/v1/chat/completions"),

@@ -306,6 +306,10 @@ model secrets. Live model discovery is diagnostic first; newly returned models
 need normalization, capability/quota classification, and an operator-visible
 activation decision before they become cards or routing providers.
 
+Live findings must visibly distinguish provider-reported metadata from local name
+heuristics. A heuristic tier is useful for exploration but is never enough to
+grant coding or high-complexity routing capability.
+
 ### Chunk 5.4c: Guided API-key onboarding
 
 Provide a provider-specific “get a key” link and a guided checklist, not an

@@ -158,7 +158,7 @@ class GatewayTests(unittest.TestCase):
             discover.return_value = ModelDiscovery(True, ("model-a", "model-b"), "https://router.example/v1/models")
             status, data = self.request("GET", f"/admin/discover-models?slug={slug}")
         self.assertEqual(status, 200)
-        self.assertEqual(data["models"], ["model-a", "model-b"])
+        self.assertEqual([model["id"] for model in data["models"]], ["model-a", "model-b"])
         discover.assert_called_once()
         self.assertNotIn("secret", json.dumps(data))
 

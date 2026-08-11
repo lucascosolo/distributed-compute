@@ -11,7 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 from html import escape
 
 from .domain import TaskEnvelope
-from .model_discovery import discover_models
+from .model_discovery import classify_model, discover_models
 from .provider_catalog import CatalogProvider, config_prefix, load_catalog, model_config_prefix
 from .queue import QueueFull, TaskQueue, record_to_dict
 from .service import Coordinator
@@ -201,7 +201,7 @@ def make_server(
                     api_key = os.environ.get("HF_TOKEN", "")
                 endpoint = os.environ.get(f"{config_prefix_value}_ENDPOINT") or provider.endpoint
                 result = discover_models(endpoint, api_key)
-                self._send(200, {"success": result.success, "models": list(result.models), "endpoint": result.endpoint, "error": result.error})
+                self._send(200, {"success": result.success, "models": [classify_model(model) for model in result.models], "endpoint": result.endpoint, "error": result.error})
                 return
             if self.path == "/admin":
                 self._send_html(200, """<!doctype html>
@@ -214,7 +214,7 @@ const key=(slug,suffix)=>'AIPOOL_MODEL_'+slug.toUpperCase().replaceAll('-','_')+
 const providerKey=(slug,suffix)=>'AIPOOL_PROVIDER_'+slug.toUpperCase().replaceAll('-','_')+'_'+suffix;
 function card(p){let keyName=providerKey(p.provider_slug,'API_KEY');return `<article class="card"><header><div><h3>${esc(p.name)}</h3><span class="tag">${esc(p.power)} · quota ×${p.quota_weight}</span></div><label class="toggle"><input type="checkbox" data-key="${key(p.slug,'ENABLED')}" ${p.enabled?'checked':''}> enable</label></header><p class="meta"><a href="${esc(p.source_url)}" target="_blank" rel="noreferrer">source</a> · ${esc(p.transport)} · ${p.adapter==='manual'?'adapter needed':'OpenAI-compatible'}<br>provider key is shared across this model family<br>default model: ${esc(p.model)}</p><label>Model ID<input data-key="${key(p.slug,'MODEL')}" value="${esc(p.configured_model)}"></label><label>API key ${p.has_api_key?'(saved; leave blank to preserve)':''}<input type="password" autocomplete="new-password" data-key="${keyName}" placeholder="one key for ${esc(p.provider_slug)}"></label><button type="button" onclick="refreshModels('${p.slug}')">Refresh live model list</button><span class="status" id="live-${p.slug}"></span></article>`}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' '+d.models.length+' models: '+d.models.slice(0,5).join(', '):( ' '+(d.error||'unavailable'));}
+async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
 async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);cards.innerHTML=Object.values(groups).map(g=>`<section><h3>${esc(g.name)}</h3><div class="grid">${g.items.map(card).join('')}</div></section>`).join('')||'<p class="status">No API models in the catalog.</p>'}
 form.onsubmit=async e=>{e.preventDefault();let payload={};for(let el of form.querySelectorAll('[data-key],input[name]')){let k=el.dataset.key||el.name;if(el.type==='password'&&!el.value)continue;payload[k]=el.type==='checkbox'?(el.checked?'1':'0'):el.value}let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json();out.textContent=data.updated?'Saved. Restart required before routing changes apply.':(data.error||'Save failed')};load();
 </script></body></html>""")
