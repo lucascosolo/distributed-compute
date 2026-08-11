@@ -286,6 +286,19 @@ Potential discovery sources include:
 - local/open-source models
 - officially exposed AI tools
 - services intentionally offering developer access
+- public chatbot directories and search results
+- community discussions and recommendations (including Reddit and similar
+  public forums)
+- public websites exposing task-oriented assistants, such as shopping,
+  support, travel, or coding helpers
+
+Community posts, search results, and public pages are discovery leads only.
+The discovery runner must use bounded, rate-limited retrieval through a
+permitted source method, preserve the source URL and timestamp, deduplicate
+leads, and never treat a recommendation as proof that a chatbot may be
+automated. Each lead still becomes a quarantined candidate and is excluded when
+the operator's terms review finds an explicit legally binding prohibition on
+the intended external use.
 
 Discovery should produce **candidate providers**, not immediately activate them.
 

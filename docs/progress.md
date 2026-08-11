@@ -59,6 +59,12 @@ or the operator's environment.
   inputs with explicit untrusted-data delimiters. `BrowserChatAdapter` and
   `BrowserCommandAdapter` provide a no-API-key browser transport seam without
   embedding login, challenge bypass, or hidden-endpoint behavior.
+- The comparison harness in `aipool.comparison` runs the same cases through an
+  injected native-model runner and the coordinator, reporting quality,
+  context-transfer size, latency, fallback, and delegation-cost differences.
+- Discovery requirements now include bounded public chatbot directories,
+  search results, and community discussions as candidate leads, while keeping
+  provenance and terms review separate from activation.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -84,12 +90,11 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Build the first operator-configured browser wrapper integration and a small
-baseline-vs-distributed benchmark harness. Every public chatbot remains a
-candidate by default, while an explicitly documented binding prohibition keeps
-it quarantined/rejected; probes and capability tests still gate production
-routing. Measure quality, context-transfer loss, latency, and total
-orchestration cost before claiming that delegation is useful.
+Add bounded discovery source adapters for public directories/search results and
+community discussions, then expose the comparison harness through an operator
+workflow. Every public chatbot remains a candidate by default, while an
+explicitly documented binding prohibition keeps it quarantined/rejected;
+probes and capability tests still gate production routing.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

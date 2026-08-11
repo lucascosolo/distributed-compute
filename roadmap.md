@@ -182,9 +182,16 @@ busy or offline node does not block unrelated tasks.
 ### Chunk 5.1: Discovery source registry
 
 Define documented discovery sources: official provider catalogs, public model
-registries, user-supplied endpoints, local model inventories, and services that
-explicitly provide developer access. Store candidates separately from active
-providers.
+registries, user-supplied endpoints, local model inventories, services that
+explicitly provide developer access, public chatbot directories, bounded search
+results, and community discussions such as Reddit. Public task-oriented web
+assistants (shopping, support, travel, coding, and similar) are valid leads even
+when they have no API or account-based developer access. Store candidates
+separately from active providers.
+
+Discovery retrieval must be bounded, rate-limited, provenance-preserving, and
+source-policy aware. A discussion post or public page is a lead, not evidence
+of authorization or capability.
 
 **Exit gate:** discovery only creates candidate records with provenance, terms,
 authorization requirements, transport metadata, and a quarantine state.
