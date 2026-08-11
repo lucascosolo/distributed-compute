@@ -215,6 +215,32 @@ class ProvidersTests(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertEqual(result.error_kind, ProviderErrorKind.AUTH)
 
+    def test_openai_adapter_can_read_a_rotation_friendly_key_file(self) -> None:
+        class Response:
+            def __enter__(self): return self
+            def __exit__(self, *args): return False
+            def read(self):
+                return json.dumps({"choices": [{"message": {"content": "file key"}}]}).encode()
+
+        requests = []
+        with tempfile.TemporaryDirectory() as directory:
+            key_file = Path(directory) / "api-key"
+            key_file.write_text("omni-secret\n")
+
+            def opener(req, timeout):
+                requests.append(req)
+                return Response()
+
+            adapter = OpenAICompatibleAdapter(
+                ProviderProfile("omni", "OmniRoute", "omniroute", state=ProviderState.HEALTHY),
+                "http://127.0.0.1/v1/chat/completions", "model", "MISSING",
+                api_key_file=str(key_file), opener=opener,
+            )
+            result = adapter.complete(task())
+
+        self.assertTrue(result.success)
+        self.assertEqual(requests[0].get_header("Authorization"), "Bearer omni-secret")
+
     def test_openai_compatible_adapter_accepts_static_local_placeholder_key(self) -> None:
         class Response:
             def __enter__(self): return self

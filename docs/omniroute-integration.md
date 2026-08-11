@@ -48,6 +48,27 @@ OpenAI-compatible endpoint.
    after a human reviews the model list, key mapping, quota behavior, and
    rollback path may a bounded generation smoke test be approved.
 
+## aipool connection settings
+
+The coordinator can use one selected OmniRoute model through its loopback
+OpenAI-compatible endpoint. Keep the API key in a separate mode-600 file owned
+by the `aipool` service user rather than in the project checkout:
+
+```text
+AIPOOL_OMNIROUTE_ENABLED=false
+AIPOOL_OMNIROUTE_ENDPOINT=http://127.0.0.1:20128/v1
+AIPOOL_OMNIROUTE_MODEL=auto/best-free
+AIPOOL_OMNIROUTE_POWER=strong
+AIPOOL_OMNIROUTE_API_KEY_FILE=/var/lib/distributed-compute/omniroute-api-key
+```
+
+`AIPOOL_OMNIROUTE_ENABLED` is deliberately off until the no-generation model
+check has been reviewed. The adapter reads the key file per request, so the
+credential can be rotated without putting it in arguments or restarting the
+coordinator. `auto/*` routes remain subject to aipool's outer capability,
+quota, and cost policy; they are not proof that a free or capable model is
+available.
+
 The checked-in `deploy/omniroute.compose.yml` is the first-stage runtime shape.
 It uses separate bind-mounted data directories, a private Redis sidecar, API-key
 protection, and a 512 MiB Node heap cap. It intentionally contains no provider

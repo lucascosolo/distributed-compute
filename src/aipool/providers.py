@@ -412,14 +412,30 @@ class OpenAICompatibleAdapter:
     timeout_seconds: float = 30.0
     opener: Callable[..., object] = request.urlopen
     static_api_key: str = ""
+    api_key_file: str = ""
     headers_extra: Mapping[str, str] = field(default_factory=dict)
     allow_anonymous: bool = False
     artifacts: ArtifactStore | None = None
     max_prompt_chars: int = 12_000
 
+    def _configured_api_key(self) -> str:
+        """Read a rotation-friendly key without putting it in process arguments."""
+        if self.static_api_key:
+            return self.static_api_key
+        configured = os.environ.get(self.api_key_env, "")
+        if configured:
+            return configured
+        if self.api_key_file:
+            try:
+                with open(self.api_key_file, encoding="utf-8") as key_file:
+                    return key_file.read().strip()
+            except OSError:
+                return ""
+        return ""
+
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = time.monotonic()
-        api_key = self.static_api_key or os.environ.get(self.api_key_env)
+        api_key = self._configured_api_key()
         if not api_key and not self.allow_anonymous:
             return _failure(self.profile.id, ProviderErrorKind.AUTH, "configured API key is unavailable", 0)
         content = (

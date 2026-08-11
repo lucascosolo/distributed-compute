@@ -46,6 +46,20 @@ class CliTests(unittest.TestCase):
         self.assertEqual(profile.transport, "ollama")
         self.assertEqual(profile.max_complexity, 3)
 
+    def test_enabled_omniroute_registers_as_an_aggregate_provider(self) -> None:
+        with patch.dict(os.environ, {
+            "AIPOOL_OMNIROUTE_ENABLED": "true",
+            "AIPOOL_OMNIROUTE_ENDPOINT": "http://127.0.0.1:20128/v1",
+            "AIPOOL_OMNIROUTE_MODEL": "auto/best-coding",
+            "AIPOOL_OMNIROUTE_API_KEY_FILE": "/var/lib/omniroute/aipool-api-key",
+            "AIPOOL_OMNIROUTE_POWER": "strong",
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        adapter = registry.get("omniroute:auto/best-coding")
+        self.assertEqual(adapter.profile.transport, "omniroute")
+        self.assertEqual(adapter.endpoint, "http://127.0.0.1:20128/v1/chat/completions")
+        self.assertEqual(adapter.api_key_file, "/var/lib/omniroute/aipool-api-key")
+
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
             "task": "classification",

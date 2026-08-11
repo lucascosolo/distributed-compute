@@ -149,6 +149,36 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             reliability=0.5, state=ProviderState.HEALTHY, max_complexity=4,
         )
         registry.register(OpenAICompatibleAdapter(profile, endpoint, os.environ["AIPOOL_OPENAI_MODEL"], "AIPOOL_OPENAI_API_KEY", artifacts=artifact_store))
+    omniroute_endpoint = os.environ.get("AIPOOL_OMNIROUTE_ENDPOINT")
+    omniroute_model = os.environ.get("AIPOOL_OMNIROUTE_MODEL")
+    omniroute_enabled = os.environ.get("AIPOOL_OMNIROUTE_ENABLED", "").casefold() in {"1", "true", "yes", "on"}
+    if omniroute_enabled and omniroute_endpoint and omniroute_model:
+        power = os.environ.get("AIPOOL_OMNIROUTE_POWER", "strong").casefold()
+        max_complexity = 1 if power == "light" else 2 if power == "medium" else 3 if power == "strong" else 4
+        profile = ProviderProfile(
+            f"omniroute:{omniroute_model}", "OmniRoute aggregate gateway", "omniroute",
+            capabilities={
+                "classification": 0.8, "structured_json": 0.8,
+                "extraction": 0.8, "summarization": 0.8,
+                "coding": 0.8, "code_review": 0.8,
+                "reasoning": 0.8, "instruction_following": 0.8,
+                "research": 0.7, "long_context": 0.8,
+            },
+            reliability=0.5, state=ProviderState.HEALTHY,
+            max_complexity=max_complexity,
+            request_limit=_nonnegative_int(os.environ.get("AIPOOL_OMNIROUTE_REQUEST_LIMIT")),
+            token_limit=_nonnegative_int(os.environ.get("AIPOOL_OMNIROUTE_TOKEN_LIMIT")),
+            usage_window_seconds=_positive_float(os.environ.get("AIPOOL_OMNIROUTE_USAGE_WINDOW_SECONDS"), 60.0),
+            quota_group="omniroute",
+        )
+        endpoint = omniroute_endpoint.rstrip("/")
+        if not endpoint.endswith("/chat/completions"):
+            endpoint += "/chat/completions"
+        registry.register(OpenAICompatibleAdapter(
+            profile, endpoint, omniroute_model, "AIPOOL_OMNIROUTE_API_KEY",
+            api_key_file=os.environ.get("AIPOOL_OMNIROUTE_API_KEY_FILE", ""),
+            artifacts=artifact_store,
+        ))
     hf_model = os.environ.get("AIPOOL_HF_MODEL")
     if hf_model:
         profile = ProviderProfile(

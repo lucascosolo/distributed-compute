@@ -43,3 +43,10 @@ AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
 # command's local environment; never put them in this file.
 # AIPOOL_CLAUDE_COMMAND=/path/to/authorized-claude-wrapper
 # AIPOOL_CODEX_COMMAND=/path/to/authorized-codex-wrapper
+# Optional OmniRoute aggregate gateway. Enable only after reviewing its
+# authenticated /v1/models output; keep the API key in a separate mode-600 file.
+AIPOOL_OMNIROUTE_ENABLED=false
+AIPOOL_OMNIROUTE_ENDPOINT=http://127.0.0.1:20128/v1
+AIPOOL_OMNIROUTE_MODEL=auto/best-free
+AIPOOL_OMNIROUTE_POWER=strong
+AIPOOL_OMNIROUTE_API_KEY_FILE=/var/lib/distributed-compute/omniroute-api-key
