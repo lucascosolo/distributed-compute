@@ -186,6 +186,17 @@ or the operator's environment.
   state is now `degraded`, and the panel was restarted and verified with all four
   discovered workers represented: two disabled and two degraded. No Discord worker
   currently qualifies for routing.
+- Discord is paused as an active transport. Hugging Face Inference Providers is
+  configured only in the ignored operator config with model
+  `Qwen/Qwen3-8B:cheapest`; a bounded live classification smoke test returned valid
+  JSON, used 710 reported worker tokens, and produced an internal delegation cost
+  of `0.08` versus a local estimate of `1.0`. This proves the adapter works, but
+  does not prove the request was free; Hugging Face billing/credit status remains
+  an operator concern and the router's `:cheapest` policy is not a free guarantee.
+- Added Character.AI and Free LLM Playground as browser-chat quarantine candidates.
+  Character.AI was only inspected as a public landing page; Free LLM Playground's
+  public page claims no signup/API key and a daily free cap, but neither candidate
+  has been browser-tested or activated.
 
 ## Non-negotiable design decisions
 
@@ -208,12 +219,13 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Keep the four current Discord workers out of routing and evaluate the next
-authorized transport or newly discovered candidate. Do not spend additional
-Discord quota retrying the two degraded workers; a future probe should happen only
-after operator evidence that their trigger or availability changed. Do not route
-complex work merely because a bot is present; keep every discovered worker at
-complexity level 1 until benchmark evidence warrants promotion.
+Keep the four current Discord workers out of routing and continue with the
+configured Hugging Face API and bounded browser-candidate probes. Verify actual
+cost/credit behavior before treating Hugging Face as free, and keep browser
+candidates quarantined until a visible-page probe proves no-login access, usable
+context transfer, valid output, and acceptable terms. Do not route complex work
+merely because a provider is present; keep new candidates at complexity level 1
+until benchmark evidence warrants promotion.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.
