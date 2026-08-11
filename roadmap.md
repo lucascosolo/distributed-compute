@@ -316,6 +316,19 @@ now records an authenticated approve/reject decision and review note; approval
 only makes a finding eligible for a later bounded smoke test and never activates
 routing by itself.
 
+Provider-family quota controls are now available in the panel for request limits,
+token limits, and window duration. Model cards in one family share the same
+persistent usage bucket, so selecting a different model cannot evade the
+provider's configured free allowance.
+
+For large work split into independent scopes, rotate eligible provider families so
+different model biases contribute without provider-to-provider back-and-forth. If
+independent opinions are explicitly requested, use a bounded batch of at most
+three eligible providers, apply the total-call cost gate before dispatch, and
+return disagreements to the native model for architecture, bug, and edge-case
+review. The system should diversify only when the expected benefit justifies the
+extra free-tier usage.
+
 ### Chunk 5.4c: Guided API-key onboarding
 
 Provide a provider-specific “get a key” link and a guided checklist, not an

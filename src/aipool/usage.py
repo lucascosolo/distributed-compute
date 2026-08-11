@@ -22,14 +22,15 @@ class UsageManager:
     def reserve(self, profile: ProviderProfile, *, now: float | None = None) -> tuple[bool, float]:
         current = self.clock() if now is None else now
         start, end = self.window(profile, current)
-        requests, tokens = self.store.usage(profile.id, start)
+        quota_key = profile.quota_group
+        requests, tokens = self.store.usage(quota_key, start)
         if (profile.request_limit and requests >= profile.request_limit) or (profile.token_limit and tokens >= profile.token_limit):
             return False, end
-        self.store.reserve_usage(profile.id, start)
+        self.store.reserve_usage(quota_key, start)
         return True, end
 
     def record_tokens(self, profile: ProviderProfile, tokens: int, *, now: float | None = None) -> float:
         current = self.clock() if now is None else now
         start, end = self.window(profile, current)
-        self.store.add_usage_tokens(profile.id, start, tokens)
+        self.store.add_usage_tokens(profile.quota_group, start, tokens)
         return end

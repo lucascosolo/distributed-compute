@@ -30,6 +30,17 @@ class UsageTests(unittest.TestCase):
         manager.record_tokens(profile, 10)
         self.assertFalse(manager.reserve(profile)[0])
 
+    def test_models_in_one_provider_family_share_their_quota_window(self) -> None:
+        store = Store()
+        self.addCleanup(store.close)
+        manager = UsageManager(store, clock=lambda: 100.0)
+        first = ProviderProfile("model-a", "A", "api", state=ProviderState.HEALTHY,
+                                request_limit=1, quota_group="provider-family")
+        second = ProviderProfile("model-b", "B", "api", state=ProviderState.HEALTHY,
+                                 request_limit=1, quota_group="provider-family")
+        self.assertTrue(manager.reserve(first)[0])
+        self.assertFalse(manager.reserve(second)[0])
+
     def test_coordinator_holds_provider_after_request_limit(self) -> None:
         store = Store()
         self.addCleanup(store.close)

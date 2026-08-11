@@ -40,6 +40,22 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result["provider_id"], "fixture")
         self.assertEqual(result["output"], '{"label":"docs"}')
 
+    def test_catalog_provider_uses_shared_configured_quota_limits(self) -> None:
+        from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix
+        provider = load_catalog()[0]
+        with patch.dict(os.environ, {
+            f"{config_prefix(provider)}_API_KEY": "key",
+            f"{model_config_prefix(provider)}_ENABLED": "1",
+            f"{config_prefix(provider)}_REQUEST_LIMIT": "5",
+            f"{config_prefix(provider)}_TOKEN_LIMIT": "1200",
+            f"{config_prefix(provider)}_USAGE_WINDOW_SECONDS": "86400",
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="task"))
+        profile = registry.get(f"catalog:{provider.slug}").profile
+        self.assertEqual(profile.request_limit, 5)
+        self.assertEqual(profile.token_limit, 1200)
+        self.assertEqual(profile.usage_window_seconds, 86400)
+
     def test_discord_check_uses_operator_config_without_printing_token(self) -> None:
         output = io.StringIO()
         fake = __import__("unittest").mock.Mock()

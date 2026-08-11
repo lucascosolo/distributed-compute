@@ -100,6 +100,8 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(outcome.native_fallback)
         self.assertFalse(outcome.valid)
         self.assertEqual(outcome.reason, "verification_disagreement")
+        opinions = json.loads(outcome.output)
+        self.assertEqual([item["provider_id"] for item in opinions["opinions"]], ["first", "second"])
 
     def test_consensus_accepts_two_matching_independent_results(self) -> None:
         calls = {provider_id: [0] for provider_id in ("first", "second", "third")}
@@ -143,6 +145,9 @@ class ServiceTests(unittest.TestCase):
         self.assertTrue(outcome.native_fallback)
         self.assertFalse(outcome.valid)
         self.assertEqual(outcome.reason, "consensus_disagreement")
+        opinions = json.loads(outcome.output)
+        self.assertEqual(len(opinions["opinions"]), 3)
+        self.assertEqual({item["provider_id"] for item in opinions["opinions"]}, {"first", "second", "third"})
 
     def test_consensus_budget_gate_uses_all_three_provider_calls(self) -> None:
         adapters = {
@@ -182,6 +187,31 @@ class ServiceTests(unittest.TestCase):
             {"scope": "tests", "output": '{"scope": "tests", "label": "docs"}'},
         ])
         self.assertEqual(outcome.orchestration_cost, 0.16)
+
+    def test_map_rotates_eligible_providers_across_independent_scopes(self) -> None:
+        calls = []
+
+        def handler(provider_id: str):
+            def complete(task: TaskEnvelope) -> str:
+                calls.append((provider_id, task.requirements["scope"]))
+                return json.dumps({"scope": task.requirements["scope"], "provider": provider_id})
+            return complete
+
+        adapters = {
+            provider_id: FixtureAdapter(profile(provider_id, classification=0.9, structured_json=0.9), handler(provider_id))
+            for provider_id in ("first", "second")
+        }
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry(adapters), store).submit(
+            TaskEnvelope(
+                task="coding", input_ref="artifact:rotating-map", strategy=Strategy.MAP,
+                requirements={"scopes": ["src", "tests"], "subtask_kind": "classification", "output": "json"},
+                local_estimate=2.0,
+            )
+        )
+        self.assertTrue(outcome.valid)
+        self.assertEqual({provider_id for provider_id, _ in calls}, {"first", "second"})
 
     def test_map_falls_back_if_a_subtask_cannot_be_delegated_economically(self) -> None:
         adapter = FixtureAdapter(profile("mapper", classification=0.9, structured_json=0.9), lambda _: '{"label":"docs"}')

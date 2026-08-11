@@ -108,6 +108,8 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"No API key saved", body)
         self.assertIn(b"human review required", body)
         self.assertIn(b"Approve for bounded smoke test", body)
+        self.assertIn(b"Requests per window", body)
+        self.assertIn(b"Tokens per window", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
@@ -172,6 +174,23 @@ class GatewayTests(unittest.TestCase):
         family = [item for item in snapshot["providers"] if item["provider_slug"] == provider["provider_slug"]]
         self.assertTrue(family)
         self.assertTrue(all(item["enabled"] for item in family), family)
+
+    def test_provider_family_quota_limits_are_configurable_without_secret_echo(self) -> None:
+        status, snapshot = self.request("GET", "/admin/config")
+        provider = snapshot["providers"][0]
+        prefix = "AIPOOL_PROVIDER_" + provider["provider_slug"].upper().replace("-", "_")
+        status, data = self.request("POST", "/admin/config", {
+            prefix + "_REQUEST_LIMIT": "5",
+            prefix + "_TOKEN_LIMIT": "1200",
+            prefix + "_USAGE_WINDOW_SECONDS": "86400",
+        })
+        self.assertEqual(status, 200)
+        self.assertTrue(data["updated"])
+        status, snapshot = self.request("GET", "/admin/config")
+        family = [item for item in snapshot["providers"] if item["provider_slug"] == provider["provider_slug"]]
+        self.assertEqual(family[0]["request_limit"], "5")
+        self.assertEqual(family[0]["token_limit"], "1200")
+        self.assertEqual(family[0]["usage_window_seconds"], "86400")
 
     def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
         status, config = self.request("GET", "/admin/config")

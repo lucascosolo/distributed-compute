@@ -228,6 +228,15 @@ or the operator's environment.
 - Discovered-model review is now an explicit authenticated workflow. A required
   human note is persisted with an approve/reject audit record; approved findings
   remain outside routing until a separate bounded smoke-test promotion step.
+- Provider-family request/token/window limits are now configurable from the panel
+  and applied live. Model cards sharing one provider family use one persistent
+  quota bucket, while `quota_weight` still helps the router choose among models;
+  zero limits mean the actual provider limit is unknown, not unlimited by claim.
+- Large mapped work now rotates eligible provider families across independent
+  scopes, while reusing one provider when no alternative exists. The bounded
+  multi-opinion path preserves disagreements as explicitly untrusted input for
+  the native fallback model, remains capped at three providers, and never creates
+  provider-to-provider back-and-forth.
 
 ## Non-negotiable design decisions
 

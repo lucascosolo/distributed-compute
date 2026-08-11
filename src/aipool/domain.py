@@ -141,6 +141,7 @@ class ProviderProfile:
     reliability: float = 0.0
     estimated_cost: float = 0.0
     quota_weight: float = 1.0
+    quota_group: str = ""
     concurrency_limit: int = 1
     state: ProviderState = ProviderState.QUARANTINED
     max_complexity: int = 1
@@ -151,6 +152,10 @@ class ProviderProfile:
     def __post_init__(self) -> None:
         if not self.id or not self.name or not self.transport:
             raise ValueError("provider id, name, and transport are required")
+        if not self.quota_group:
+            object.__setattr__(self, "quota_group", self.id)
+        if not self.quota_group.strip():
+            raise ValueError("quota_group must not be blank")
         if self.context_limit < 0 or self.concurrency_limit < 1:
             raise ValueError("provider limits are invalid")
         for field_name in ("latency_ms", "estimated_cost", "quota_weight"):

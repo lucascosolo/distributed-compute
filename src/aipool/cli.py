@@ -54,6 +54,21 @@ def _load_local_config() -> None:
         break
 
 
+def _nonnegative_int(value: str | None, default: int = 0) -> int:
+    try:
+        return max(0, int(value)) if value else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _positive_float(value: str | None, default: float) -> float:
+    try:
+        parsed = float(value) if value else default
+        return parsed if parsed > 0 else default
+    except (TypeError, ValueError):
+        return default
+
+
 def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
     registry = ProviderRegistry()
     fixture_output = os.environ.get("AIPOOL_FIXTURE_OUTPUT")
@@ -102,6 +117,11 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
         if not os.environ.get(api_key_env):
             continue
         model = os.environ.get(f"{model_prefix}_MODEL") or catalog_provider.model
+        request_limit = _nonnegative_int(os.environ.get(f"{provider_prefix}_REQUEST_LIMIT"))
+        token_limit = _nonnegative_int(os.environ.get(f"{provider_prefix}_TOKEN_LIMIT"))
+        usage_window_seconds = _positive_float(
+            os.environ.get(f"{provider_prefix}_USAGE_WINDOW_SECONDS"), 60.0
+        )
         power = catalog_provider.power.casefold()
         max_complexity = 1 if power == "light" else 2 if power == "medium" else 3 if power == "strong" else 4
         capabilities = {"classification": 0.6, "structured_json": 0.6, "extraction": 0.6, "summarization": 0.6}
@@ -111,6 +131,9 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             f"catalog:{catalog_provider.slug}", catalog_provider.name, catalog_provider.transport,
             capabilities=capabilities, reliability=0.2, state=ProviderState.QUARANTINED,
             max_complexity=max_complexity, quota_weight=catalog_provider.quota_weight,
+            request_limit=request_limit, token_limit=token_limit,
+            usage_window_seconds=usage_window_seconds,
+            quota_group=f"catalog:{catalog_provider.provider_slug}",
         )
         if catalog_provider.transport == "openai-compatible":
             endpoint = os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint

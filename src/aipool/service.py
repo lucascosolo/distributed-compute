@@ -116,7 +116,7 @@ class Coordinator:
             usage_hold_until = self.usage.record_tokens(profile, result.worker_tokens)
             usage_exhausted = bool(
                 profile.token_limit
-                and self.store.usage(profile.id, self.usage.window(profile, time.time())[0])[1] >= profile.token_limit
+                and self.store.usage(profile.quota_group, self.usage.window(profile, time.time())[0])[1] >= profile.token_limit
             )
             report = validate_output(
                 result.output,
@@ -176,7 +176,23 @@ class Coordinator:
         except (TypeError, ValueError):
             return self._native_composite_fallback(task, Strategy.MAP, "map_scopes_invalid")
 
-        outcomes = [self.submit(subtask) for subtask in subtasks]
+        outcomes: list[TaskOutcome] = []
+        used_provider_ids: set[str] = set()
+        for subtask in subtasks:
+            # Independent scopes benefit from different model/provider biases.
+            # Exclusion is advisory: if there is no alternative, reuse the
+            # available provider rather than failing a valid map unnecessarily.
+            outcome = self._submit_single(subtask, frozenset(used_provider_ids))
+            if outcome.native_fallback and outcome.reason in {"no_healthy_capable_provider", "provider_usage_limit_reached"} and used_provider_ids:
+                outcome = self._submit_single(subtask)
+            outcomes.append(outcome)
+            if outcome.provider_id:
+                selected = self.registry.get(outcome.provider_id).profile
+                used_provider_ids.update(
+                    profile.id for profile in
+                    (adapter.profile for adapter in self.registry.all())
+                    if profile.quota_group == selected.quota_group
+                )
         total_cost = sum(outcome.orchestration_cost for outcome in outcomes)
         total_tokens = sum(outcome.worker_tokens for outcome in outcomes)
         if any(not outcome.valid or outcome.native_fallback for outcome in outcomes):
@@ -277,7 +293,7 @@ class Coordinator:
             )
         if self._normalized_output(task, first.output) != self._normalized_output(task, second.output):
             outcome = TaskOutcome(
-                task.task_id, Strategy.VERIFY, None, None, True, False,
+                task.task_id, Strategy.VERIFY, None, self._opinion_bundle((first, second)), True, False,
                 "verification_disagreement", native_fallback=True,
             )
             self.store.record_outcome(outcome)
@@ -318,7 +334,7 @@ class Coordinator:
         total_cost = sum(result.orchestration_cost for result in results)
         if len(majority) < 2:
             outcome = TaskOutcome(
-                task.task_id, Strategy.CONSENSUS, None, None, True, False,
+                task.task_id, Strategy.CONSENSUS, None, self._opinion_bundle(tuple(results)), True, False,
                 "consensus_disagreement" if len(results) >= 2 else "consensus_provider_unavailable",
                 orchestration_cost=total_cost,
                 delegated_compute_saved=max(0.0, task.local_estimate - total_cost),
@@ -347,6 +363,18 @@ class Coordinator:
             except json.JSONDecodeError:
                 return output.strip()
         return " ".join(output.split())
+
+    @staticmethod
+    def _opinion_bundle(results: tuple[TaskOutcome, ...]) -> str:
+        """Return bounded, untrusted alternatives for the native fallback model."""
+        return json.dumps({
+            "kind": "independent_opinions",
+            "explanation": "Providers disagreed; the native model should compare these bounded opinions.",
+            "opinions": [
+                {"provider_id": result.provider_id, "output": (result.output or "")[:16_000]}
+                for result in results
+            ],
+        }, separators=(",", ":"))
 
     @staticmethod
     def _cache_key(task: TaskEnvelope, provider_id: str) -> str:
