@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `a57ee28` (working changes below are not yet released)
+- Last pushed commit: `36cece8` (working quota correction below is not yet released)
 - Working tree at the last checkpoint: clean
-- Verification for the previous chunk: `157 tests passed` with
+- Verification for this chunk: `160 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -244,6 +244,10 @@ or the operator's environment.
   candidate with the current model names observed from its public `/api/tags`
   endpoint; cloud authentication, quotas, and model retirement remain distinct
   from local inference and are not assumed free.
+- Corrected Ollama Cloud quota metadata after checking the provider pricing:
+  the Free plan has qualitative light usage with session limits resetting every
+  5 hours and weekly limits every 7 days. Usage is model-weighted rather than a
+  fixed token allowance; exact account/model allowances remain unknown.
 
 ## Non-negotiable design decisions
 
