@@ -273,7 +273,13 @@ aipool discord check
 ```
 
 This checks the bot identity and access to the configured server and channel;
-it does not send messages or install other bots.
+it does not install other bots. Sending is disabled until an operator enters an
+exact approved worker bot ID (`AIPOOL_DISCORD_TARGET_BOT_ID`). The resulting
+`discord-worker` provider sends only bounded task envelopes to the configured
+channel, polls for that exact bot, and turns Discord 401/403/429/timeouts into
+normal provider failures so routing can pause it. Start with harmless synthetic
+prompts and keep the worker at complexity level 1 until benchmark evidence says
+otherwise.
 
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an

@@ -125,6 +125,12 @@ or the operator's environment.
   `huggingface-inference` adapter using `HF_TOKEN` and a selected model. API
   rate-limit responses preserve `Retry-After` for the existing provider hold
   logic; no browser profile rotation or quota bypass is supported.
+- Discord now has a guarded worker adapter: after a read-only setup check, an
+  operator must configure one exact third-party bot ID. It sends one bounded
+  task envelope to the configured channel, polls only after its own message for
+  that bot's reply, and maps authentication, rate-limit, network, and timeout
+  failures into the normal provider result/hold path. It never installs bots,
+  uses user tokens, or retries a 429 automatically.
 
 ## Non-negotiable design decisions
 
@@ -147,11 +153,12 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Connect the promoted candidates to real browser adapter probes and expose the
-comparison harness through an operator workflow. Every public chatbot remains
-a candidate by default, while an explicitly documented binding prohibition
-keeps it quarantined/rejected; probes and capability tests still gate
-production routing.
+Create the dedicated synthetic Discord test channel, manually invite one
+operator-approved worker bot, configure its exact bot ID, and run the first
+end-to-end bounded response test. Record whether it replies without login,
+whether its output is usable, its observed limits, and whether its capability
+score warrants promotion. Do not add any bot to the default pool merely because
+the transport works.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

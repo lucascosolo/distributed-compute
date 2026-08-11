@@ -16,7 +16,7 @@ from .artifacts import ArtifactStore
 from .benchmark import run_benchmark
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
-from .discord_api import DiscordApiClient
+from .discord_api import DiscordApiClient, DiscordChannelAdapter
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -103,6 +103,20 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             profile,
             tuple(shlex.split(browser_command)),
             ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
+        ))
+    discord_target = os.environ.get("AIPOOL_DISCORD_TARGET_BOT_ID")
+    discord_token = os.environ.get("AIPOOL_DISCORD_BOT_TOKEN")
+    discord_channel = os.environ.get("AIPOOL_DISCORD_CHANNEL_ID")
+    if discord_target and discord_token and discord_channel:
+        profile = ProviderProfile(
+            "discord-worker", "Configured Discord worker", "discord",
+            capabilities={"classification": 0.5, "extraction": 0.4, "summarization": 0.4},
+            reliability=0.2, state=ProviderState.HEALTHY, max_complexity=1,
+        )
+        registry.register(DiscordChannelAdapter(
+            profile, discord_token, discord_channel, discord_target,
+            controller_bot_id=os.environ.get("AIPOOL_DISCORD_APPLICATION_ID", ""),
+            message_prefix=os.environ.get("AIPOOL_DISCORD_MESSAGE_PREFIX", ""),
         ))
     return registry
 

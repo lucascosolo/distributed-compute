@@ -1,20 +1,23 @@
-"""Small, read-only Discord bot API seam for operator setup verification."""
+"""Bounded Discord API seams for setup checks and authorized test workers."""
 
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from typing import Callable
-from urllib import error, request
+from urllib import error, parse, request
+
+from .domain import ProviderErrorKind, ProviderProfile, ProviderResult, TaskEnvelope
 
 
 @dataclass(slots=True)
 class DiscordApiClient:
     """Verify an operator-owned bot can see its configured test resources.
 
-    This client deliberately performs no installation, invitation, member
-    management, or message sending. The bot token is accepted only from the
-    operator's process environment/configuration and is never returned.
+    This client deliberately performs no installation, invitation, or member
+    management. The bot token is accepted only from the operator's process
+    environment/configuration and is never returned.
     """
 
     token: str
@@ -68,3 +71,117 @@ class DiscordApiClient:
         if not isinstance(payload, dict):
             raise ValueError("Discord API returned a non-object response")
         return payload
+
+
+@dataclass(slots=True)
+class DiscordChannelAdapter:
+    """Use an operator-owned controller bot to query one selected worker bot.
+
+    This is intentionally a narrow, human-configured transport: it sends one
+    bounded synthetic/task envelope to one configured channel, then polls only
+    messages after the controller's own message until the exact configured bot
+    replies. It cannot install bots, use user tokens, rotate profiles, or
+    select arbitrary recipients. A worker must be explicitly invited and its
+    bot ID must be configured by the operator.
+    """
+
+    profile: ProviderProfile
+    token: str
+    channel_id: str
+    target_bot_id: str
+    controller_bot_id: str = ""
+    api_base_url: str = "https://discord.com/api/v10"
+    timeout_seconds: float = 15.0
+    max_prompt_chars: int = 1900
+    poll_seconds: float = 1.0
+    max_wait_seconds: float = 30.0
+    message_prefix: str = ""
+    opener: Callable[..., object] = request.urlopen
+    sleep: Callable[[float], None] = time.sleep
+    clock: Callable[[], float] = time.monotonic
+
+    def __post_init__(self) -> None:
+        for name, value in (("token", self.token), ("channel_id", self.channel_id), ("target_bot_id", self.target_bot_id)):
+            if not value.strip():
+                raise ValueError(f"Discord {name} is required")
+        if self.controller_bot_id and self.target_bot_id == self.controller_bot_id:
+            raise ValueError("Discord target bot must be different from controller bot")
+        if self.timeout_seconds <= 0 or self.max_prompt_chars < 1 or self.poll_seconds < 0 or self.max_wait_seconds <= 0:
+            raise ValueError("Discord adapter limits are invalid")
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = self.clock()
+        content = self.message_prefix + json.dumps(task.to_dict(), sort_keys=True, separators=(",", ":"))
+        if len(content) > self.max_prompt_chars:
+            return _discord_failure(self.profile.id, ProviderErrorKind.INVALID_REQUEST, "Discord task envelope exceeds message limit", started, self.clock)
+        try:
+            sent = self._request("POST", f"/channels/{self.channel_id}/messages", {"content": content})
+            if not isinstance(sent, dict):
+                raise ValueError("Discord send response is not an object")
+            message_id = sent.get("id")
+            if not isinstance(message_id, str) or not message_id:
+                raise ValueError("Discord send response has no message ID")
+            deadline = self.clock() + self.max_wait_seconds
+            while self.clock() <= deadline:
+                messages = self._request(
+                    "GET", f"/channels/{self.channel_id}/messages?{parse.urlencode({'after': message_id, 'limit': '100'})}",
+                )
+                if not isinstance(messages, list):
+                    raise ValueError("Discord messages response is not a list")
+                for message in messages:
+                    if not isinstance(message, dict):
+                        continue
+                    author = message.get("author")
+                    if not isinstance(author, dict) or str(author.get("id", "")) != self.target_bot_id:
+                        continue
+                    output = message.get("content")
+                    if isinstance(output, str) and output.strip():
+                        return ProviderResult(self.profile.id, output=output, latency_ms=(self.clock() - started) * 1000)
+                self.sleep(min(self.poll_seconds, max(0.0, deadline - self.clock())))
+            return _discord_failure(self.profile.id, ProviderErrorKind.TIMEOUT, "Discord worker did not reply before timeout", started, self.clock)
+        except _DiscordHttpFailure as exc:
+            return _discord_failure(self.profile.id, exc.kind, exc.message, started, self.clock, exc.retry_after_seconds)
+        except (error.URLError, TimeoutError) as exc:
+            return _discord_failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), started, self.clock)
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            return _discord_failure(self.profile.id, ProviderErrorKind.INTERNAL, str(exc), started, self.clock)
+
+    def _request(self, method: str, path: str, body: dict[str, object] | None = None) -> object:
+        data = json.dumps(body, separators=(",", ":")).encode() if body is not None else None
+        headers = {"Authorization": f"Bot {self.token}", "User-Agent": "aipool/0.1"}
+        if body is not None:
+            headers["Content-Type"] = "application/json"
+        req = request.Request(self.api_base_url.rstrip("/") + path, data=data, headers=headers, method=method)
+        try:
+            with self.opener(req, timeout=self.timeout_seconds) as response:  # type: ignore[attr-defined]
+                payload = json.loads(response.read())
+        except error.HTTPError as exc:
+            retry = None
+            if exc.headers:
+                try:
+                    raw = exc.headers.get("Retry-After")
+                    retry = max(0.0, float(raw)) if raw is not None else None
+                except (TypeError, ValueError):
+                    retry = None
+            kind = ProviderErrorKind.RATE_LIMITED if exc.code == 429 else ProviderErrorKind.AUTH if exc.code in (401, 403) else ProviderErrorKind.INTERNAL
+            raise _DiscordHttpFailure(kind, f"Discord API returned HTTP {exc.code}", retry) from exc
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise ValueError("Discord API returned invalid JSON") from exc
+        return payload
+
+
+@dataclass(frozen=True, slots=True)
+class _DiscordHttpFailure(Exception):
+    kind: ProviderErrorKind
+    message: str
+    retry_after_seconds: float | None = None
+
+
+def _discord_failure(
+    provider_id: str, kind: ProviderErrorKind, message: str, started: float,
+    clock: Callable[[], float], retry_after_seconds: float | None = None,
+) -> ProviderResult:
+    return ProviderResult(
+        provider_id=provider_id, success=False, error_kind=kind, error=message[:500],
+        latency_ms=(clock() - started) * 1000, retry_after_seconds=retry_after_seconds,
+    )

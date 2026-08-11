@@ -2,12 +2,14 @@ import json
 import unittest
 from urllib.request import Request
 
-from aipool.discord_api import DiscordApiClient
+from aipool.discord_api import DiscordApiClient, DiscordChannelAdapter
+from aipool.domain import ProviderProfile, ProviderState, TaskEnvelope
 
 
 class Response:
-    def __init__(self, payload):
+    def __init__(self, payload, headers=None):
         self.payload = json.dumps(payload).encode()
+        self.headers = headers or {}
 
     def __enter__(self):
         return self
@@ -17,6 +19,9 @@ class Response:
 
     def read(self):
         return self.payload
+
+    def getheader(self, name, default=None):
+        return self.headers.get(name, default)
 
 
 class DiscordApiTests(unittest.TestCase):
@@ -44,6 +49,66 @@ class DiscordApiTests(unittest.TestCase):
     def test_check_requires_all_operator_identifiers(self) -> None:
         with self.assertRaisesRegex(ValueError, "guild_id"):
             DiscordApiClient("token", "", "channel")
+
+    def test_channel_adapter_sends_bounded_task_and_waits_for_selected_bot(self) -> None:
+        requests: list[Request] = []
+        responses = iter((
+            Response({"id": "controller-message"}),
+            Response([]),
+            Response([{
+                "id": "reply", "author": {"id": "worker-bot", "bot": True},
+                "content": "bounded answer",
+            }]),
+        ))
+
+        def opener(req, timeout):
+            requests.append(req)
+            return next(responses)
+
+        adapter = DiscordChannelAdapter(
+            ProviderProfile(
+                "discord-worker", "Discord worker", "discord",
+                state=ProviderState.HEALTHY, reliability=0.5, max_complexity=1,
+            ),
+            token="controller-secret", channel_id="channel-id", target_bot_id="worker-bot",
+            opener=opener, sleep=lambda _: None,
+        )
+        result = adapter.complete(TaskEnvelope("classification", "synthetic-input"))
+        self.assertTrue(result.success)
+        self.assertEqual(result.output, "bounded answer")
+        self.assertEqual(requests[0].method, "POST")
+        sent = json.loads(requests[0].data)
+        self.assertLessEqual(len(sent["content"]), 2000)
+        self.assertNotIn("controller-secret", requests[0].full_url)
+        self.assertIn("after=controller-message", requests[-1].full_url)
+
+    def test_channel_adapter_does_not_use_selected_controller_as_worker(self) -> None:
+        with self.assertRaisesRegex(ValueError, "different"):
+            DiscordChannelAdapter(
+                ProviderProfile("discord", "Discord", "discord", state=ProviderState.HEALTHY),
+                token="secret", channel_id="channel", target_bot_id="controller",
+                controller_bot_id="controller",
+            )
+
+    def test_channel_adapter_maps_rate_limit_and_does_not_retry_automatically(self) -> None:
+        from urllib.error import HTTPError
+
+        calls = 0
+
+        def opener(req, timeout):
+            nonlocal calls
+            calls += 1
+            raise HTTPError(req.full_url, 429, "limited", {"Retry-After": "42"}, None)
+
+        result = DiscordChannelAdapter(
+            ProviderProfile("discord", "Discord", "discord", state=ProviderState.HEALTHY),
+            token="secret", channel_id="channel", target_bot_id="worker",
+            opener=opener,
+        ).complete(TaskEnvelope("classification", "input"))
+        self.assertFalse(result.success)
+        self.assertEqual(result.error_kind.value, "rate_limited")
+        self.assertEqual(result.retry_after_seconds, 42.0)
+        self.assertEqual(calls, 1)
 
 
 if __name__ == "__main__":

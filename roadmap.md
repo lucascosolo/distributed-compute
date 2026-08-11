@@ -244,8 +244,10 @@ The candidate-aware command adapter is the initial known-transport path for
 authorized Discord/Telegram wrappers; `candidate benchmark` records evidence,
 but approval and routing configuration remain separate actions.
 
-The Discord controller begins with a read-only connectivity check before any
-message-sending adapter is enabled.
+The Discord controller begins with a read-only connectivity check. Its optional
+message adapter requires an operator-selected worker bot ID and never installs
+other bots, uses user tokens, retries a rate limit, or rotates state to evade a
+limit.
 
 ## Phase 6 — Semi-autonomous provider maintenance
 

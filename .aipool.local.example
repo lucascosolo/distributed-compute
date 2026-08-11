@@ -17,6 +17,10 @@ AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
 # AIPOOL_DISCORD_APPLICATION_ID=
 # AIPOOL_DISCORD_GUILD_ID=
 # AIPOOL_DISCORD_CHANNEL_ID=
+# The exact third-party bot ID selected by the operator after manual invite.
+# AIPOOL_DISCORD_TARGET_BOT_ID=
+# Optional mention or command prefix, for example "<@1234567890> ".
+# AIPOOL_DISCORD_MESSAGE_PREFIX=
 # AIPOOL_DISCORD_BOT_TOKEN=
 # Optional token-authenticated Hugging Face Inference Providers route. The
 # model is operator-selected; HF_TOKEN must be supplied separately as a
