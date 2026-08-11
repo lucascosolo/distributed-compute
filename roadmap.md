@@ -345,6 +345,20 @@ surface for smoke testing. It makes no provider calls; it shows key presence,
 enabled/loaded state, health holds, and the current shared quota window so the
 operator can choose a bounded test batch with known exposure.
 
+### Chunk 5.4e: Provider quota research and operator-friendly translation
+
+Research each configured provider's current official free-tier rules and record
+the evidence, retrieval date, scope (account, model, or family), reset behavior,
+request limits, token limits, and whether overage can incur charges. Translate
+those rules into panel guidance and prefilled values where the evidence is
+unambiguous; represent daily/monthly and multi-dimensional limits explicitly
+instead of forcing the operator to guess a seconds window. Unknown values must
+remain visibly unknown and must not be silently treated as unlimited or free.
+
+**Exit gate:** an operator can understand what each quota field means, see the
+source and freshness of the value, and approve or correct it before any smoke
+test. Provider-reported rate limits and local safety caps remain distinct.
+
 For large work split into independent scopes, rotate eligible provider families so
 different model biases contribute without provider-to-provider back-and-forth. If
 independent opinions are explicitly requested, use a bounded batch of at most

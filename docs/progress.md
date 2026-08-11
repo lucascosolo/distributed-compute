@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `d33eace` (provider catalog/readiness changes are pending)
-- Working tree at the last checkpoint: uncommitted provider catalog/readiness changes
-- Verification for this chunk: gateway tests passed (`17 tests`) with
+- Last pushed commit: `9097dd3`
+- Working tree at the last checkpoint: clean
+- Verification for this chunk: `151 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository.
 
@@ -241,15 +241,17 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Continue with the configured Hugging Face API and bounded browser/API-candidate
-probes. Verify actual cost/credit behavior before treating Hugging Face as free,
-and keep candidates quarantined until a probe proves usable context transfer,
-valid output, acceptable terms, and a cheaper total cost. The next implementation
-chunk is human-reviewed promotion and quota accounting for persisted model
-findings; retired transports are not reintroduced.
+Research and normalize official provider quota rules before running real smoke
+tests. The panel's raw request/token/window fields are not yet a sufficient
+operator explanation; the next chunk should add source-backed quota guidance,
+reset-period handling, and safe local caps while keeping unknown values explicit.
+After that, obtain a Cloudflare Access service token through the operator
+dashboard if CLI-over-HTTPS use is needed, then run a human-approved bounded
+provider benchmark. Retired transports are not reintroduced.
 
-Only after those checks consider a VPS deployment using the deploy skill. Do not
-put a real VPS address or token in the repository.
+The VPS service is already deployed behind the operator's Cloudflare HTTPS
+hostname. Do not put a real VPS address, service token, or provider credential in
+the repository.
 
 ## Verification command
 
