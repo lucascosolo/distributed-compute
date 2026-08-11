@@ -1,0 +1,181 @@
+# Distributed AI Compute Coordinator
+
+**Cost-aware, capability-aware AI workload orchestration for Claude Code, Codex, and other agent stacks.**
+
+Distributed Compute (`aipool`) routes small, separable AI tasks to a pool of
+legitimately accessible providers: local models, command-line workers,
+OpenAI-compatible APIs, and future authorized adapters. It benchmarks providers
+by capability instead of treating every model as equally useful, validates
+untrusted worker output, tracks health and savings, and falls back to the native
+model when delegation is unsafe, unsupported, or more expensive than doing the
+work directly.
+
+Search terms: distributed AI compute, AI workload orchestration, multi-provider
+LLM routing, cost-aware model routing, cheap AI task delegation, free AI compute,
+provider capability benchmarks, Claude Code delegation, Codex integration,
+local LLM orchestration, and heterogeneous model routing.
+
+> **Project status:** early local MVP. The core contracts, adapters, routing,
+> validation, persistence, capability probing, verification, consensus, map, and
+> map-reduce paths are implemented. VPS control-plane operation, automatic
+> provider discovery, and a stable remote client remain roadmap work. Do not
+> treat this repository as production-ready infrastructure yet.
+
+## Why this project exists
+
+Delegating work is only useful when the delegated result costs less than the
+primary model's own context and compute. `aipool` therefore refuses delegation
+when it cannot establish a positive savings estimate. Capability is a separate
+gate: a free helper that can classify text is not automatically allowed to write
+code, review a repository, plan an architecture, or handle sensitive work.
+
+For larger routine jobs, a trusted native model can provide explicit bounded
+scopes. The coordinator can then map those scopes to simple subtasks and reduce
+their results without inventing complex implementation instructions for weak
+providers.
+
+## Current capabilities
+
+- Standard provider adapters for fixtures, local commands, and
+  OpenAI-compatible APIs.
+- Cost-aware routing across classification, extraction, summarization, coding,
+  review, research, and related capability requirements.
+- Deterministic quality gates for empty, boilerplate, refusal-only, malformed,
+  truncated, and task-inconsistent output.
+- Persistent SQLite outcomes, cache entries, provider observations, health, and
+  approximate orchestration savings.
+- Capability benchmarks with durable empirical scores, including discovery of
+  capabilities not present in a provider's initial declaration.
+- Bounded `verify` and three-provider `consensus` strategies.
+- Explicit-scope `map` and bounded `map_reduce` strategies.
+- Native-model fallback when no capable provider exists, quality validation
+  fails, a composite subtask cannot be delegated, or delegation is not cheaper.
+- Content-addressed artifact storage and a concise Claude/Codex skill under
+  [`skills/distributed-compute`](skills/distributed-compute/SKILL.md).
+
+## Quick start: run everything on one computer
+
+The current MVP is a local Python package. It assumes Python 3.13 or newer.
+
+```bash
+git clone git@github.com:lucascosolo/distributed-compute.git
+cd distributed-compute
+python3.13 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+cp .aipool.local.example .aipool.local
+```
+
+`.aipool.local` is ignored by Git. Put operator-specific paths, provider
+endpoints, and credentials there; never commit them. The example file contains
+placeholders only.
+
+For a deterministic smoke test, configure a fixture provider in `.aipool.local`:
+
+```dotenv
+AIPOOL_FIXTURE_OUTPUT={"label":"docs"}
+AIPOOL_DB=.aipool-data/aipool.sqlite
+```
+
+Then submit a task with a local-work estimate larger than the coordinator's
+estimated delegation cost:
+
+```bash
+aipool task --db .aipool-data/aipool.sqlite --json \
+  '{"task":"classification","input_ref":"artifact:example","requirements":{"output":"json"},"local_estimate":1.0}'
+```
+
+Useful inspection commands:
+
+```bash
+aipool providers
+aipool status
+aipool stats --db .aipool-data/aipool.sqlite
+```
+
+The CLI returns machine-readable JSON. A result containing
+`"native_fallback":true` is an intentional handoff: let the native Claude or
+Codex session finish that task rather than repeatedly retrying the same request
+through the pool.
+
+## Configuring legitimate workers
+
+The CLI currently supports these local configuration paths:
+
+| Provider | Configuration | Notes |
+| --- | --- | --- |
+| Fixture | `AIPOOL_FIXTURE_OUTPUT` | Deterministic smoke tests only. |
+| Local command | `AIPOOL_COMMAND` | Receives one JSON task envelope on stdin; shell execution is disabled. |
+| OpenAI-compatible API | `AIPOOL_OPENAI_ENDPOINT`, `AIPOOL_OPENAI_MODEL`, `AIPOOL_OPENAI_API_KEY` | Use only an endpoint and account you are authorized to automate. |
+
+The coordinator keeps provider-specific behavior inside adapters. A provider
+profile declares capabilities and complexity limits, then benchmark and
+production evidence adjusts the routing score. No provider is trusted merely
+because it is free, popular, or fast.
+
+## Claude and Codex integration
+
+The reusable skill is included in the repository so other users can import it:
+
+```bash
+mkdir -p ~/.agents/skills/distributed-compute
+cp skills/distributed-compute/SKILL.md ~/.agents/skills/distributed-compute/SKILL.md
+```
+
+The skill deliberately tells the primary agent to retain responsibility for
+security, architecture, ambiguous debugging, credentials, production changes,
+and final synthesis. It also explains how to locate the ignored operator config.
+
+## VPS and remote deployment
+
+The repository reserves `.aipool.local` for deployment-specific values such as
+the coordinator host, database path, artifact root, and authentication token.
+Those values must never appear in tracked files, documentation, tests, or skill
+files. The persistent HTTP gateway and VPS deployment workflow are being built
+incrementally; use the local MVP until the remote-control-plane milestone is
+complete. Do not infer a production VPS address or token from this repository.
+
+## Responsible use and provider terms
+
+Use this project only with compute sources that you are authorized to access and
+automate. Read and follow the individual Terms of Service, acceptable-use rules,
+API documentation, rate limits, privacy terms, and licensing conditions for
+every provider, model, website, account, and endpoint you configure.
+
+Do **not** use this project to bypass authentication, paywalls, CAPTCHAs, quotas,
+rate limits, access controls, usage restrictions, or provider safeguards. Do not
+use stolen credentials, stolen sessions, hidden endpoints, or unauthorized
+browser automation. If a provider does not permit the intended automation, do
+not add or use an adapter for it. The provider policy in
+[`docs/provider-policy.md`](docs/provider-policy.md) is part of the project
+boundary, not a way to override a provider's rules.
+
+You are responsible for the providers you select, the data you send, the tasks
+you delegate, and your compliance with applicable law and provider terms. The
+authors and contributors do not control third-party services and are not
+responsible for a user's decision to use this project in a way that violates a
+provider's rules, contract, privacy obligations, or law. This is an engineering
+disclaimer, not legal advice. Never send secrets, personal data, credentials, or
+irreversible instructions to an untrusted worker.
+
+## Development
+
+Run the full test suite from the repository root:
+
+```bash
+PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -q
+```
+
+The project is intentionally dependency-light and uses the Python standard
+library for the coordinator MVP. Read [`project.md`](project.md) for the full
+architecture and [`roadmap.md`](roadmap.md) for the staged path from local MVP
+to controlled provider discovery and VPS operation.
+
+## Contributing
+
+Small, verifiable changes are preferred. New adapters must document their
+authorization assumptions, enforce bounded time/output behavior, normalize
+errors, and include tests. Changes to routing must preserve both capability
+gates and the native cost gate. Never add real credentials, private endpoints,
+deployment addresses, or provider data to a pull request.

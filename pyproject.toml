@@ -7,6 +7,16 @@ name = "aipool"
 version = "0.1.0"
 description = "A legitimate, token-aware distributed AI compute coordinator"
 requires-python = ">=3.13"
+keywords = [
+    "distributed-ai",
+    "ai-orchestration",
+    "llm-routing",
+    "multi-provider",
+    "cost-aware-compute",
+    "claude-code",
+    "codex",
+]
+project-urls = { Homepage = "https://github.com/lucascosolo/distributed-compute", Repository = "https://github.com/lucascosolo/distributed-compute" }
 
 [project.scripts]
 aipool = "aipool.cli:main"
