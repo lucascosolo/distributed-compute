@@ -185,6 +185,7 @@ def make_server(
                 "provider_slug": provider.provider_slug,
                 "name": provider.name,
                 "power": provider.power,
+                "quota_weight": provider.quota_weight,
                 "key_present": key_present,
                 "enabled": enabled,
                 "loaded": profile is not None,

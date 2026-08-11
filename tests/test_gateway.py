@@ -260,12 +260,23 @@ class GatewayTests(unittest.TestCase):
         benchmark.assert_called_once_with(profile.id)
 
     def test_smoke_batch_plan_is_bounded_and_makes_no_provider_call(self) -> None:
-        with patch("aipool.gateway.load_catalog", return_value=()):
-            status, plan = self.request("GET", "/admin/provider/smoke-batch-plan")
+        from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix
+        provider = load_catalog()[0]
+        profile = ProviderProfile(
+            "catalog:" + provider.slug, provider.name, provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+            quota_weight=provider.quota_weight,
+        )
+        self.server.aipool_coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))  # type: ignore[attr-defined]
+        Path(self.config_directory.name, ".aipool.local").write_text(
+            f"{config_prefix(provider)}_API_KEY=key\n{model_config_prefix(provider)}_ENABLED=1\n"
+        )
+        status, plan = self.request("GET", "/admin/provider/smoke-batch-plan")
         self.assertEqual(status, 200)
         self.assertFalse(plan["network_calls_made"])
         self.assertTrue(plan["approval_required"])
-        self.assertEqual(plan["expected_calls"], 0)
+        self.assertEqual(plan["expected_calls"], 3)
+        self.assertEqual(plan["selected_models"][0]["slug"], provider.slug)
 
     def test_smoke_batch_plan_rejects_unbounded_parameters(self) -> None:
         status, data = self.request("GET", "/admin/provider/smoke-batch-plan?max_models=33")
