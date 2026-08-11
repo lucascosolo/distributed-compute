@@ -181,6 +181,11 @@ or the operator's environment.
   not impersonate a user or use account OAuth to trigger one. Added
   `aipool discord hold --username ... --reason ...` so this evidence can be
   recorded without another probe; Hana remains held locally and is not compute.
+- A bounded benchmark of the newly discovered `Learning LLM` bot sent the three
+  synthetic cases but received no usable response (`valid: 0/3`). Its persistent
+  state is now `degraded`, and the panel was restarted and verified with all four
+  discovered workers represented: two disabled and two degraded. No Discord worker
+  currently qualifies for routing.
 
 ## Non-negotiable design decisions
 
@@ -203,11 +208,12 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Use the hold workflow for workers that require user-only slash-command
-interactions, then evaluate the remaining discovered workers or other authorized
-transports. Do not route complex work merely because a bot is present; keep every
-discovered worker at complexity level 1 until benchmark evidence warrants
-promotion.
+Keep the four current Discord workers out of routing and evaluate the next
+authorized transport or newly discovered candidate. Do not spend additional
+Discord quota retrying the two degraded workers; a future probe should happen only
+after operator evidence that their trigger or availability changed. Do not route
+complex work merely because a bot is present; keep every discovered worker at
+complexity level 1 until benchmark evidence warrants promotion.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.
