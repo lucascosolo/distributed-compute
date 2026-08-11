@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `982d4e8`
+- Last pushed commit: `1148a6f`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `170 tests passed` with
+- Verification for the current implementation: `171 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
