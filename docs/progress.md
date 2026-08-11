@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: pending this checkpoint
+- Last pushed commit: `9ab01d5`
 - Working tree at the last checkpoint: clean
 - Verification for the current implementation: `196 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -53,6 +53,9 @@ or the operator's environment.
   before submitting a task instead of sending an unusable local-only reference.
   Native agent bridges now receive the same bounded rendered context packet as
   browser transports, alongside the structured task envelope.
+- Service deployments derive artifact storage from the writable operator data
+  directory when no explicit artifact root is configured; the read-only project
+  tree is never used for runtime writes.
 - Added authenticated `/admin/readiness`, a redacted no-network report of key
   presence, enabled/loaded state, health holds, and shared quota-window usage.
 - Added source-backed quota guidance to provider cards for Hugging Face, Google
