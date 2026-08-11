@@ -115,6 +115,18 @@ class CliTests(unittest.TestCase):
             "@cf/qwen/qwen3-30b-a3b-fp8",
         })
 
+    def test_mistral_catalog_uses_current_documented_model_ids(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        models = {
+            item.model for item in load_catalog()
+            if item.provider_name == "Mistral AI"
+        }
+        self.assertEqual(models, {
+            "mistral-small-2603",
+            "codestral-2508",
+            "mistral-large-2512",
+        })
+
     def test_zai_catalog_uses_current_official_model_ids(self) -> None:
         from aipool.provider_catalog import load_catalog
         providers = [item for item in load_catalog() if item.provider_name == "Z.AI GLM API"]

@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `b7e6bcb`
+- Last pushed commit: `b99f58e` (working tree currently has the next audit chunk)
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `182 tests passed` with
+- Verification for the current implementation: `183 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -294,6 +294,10 @@ or the operator's environment.
   native `/v1` endpoint to the documented `/compatibility/v1` OpenAI-compatible
   endpoint; several operator-supplied endpoints remain quarantine-only until
   their own documentation confirms them.
+- Refreshed Mistral's catalog from deprecated moving aliases to the current
+  documented IDs `mistral-small-2603`, `codestral-2508`, and
+  `mistral-large-2512`; the catalog now explicitly warns that published prices
+  do not prove free eligibility.
 
 ## Immediate user requirement
 
@@ -341,6 +345,10 @@ new batch plan. No provider calls were made during the endpoint audit.
   where to find it, never echoes the API token, and keeps the family unloaded
   until both values are present. This is a no-generation configuration step;
   do not call Cloudflare model endpoints yet.
+- The deployed Cloudflare token was tested only against the read-only account
+  listing endpoint, not Workers AI inference. Cloudflare returned `Invalid
+  access token`, so the saved value is not currently usable for account lookup;
+  do not retry until the operator replaces or verifies that credential.
 - Cloudflare's catalog was also refreshed to current documented text models
   (`@cf/zai-org/glm-4.7-flash` and `@cf/qwen/qwen3-30b-a3b-fp8`) instead of the
   deprecated Llama/Qwen entries. This metadata change has fixture coverage and
