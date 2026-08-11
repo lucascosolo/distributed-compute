@@ -47,6 +47,9 @@ or the operator's environment.
   the operator's account before any call; it remains quarantined.
 - Added authenticated `/admin/readiness`, a redacted no-network report of key
   presence, enabled/loaded state, health holds, and shared quota-window usage.
+- Added source-backed quota guidance to provider cards for Hugging Face,
+  Google AI Studio, Groq, and OpenRouter. The panel now distinguishes provider
+  quotas from optional local safety caps and leaves unknown values explicit.
 - Added optional Cloudflare Access service-token headers to the remote client so
   a protected HTTPS gateway can be used by the CLI without an SSH tunnel. The
   current Cloudflare API token cannot create service tokens; creation remains an
@@ -241,10 +244,10 @@ or the operator's environment.
 
 ## Next scoped chunk
 
-Research and normalize official provider quota rules before running real smoke
-tests. The panel's raw request/token/window fields are not yet a sufficient
-operator explanation; the next chunk should add source-backed quota guidance,
-reset-period handling, and safe local caps while keeping unknown values explicit.
+Continue researching and normalizing official quota rules for the remaining
+provider families before running real smoke tests. The first pass now covers
+four families; the next pass should add evidence where the provider publishes
+it, preserve account-dependent dimensions, and avoid guessing unknown caps.
 After that, obtain a Cloudflare Access service token through the operator
 dashboard if CLI-over-HTTPS use is needed, then run a human-approved bounded
 provider benchmark. Retired transports are not reintroduced.

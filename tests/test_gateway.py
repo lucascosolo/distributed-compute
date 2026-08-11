@@ -142,9 +142,13 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"Disable routing", body)
         self.assertIn(b"Requests per window", body)
         self.assertIn(b"Tokens per window", body)
+        self.assertIn(b"Quota guidance", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
+        self.assertIn("quota_guidance", data["providers"][0])
+        self.assertEqual(data["providers"][0]["quota_guidance"]["status"], "documented")
+        self.assertIn("$0.10", data["providers"][0]["quota_guidance"]["summary"])
 
     def test_root_redirects_to_admin_panel(self) -> None:
         status, content_type, body = self.raw_request("GET", "/")

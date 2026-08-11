@@ -25,6 +25,12 @@ class CatalogProvider:
     endpoint: str
     source_url: str
     transport: str
+    quota_status: str = "unknown"
+    quota_scope: str = "unknown"
+    quota_dimensions: tuple[str, ...] = ()
+    quota_reset: str = "unknown"
+    quota_summary: str = "No provider quota research recorded yet. Treat limits as unknown."
+    quota_checked_at: str = ""
 
 
 def provider_slug(name: str) -> str:
@@ -61,6 +67,14 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
         models = item.get("models")
         if not isinstance(models, list) or not models:
             continue
+        quota = item.get("quota") if isinstance(item.get("quota"), dict) else {}
+        quota_status = str(quota.get("status", "unknown")).strip() or "unknown"
+        quota_scope = str(quota.get("scope", "unknown")).strip() or "unknown"
+        raw_dimensions = quota.get("dimensions", ())
+        quota_dimensions = tuple(str(value).strip() for value in raw_dimensions if str(value).strip()) if isinstance(raw_dimensions, list) else ()
+        quota_reset = str(quota.get("reset", "unknown")).strip() or "unknown"
+        quota_summary = str(quota.get("summary", "No provider quota research recorded yet. Treat limits as unknown.")).strip() or "No provider quota research recorded yet. Treat limits as unknown."
+        quota_checked_at = str(quota.get("checked_at", "")).strip()
         base_slug = provider_slug(name)
         for model_item in models:
             if isinstance(model_item, str):
@@ -82,7 +96,7 @@ def load_catalog(path: Path = CATALOG_PATH) -> tuple[CatalogProvider, ...]:
             if slug in seen:
                 continue
             seen.add(slug)
-            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport))
+            result.append(CatalogProvider(base_slug, name, slug, model_name or model, model, power, quota_weight, endpoint, source_url, transport, quota_status, quota_scope, quota_dimensions, quota_reset, quota_summary, quota_checked_at))
     return tuple(result)
 
 
