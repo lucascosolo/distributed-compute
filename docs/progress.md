@@ -8,7 +8,7 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `aab0eee`
+- Last pushed commit: `a125417`
 - Working tree at the last checkpoint: clean
 - Verification for the current implementation: `181 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
@@ -309,7 +309,7 @@ new batch plan. No provider calls were made during the endpoint audit.
 
 ## Compact continuation record
 
-- Current deployed commit: `aab0eee`; working tree is clean; VPS service is
+- Current deployed commit: `a125417`; working tree is clean; VPS service is
   active and healthy.
 - The endpoint audit is in `docs/provider-endpoint-audit.md`. Google, Cerebras,
   Groq, OpenRouter, Mistral, SambaNova, Ollama, xAI, Aion, BazaarLink, and the
