@@ -51,7 +51,10 @@ class HealthManager:
         *,
         retry_after_seconds: float | None = None,
     ) -> None:
-        record = self.store.health(provider.id) or {"failure_streak": 0}
+        record = self.store.health(provider.id)
+        if record is None:
+            self.store.ensure_health(provider)
+            record = self.store.health(provider.id) or {"failure_streak": 0}
         streak = int(record["failure_streak"]) + 1
         if kind == ProviderErrorKind.AUTH:
             state = ProviderState.AUTH_REQUIRED

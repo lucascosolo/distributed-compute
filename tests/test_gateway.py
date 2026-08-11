@@ -7,7 +7,7 @@ from pathlib import Path
 from http.client import HTTPConnection
 from unittest.mock import patch
 
-from aipool.domain import ProviderProfile, ProviderState
+from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderState
 from aipool.gateway import make_server
 from aipool.providers import FixtureAdapter, ProviderRegistry
 from aipool.service import Coordinator
@@ -127,6 +127,21 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(row["state"], "quarantined")
         self.assertEqual(row["requests_used"], 0)
 
+    def test_admin_readiness_reports_redacted_last_failure_detail(self) -> None:
+        from aipool.provider_catalog import load_catalog
+        provider = load_catalog()[0]
+        profile = ProviderProfile(
+            "catalog:" + provider.slug, provider.name, provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+        )
+        coordinator = self.server.aipool_coordinator  # type: ignore[attr-defined]
+        coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))
+        coordinator.health.failure(profile, ProviderErrorKind.AUTH, "HTTP 401")
+        status, data = self.request("GET", "/admin/readiness")
+        self.assertEqual(status, 200)
+        row = next(item for item in data["providers"] if item["slug"] == provider.slug)
+        self.assertEqual(row["last_failure_reason"], "HTTP 401")
+
     def test_admin_panel_is_authenticated_and_does_not_echo_secret_values(self) -> None:
         status, _, _ = self.raw_request("GET", "/admin", token=None)
         self.assertEqual(status, 401)
@@ -143,6 +158,7 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"family-card", body)
         self.assertIn(b"Next step", body)
         self.assertIn(b"Recommendation", body)
+        self.assertIn(b"Recorded detail", body)
         self.assertIn(b"provider contract note", body)
         self.assertIn(b"provider adapter, account metadata, endpoint, or model ID", body)
         self.assertIn(b"human review required", body)
