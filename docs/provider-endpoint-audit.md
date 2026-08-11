@@ -3,6 +3,8 @@
 This audit is a preflight record for smoke tests. It checks endpoint shape and
 adapter compatibility from primary documentation where available. It does not
 send model requests, validate credentials, or prove that a tier is free.
+The panel's model discovery action is a separate, human-initiated no-generation
+GET request and remains subject to provider terms and rate limits.
 
 | Family | Endpoint / transport | Preflight result | Notes |
 | --- | --- | --- | --- |

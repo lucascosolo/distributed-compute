@@ -401,7 +401,7 @@ def make_server(
                 if not api_key and provider.transport == "huggingface-api":
                     api_key = os.environ.get("HF_TOKEN", "")
                 endpoint = os.environ.get(f"{config_prefix_value}_ENDPOINT") or provider.endpoint
-                result = discover_models(endpoint, api_key)
+                result = discover_models(endpoint, api_key, api_key_optional=provider.api_key_optional)
                 models = [classify_model(model) for model in result.models]
                 if result.success:
                     coordinator.store.save_discovered_models(provider, models, now=time.time())

@@ -10,7 +10,7 @@ or the operator's environment.
 - Branch: `main`
 - Last pushed commit: `1148a6f`
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `177 tests passed` with
+- Verification for the current implementation: `179 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -363,6 +363,11 @@ new batch plan. No provider calls were made during the endpoint audit.
 - Kilo's documented anonymous free access is now represented directly: its
   selected `:free` models load without a key, and the panel labels the key as
   optional. Users can still add a Kilo key for authenticated access.
+- No-generation model discovery now supports providers that return a
+  `models` envelope, including Aion, and can intentionally omit auth for
+  providers such as Kilo that document anonymous model listing. A human still
+  initiates each discovery request from the panel; no automatic probing was
+  added.
 - Catalog models without an explicit per-model toggle now inherit enabled state
   from a saved family key, while explicit `0`/false settings still disable a
   model. This keeps newly refreshed model IDs from appearing enabled in the

@@ -69,14 +69,18 @@ def discover_models(
     endpoint: str,
     api_key: str,
     *,
+    api_key_optional: bool = False,
     timeout_seconds: float = 8.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> ModelDiscovery:
     """Fetch a provider model list without exposing credentials or response bodies."""
-    if not api_key.strip():
+    if not api_key.strip() and not api_key_optional:
         return ModelDiscovery(False, error="api_key_not_configured")
     url = models_endpoint(endpoint)
-    req = request.Request(url, headers={"Authorization": f"Bearer {api_key}", "User-Agent": "aipool/0.1"}, method="GET")
+    headers = {"User-Agent": "aipool/0.1"}
+    if api_key.strip():
+        headers["Authorization"] = f"Bearer {api_key}"
+    req = request.Request(url, headers=headers, method="GET")
     try:
         with opener(req, timeout=timeout_seconds) as response:  # type: ignore[attr-defined]
             raw = response.read(MAX_RESPONSE_BYTES + 1)

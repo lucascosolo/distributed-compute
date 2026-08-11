@@ -48,3 +48,26 @@ class ModelDiscoveryTests(unittest.TestCase):
         result = discover_models("https://router.example/v1", "")
         self.assertFalse(result.success)
         self.assertEqual(result.error, "api_key_not_configured")
+
+    def test_discovery_accepts_aion_style_models_envelope_without_key(self) -> None:
+        requests = []
+
+        def opener(req, timeout):
+            requests.append((req, timeout))
+            return _Response({"models": [{"id": "aion-labs/aion-2.0"}, {"id": "aion-labs/aion-2.5"}]})
+
+        result = discover_models("https://api.aionlabs.ai/v1", "", api_key_optional=True, opener=opener)
+        self.assertTrue(result.success)
+        self.assertEqual(result.models, ("aion-labs/aion-2.0", "aion-labs/aion-2.5"))
+        self.assertIsNone(requests[0][0].get_header("Authorization"))
+
+    def test_discovery_optional_key_still_sends_auth_when_available(self) -> None:
+        requests = []
+
+        def opener(req, timeout):
+            requests.append((req, timeout))
+            return _Response({"data": [{"id": "free-model"}]})
+
+        result = discover_models("https://api.kilo.ai/api/gateway", "kilo-key", api_key_optional=True, opener=opener)
+        self.assertTrue(result.success)
+        self.assertEqual(requests[0][0].get_header("Authorization"), "Bearer kilo-key")
