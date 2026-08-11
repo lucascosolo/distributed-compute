@@ -8,10 +8,10 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `deebd89`
+- Last pushed commit: `68a1fa1`
 - Working tree at the last checkpoint: clean
-- Verification for this chunk: `149 tests passed` with
-  `-W error::ResourceWarning`
+- Verification for this chunk: `162 tests passed` with
+  `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - No VPS deployment has been performed.
 
 ## Implemented
@@ -252,6 +252,16 @@ or the operator's environment.
   requires an activation note before it enters the live registry; the panel also
   offers an audited disable/rollback action that removes it from routing while
   retaining its review and smoke-test evidence.
+- Expanded the checked-in API candidate catalog with TokenRouter's
+  OpenAI-compatible endpoint and three model-level entries. It remains
+  quarantined until the operator supplies a key and runs the explicit bounded
+  smoke test. Removed Inference.net after the operator could not complete login.
+- Added NVIDIA NIM's official free-endpoint candidate with separate 8B and 70B
+  model cards; both remain quarantined until live model discovery and a bounded
+  smoke test confirm availability for the operator's key.
+- Added the repository-local `scripts/aipool` launcher so the distributed-compute
+  skill works before editable package installation. The panel now exposes an
+  explicit bounded smoke-test button for configured catalog models.
 
 ## Non-negotiable design decisions
 

@@ -258,9 +258,10 @@ def make_server(
 const form=document.querySelector('#f'),cards=document.querySelector('#providers'),out=document.querySelector('#o'),savebar=document.querySelector('.savebar');
 const key=(slug,suffix)=>'AIPOOL_MODEL_'+slug.toUpperCase().replaceAll('-','_')+'_'+suffix;
 const providerKey=(slug,suffix)=>'AIPOOL_PROVIDER_'+slug.toUpperCase().replaceAll('-','_')+'_'+suffix;
-function card(p){let keyName=providerKey(p.provider_slug,'API_KEY');let keyState=p.has_api_key?'<span class="key-status key-set">API key saved</span>':'<span class="key-status key-unset">No API key saved</span>';let limits=p.showLimits?`<div class="quota-box"><p class="meta">Shared free-tier limits for this provider family</p><label>Requests per window<input data-key="${providerKey(p.provider_slug,'REQUEST_LIMIT')}" value="${esc(p.request_limit)}" inputmode="numeric" placeholder="0 = unknown"></label><label>Tokens per window<input data-key="${providerKey(p.provider_slug,'TOKEN_LIMIT')}" value="${esc(p.token_limit)}" inputmode="numeric" placeholder="0 = unknown"></label><label>Window seconds<input data-key="${providerKey(p.provider_slug,'USAGE_WINDOW_SECONDS')}" value="${esc(p.usage_window_seconds)}" inputmode="decimal"></label></div>`:'';return `<article class="card"><header><div><h3>${esc(p.name)}</h3><span class="tag">${esc(p.power)} · quota ×${p.quota_weight}</span><br>${keyState}</div><label class="toggle"><input type="checkbox" data-provider="${esc(p.provider_slug)}" data-key="${key(p.slug,'ENABLED')}" ${p.enabled?'checked':''}> enable</label></header><p class="meta"><a href="${esc(p.source_url)}" target="_blank" rel="noreferrer">source</a> · ${esc(p.transport)} · ${p.adapter==='manual'?'adapter needed':'OpenAI-compatible'}<br>provider key is shared across this model family<br>default model: ${esc(p.model)}</p><label>Model ID<input data-key="${key(p.slug,'MODEL')}" value="${esc(p.configured_model)}"></label><label>API key ${p.has_api_key?'(saved; leave blank to preserve)':''}<input type="password" data-provider="${esc(p.provider_slug)}" autocomplete="new-password" data-key="${keyName}" placeholder="one key for ${esc(p.provider_slug)}"></label>${limits}<button type="button" onclick="refreshModels('${p.slug}')">Refresh live model list</button><span class="status" id="live-${p.slug}"></span></article>`}
+function card(p){let keyName=providerKey(p.provider_slug,'API_KEY');let keyState=p.has_api_key?'<span class="key-status key-set">API key saved</span>':'<span class="key-status key-unset">No API key saved</span>';let limits=p.showLimits?`<div class="quota-box"><p class="meta">Shared free-tier limits for this provider family</p><label>Requests per window<input data-key="${providerKey(p.provider_slug,'REQUEST_LIMIT')}" value="${esc(p.request_limit)}" inputmode="numeric" placeholder="0 = unknown"></label><label>Tokens per window<input data-key="${providerKey(p.provider_slug,'TOKEN_LIMIT')}" value="${esc(p.token_limit)}" inputmode="numeric" placeholder="0 = unknown"></label><label>Window seconds<input data-key="${providerKey(p.provider_slug,'USAGE_WINDOW_SECONDS')}" value="${esc(p.usage_window_seconds)}" inputmode="decimal"></label></div>`:'';return `<article class="card"><header><div><h3>${esc(p.name)}</h3><span class="tag">${esc(p.power)} · quota ×${p.quota_weight}</span><br>${keyState}</div><label class="toggle"><input type="checkbox" data-provider="${esc(p.provider_slug)}" data-key="${key(p.slug,'ENABLED')}" ${p.enabled?'checked':''}> enable</label></header><p class="meta"><a href="${esc(p.source_url)}" target="_blank" rel="noreferrer">source</a> · ${esc(p.transport)} · ${p.adapter==='manual'?'adapter needed':'OpenAI-compatible'}<br>provider key is shared across this model family<br>default model: ${esc(p.model)}</p><label>Model ID<input data-key="${key(p.slug,'MODEL')}" value="${esc(p.configured_model)}"></label><label>API key ${p.has_api_key?'(saved; leave blank to preserve)':''}<input type="password" data-provider="${esc(p.provider_slug)}" autocomplete="new-password" data-key="${keyName}" placeholder="one key for ${esc(p.provider_slug)}"></label>${limits}<button type="button" onclick="refreshModels('${p.slug}')">Refresh live model list</button> <button type="button" onclick="smokeProvider('${p.slug}')">Run bounded smoke test</button><span class="status" id="live-${p.slug}"></span><span class="status" id="smoke-${p.slug}"></span></article>`}
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
+async function smokeProvider(slug){let node=document.querySelector('#smoke-'+slug);node.textContent=' testing…';let r=await fetch('/admin/provider/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug})});let d=await r.json();node.textContent=r.ok?' smoke '+d.valid+'/'+d.attempts+' valid · '+d.state:' '+(d.error||'smoke test failed');}
 async function reviewModel(encoded,decision){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('[data-review-model]')).find(el=>el.dataset.reviewModel===key);let note=input?.value.trim()||'';if(!note){alert('Add a short review note before deciding.');return}let r=await fetch('/admin/discovered-model/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,decision,note})});let d=await r.json();if(!r.ok){alert(d.error||'Review failed');return}await load()}
 async function smokeTestModel(encoded){let key=decodeURIComponent(encoded);let r=await fetch('/admin/discovered-model/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key})});let d=await r.json();if(!r.ok){alert(d.error||'Smoke test failed');return}await load()}
 async function activationChange(encoded,path,attribute){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('['+attribute+']')).find(el=>el.getAttribute(attribute)===key);let note=input?.value.trim()||'';if(!note){alert('Add a short decision note first.');return}let r=await fetch('/admin/discovered-model/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,note})});let d=await r.json();if(!r.ok){alert(d.error||'Activation change failed');return}await load()}
@@ -414,6 +415,40 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     "model_key": row["model_key"], "model_id": row["model_id"],
                     "provider_id": adapter.profile.id, "state": row["state"],
                     "probe_status": row["probe_status"], "probe": json.loads(row["probe_json"]),
+                })
+                return
+            if path == "/admin/provider/smoke-test":
+                try:
+                    payload = self._read_json()
+                    if not isinstance(payload, dict):
+                        raise ValueError("provider smoke test must be an object")
+                    slug = str(payload.get("slug", "")).strip()
+                    provider = next((item for item in catalog if item.slug == slug), None)
+                    if provider is None:
+                        raise LookupError("unknown_catalog_model")
+                    provider_id = f"catalog:{provider.slug}"
+                    adapter = next((item for item in coordinator.registry.all() if item.profile.id == provider_id), None)
+                    if adapter is None:
+                        raise RuntimeError("provider_not_loaded; save its API key and enable the model first")
+                    result = coordinator.benchmark_provider(provider_id)
+                    state = next(
+                        (profile.state.value for profile in coordinator.health.profiles((adapter.profile,))),
+                        adapter.profile.state.value,
+                    )
+                except LookupError as exc:
+                    self._send(404, {"error": str(exc)})
+                    return
+                except RuntimeError as exc:
+                    self._send(409, {"error": str(exc)})
+                    return
+                except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                    return
+                self._send(200, {
+                    "provider_id": result.provider_id, "attempts": result.attempts,
+                    "valid": result.valid, "scores": result.scores,
+                    "stopped_error": result.stopped_error,
+                    "retry_after_seconds": result.retry_after_seconds, "state": state,
                 })
                 return
             if path == "/queue":

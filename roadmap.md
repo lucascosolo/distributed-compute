@@ -226,6 +226,12 @@ The checked-in `providers/candidate-catalog.json` is an operator-supplied seed
 catalog only. It is intentionally not a default active provider list; that list
 will be generated after the bounded external test run.
 
+TokenRouter is currently included as a model-family candidate using the operator-
+supplied `https://api.tokenrouter.com/v1` endpoint. Its model IDs are provisional
+metadata: live `/models` discovery and an explicit smoke test must supersede stale
+catalog values. Inference.net was removed after its login path was not usable for
+this deployment.
+
 ### Chunk 5.2: Candidate normalization and policy filter
 
 Normalize candidate metadata and reject candidates that require credential abuse,

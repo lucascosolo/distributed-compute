@@ -16,10 +16,12 @@ operator-local environment file such as `~/.claude/distributed-compute.env` or
 `~/.codex/distributed-compute.env`; these files are gitignored/operator-local
 and contain the local or authorized remote coordinator URL and token.
 
-Use the stable CLI from the project environment for local mode:
+Use the stable CLI from the project environment for local mode. If the package is
+not installed, use the repository launcher (`./scripts/aipool`) instead of guessing
+or invoking a missing global command:
 
 ```bash
-aipool task --json '{"task":"classify","input_ref":"artifact:sha256:...","requirements":{"output":"json","confidence":true}}'
+./scripts/aipool task --json '{"task":"classify","input_ref":"artifact:sha256:...","requirements":{"output":"json","confidence":true}}'
 ```
 
 For a configured remote gateway, set `AIPOOL_MODE=remote`,

@@ -195,6 +195,27 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(family[0]["token_limit"], "1200")
         self.assertEqual(family[0]["usage_window_seconds"], "86400")
 
+    def test_configured_catalog_provider_has_explicit_bounded_smoke_test(self) -> None:
+        from aipool.benchmark import BenchmarkResult
+        from aipool.provider_catalog import load_catalog
+        catalog_provider = load_catalog()[0]
+        coordinator = self.server.aipool_coordinator  # type: ignore[attr-defined]
+        profile = ProviderProfile(
+            "catalog:" + catalog_provider.slug, catalog_provider.name, catalog_provider.transport,
+            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
+        )
+        coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))
+        with patch.object(coordinator, "benchmark_provider", return_value=BenchmarkResult(
+            profile.id, {"classification": 1.0}, 1, 1,
+        )) as benchmark:
+            status, data = self.request("POST", "/admin/provider/smoke-test", {
+                "slug": catalog_provider.slug,
+            })
+        self.assertEqual(status, 200)
+        self.assertEqual(data["provider_id"], profile.id)
+        self.assertEqual(data["valid"], 1)
+        benchmark.assert_called_once_with(profile.id)
+
     def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
         status, config = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
