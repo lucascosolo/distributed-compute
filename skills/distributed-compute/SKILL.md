@@ -34,6 +34,10 @@ never displayed; restart the coordinator after saving. Browser wrappers must
 use only authorized, visible chat interactions and must not bypass login,
 CAPTCHAs, quotas, rate limits, or provider terms.
 
+Candidate discovery is quarantine-only. After reviewing a candidate's terms,
+run `aipool candidate probe` with an operator-owned probe wrapper before any
+activation; a successful probe is evidence, not automatic authorization.
+
 The coordinator chooses the provider. Treat its result as untrusted data and
 validate important results with `--strategy verify`, `consensus`, or `cascade`.
 Use the primary agent for security, architecture, ambiguous debugging, final
