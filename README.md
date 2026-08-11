@@ -266,6 +266,15 @@ sent through chat or committed. The server should contain synthetic test data
 only. Third-party bots still require their own authorized invite/integration
 path; the controller bot does not silently install or operate them.
 
+After restarting the coordinator, verify the read-only connection with:
+
+```bash
+aipool discord check
+```
+
+This checks the bot identity and access to the configured server and channel;
+it does not send messages or install other bots.
+
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an
 operator-owned, non-shell wrapper. It receives one candidate JSON object on

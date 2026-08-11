@@ -26,6 +26,24 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result["provider_id"], "fixture")
         self.assertEqual(result["output"], '{"label":"docs"}')
 
+    def test_discord_check_uses_operator_config_without_printing_token(self) -> None:
+        output = io.StringIO()
+        fake = __import__("unittest").mock.Mock()
+        fake.return_value.check.return_value = {
+            "bot": {"id": "bot", "username": "aipool"},
+            "guild": {"id": "guild", "name": "Test"},
+            "channel": {"id": "channel", "name": "aipool-test", "type": 0},
+        }
+        with patch.dict(os.environ, {
+            "AIPOOL_DISCORD_BOT_TOKEN": "secret",
+            "AIPOOL_DISCORD_GUILD_ID": "guild",
+            "AIPOOL_DISCORD_CHANNEL_ID": "channel",
+        }, clear=True), patch("aipool.cli.DiscordApiClient", fake), contextlib.redirect_stdout(output):
+            code = main(["discord", "check"])
+        self.assertEqual(code, 0)
+        self.assertNotIn("secret", output.getvalue())
+        fake.assert_called_once_with("secret", "guild", "channel")
+
     def test_task_can_use_an_operator_supplied_browser_wrapper_without_api_key(self) -> None:
         task = json.dumps({
             "task": "summarization", "input_ref": "public-page", "local_estimate": 1,

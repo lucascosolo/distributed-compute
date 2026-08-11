@@ -16,6 +16,7 @@ from .artifacts import ArtifactStore
 from .benchmark import run_benchmark
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
+from .discord_api import DiscordApiClient
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -113,6 +114,9 @@ def _parser() -> argparse.ArgumentParser:
     task.add_argument("--json", required=True, dest="task_json")
     task.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("providers", help="list configured providers")
+    discord = subparsers.add_parser("discord", help="verify the configured Discord controller")
+    discord_subparsers = discord.add_subparsers(dest="discord_action", required=True)
+    discord_subparsers.add_parser("check", help="read-only bot/server/channel connectivity check")
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
     discover_input = discover.add_mutually_exclusive_group(required=True)
     discover_input.add_argument("--query")
@@ -299,6 +303,18 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         finally:
             store.close()
+    if args.command == "discord" and args.discord_action == "check":
+        try:
+            result = DiscordApiClient(
+                os.environ.get("AIPOOL_DISCORD_BOT_TOKEN", ""),
+                os.environ.get("AIPOOL_DISCORD_GUILD_ID", ""),
+                os.environ.get("AIPOOL_DISCORD_CHANNEL_ID", ""),
+            ).check()
+            print(json.dumps(result, separators=(",", ":")))
+            return 0
+        except (ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
     if args.command == "queue":
         mode = os.environ.get("AIPOOL_MODE", "local").lower()
         base_url = os.environ.get("AIPOOL_BASE_URL", "")
