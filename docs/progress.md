@@ -260,6 +260,15 @@ or the operator's environment.
   rate-limit, broken, degraded, missing-key, disabled, and not-loaded states show
   a concrete next step and a recommendation; this distinguishes provider
   failures from configuration/setup issues instead of hiding them in details.
+- The first operator-approved comparison used one loaded/enabled representative
+  per family. Kilo's selected free model and Ollama Cloud gpt-oss:120b returned
+  3/3 valid; Mistral Large and NVIDIA GLM-5.2 returned 1/3; OpenRouter returned
+  0/3 and became degraded. Aion, Bazaarlink, Cerebras, Groq, Hugging Face,
+  TokenRouter, and xAI representatives hit authentication failures; Z.ai hit a
+  rate limit. These results remain quarantine evidence, not routing approval.
+- Hugging Face's All Access token is now accepted through the shared `HF_TOKEN`
+  field for every catalog model. The operator observed 27 Qwen3-8B requests
+  costing $0.27, so Hugging Face is not currently treated as free compute.
 
 ## Non-negotiable design decisions
 
