@@ -57,6 +57,13 @@ class Store:
                 authorization TEXT NOT NULL, state TEXT NOT NULL,
                 rejection_reason TEXT, probe_json TEXT, updated_at REAL NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS discovery_leads (
+                lead_id TEXT PRIMARY KEY, title TEXT NOT NULL, source_url TEXT NOT NULL,
+                summary TEXT NOT NULL, external_url TEXT NOT NULL, source_kind TEXT NOT NULL,
+                terms_url TEXT NOT NULL, transport_hint TEXT NOT NULL,
+                discovered_at REAL NOT NULL, first_seen REAL NOT NULL,
+                last_seen REAL NOT NULL, hit_count INTEGER NOT NULL
+            );
             """
         )
         self.connection.commit()
@@ -244,6 +251,27 @@ class Store:
                 (candidate_id,),
             ).fetchone()
         return str(row["probe_json"]) if row and row["probe_json"] is not None else None
+
+    def save_discovery_lead(self, lead: object) -> None:
+        with self._lock:
+            self.connection.execute(
+                """INSERT OR REPLACE INTO discovery_leads
+                (lead_id, title, source_url, summary, external_url, source_kind,
+                 terms_url, transport_hint, discovered_at, first_seen, last_seen, hit_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (lead.lead_id, lead.title, lead.source_url, lead.summary, lead.external_url,
+                 lead.source_kind, lead.terms_url, lead.transport_hint, lead.discovered_at,
+                 lead.first_seen, lead.last_seen, lead.hit_count),
+            )
+            self.connection.commit()
+
+    def discovery_lead_rows(self) -> list[sqlite3.Row]:
+        with self._lock:
+            return self.connection.execute(
+                """SELECT lead_id, title, source_url, summary, external_url, source_kind,
+                terms_url, transport_hint, discovered_at, first_seen, last_seen, hit_count
+                FROM discovery_leads ORDER BY last_seen DESC, lead_id"""
+            ).fetchall()
 
     def stats(self) -> dict[str, object]:
         with self._lock:

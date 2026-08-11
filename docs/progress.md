@@ -65,6 +65,9 @@ or the operator's environment.
 - Discovery requirements now include bounded public chatbot directories,
   search results, and community discussions as candidate leads, while keeping
   provenance and terms review separate from activation.
+- `aipool discover` now performs one bounded Reddit search, persists
+  provenance-rich leads in SQLite, deduplicates repeated sightings, and keeps
+  all results out of provider activation.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -91,9 +94,9 @@ or the operator's environment.
 ## Next scoped chunk
 
 Add bounded discovery source adapters for public directories/search results and
-community discussions, then expose the comparison harness through an operator
-workflow. Every public chatbot remains a candidate by default, while an
-explicitly documented binding prohibition keeps it quarantined/rejected;
+additional community sources, then expose the comparison harness through an
+operator workflow. Every public chatbot remains a candidate by default, while
+an explicitly documented binding prohibition keeps it quarantined/rejected;
 probes and capability tests still gate production routing.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not

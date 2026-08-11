@@ -60,6 +60,8 @@ providers.
 - Bounded, provider-neutral context packets that reconstruct artifact-backed
   task context for constrained API or browser transports without passing
   credentials or treating source text as coordinator instructions.
+- Bounded Reddit lead discovery with persistent provenance; discovered links
+  remain leads/candidates and are never activated automatically.
 
 ## Quick start: run everything on one computer
 
@@ -101,6 +103,17 @@ aipool providers
 aipool status
 aipool stats --db .aipool-data/aipool.sqlite
 ```
+
+To collect a small, persisted batch of public chatbot leads from Reddit:
+
+```bash
+aipool discover --db .aipool-data/aipool.sqlite \
+  --query "free chatbot no API key" --max-results 10
+```
+
+This performs one bounded public search request. It does not probe, automate,
+or activate any discovered chatbot; review each source's current terms and
+candidate evidence before configuring a transport.
 
 For asynchronous work, enqueue a task and inspect it later:
 
@@ -154,6 +167,7 @@ The CLI currently supports these local configuration paths:
 | Fixture | `AIPOOL_FIXTURE_OUTPUT` | Deterministic smoke tests only. |
 | Local command | `AIPOOL_COMMAND` | Receives one JSON task envelope on stdin; shell execution is disabled. |
 | OpenAI-compatible API | `AIPOOL_OPENAI_ENDPOINT`, `AIPOOL_OPENAI_MODEL`, `AIPOOL_OPENAI_API_KEY` | Use only an endpoint and account you are authorized to automate. |
+| Browser chat wrapper | `AIPOOL_BROWSER_COMMAND` | An operator-supplied command reads the bounded rendered prompt on stdin and writes the chatbot text response; no API key is required by `aipool`. |
 
 The coordinator keeps provider-specific behavior inside adapters. A provider
 profile declares capabilities and complexity limits, then benchmark and

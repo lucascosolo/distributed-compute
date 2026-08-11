@@ -12,6 +12,7 @@ from pathlib import Path
 
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
 from .artifacts import ArtifactStore
+from .discovery_sources import DiscoveryRunner, LeadRegistry, RedditSearchSource
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -96,6 +97,12 @@ def _parser() -> argparse.ArgumentParser:
     task.add_argument("--json", required=True, dest="task_json")
     task.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("providers", help="list configured providers")
+    discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
+    discover.add_argument("--query", required=True)
+    discover.add_argument("--subreddit")
+    discover.add_argument("--max-results", type=int, default=10)
+    discover.add_argument("--max-leads", type=int, default=32)
+    discover.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("status", help="show coordinator status")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
@@ -123,6 +130,21 @@ def main(argv: list[str] | None = None) -> int:
     _load_local_config()
     args = _parser().parse_args(argv)
     registry = _build_registry(args)
+    if args.command == "discover":
+        store = Store(args.db)
+        try:
+            source = RedditSearchSource(args.query, subreddit=args.subreddit, max_results=args.max_results)
+            result = DiscoveryRunner((source,), max_leads=args.max_leads).run(LeadRegistry(store))
+            print(json.dumps({
+                "leads": [lead.to_dict() for lead in result.leads],
+                "errors": list(result.errors),
+            }, separators=(",", ":")))
+            return 0 if not result.errors else 1
+        except (ValueError, TypeError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 2
+        finally:
+            store.close()
     if args.command == "queue":
         mode = os.environ.get("AIPOOL_MODE", "local").lower()
         base_url = os.environ.get("AIPOOL_BASE_URL", "")

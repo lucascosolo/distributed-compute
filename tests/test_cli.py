@@ -46,6 +46,27 @@ class CliTests(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertFalse(json.loads(output.getvalue())["success"])
 
+    def test_discover_persists_bounded_public_chatbot_leads(self) -> None:
+        from aipool.discovery_sources import DiscoveryLead
+        with __import__("tempfile").TemporaryDirectory() as directory:
+            database = directory + "/discovery.sqlite"
+            fake_source = __import__("unittest").mock.Mock()
+            fake_source.collect.return_value = (DiscoveryLead(
+                title="public assistant", source_url="https://reddit.example/post",
+                external_url="https://assistant.example/",
+            ),)
+            output = io.StringIO()
+            with patch.dict(os.environ, {}, clear=True), \
+                 patch("aipool.cli.RedditSearchSource", return_value=fake_source), \
+                 contextlib.redirect_stdout(output):
+                code = main(["discover", "--query", "free chatbot", "--db", database])
+            result = json.loads(output.getvalue())
+            self.assertEqual(code, 0)
+            self.assertEqual(result["leads"][0]["title"], "public assistant")
+            store = Store(database)
+            self.assertEqual(len(store.discovery_lead_rows()), 1)
+            store.close()
+
     def test_stats_is_compact_and_reads_persisted_metrics(self) -> None:
         with __import__("tempfile").TemporaryDirectory() as directory:
             database = directory + "/stats.sqlite"
