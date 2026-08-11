@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from html import escape
 
 from .domain import TaskEnvelope
+from .provider_catalog import CatalogProvider, config_prefix, load_catalog
 from .queue import QueueFull, TaskQueue, record_to_dict
 from .service import Coordinator
 
@@ -27,6 +28,11 @@ CONFIG_KEYS = frozenset({
 SECRET_KEYS = frozenset({
     "HF_TOKEN", "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN", "AIPOOL_DISCORD_BOT_TOKEN",
 })
+
+
+def _provider_config_keys(provider: CatalogProvider) -> tuple[str, ...]:
+    prefix = config_prefix(provider)
+    return (f"{prefix}_ENABLED", f"{prefix}_API_KEY", f"{prefix}_MODEL", f"{prefix}_ENDPOINT")
 
 
 def _outcome_json(outcome) -> dict[str, object]:
@@ -60,19 +66,38 @@ def make_server(
 
     task_queue = queue or TaskQueue(coordinator.store, max_pending=max_pending)
     operator_config = Path(config_path or os.environ.get("AIPOOL_CONFIG_FILE", ".aipool.local")).expanduser()
+    catalog = load_catalog()
+    catalog_keys = frozenset(key for provider in catalog for key in _provider_config_keys(provider))
+    secret_keys = SECRET_KEYS | frozenset(f"{config_prefix(provider)}_API_KEY" for provider in catalog)
 
     def config_snapshot() -> dict[str, object]:
         file_values: dict[str, str] = {}
         if operator_config.is_file():
             for line in operator_config.read_text().splitlines():
                 key, separator, value = line.partition("=")
-                if separator and key in CONFIG_KEYS and value:
+                if separator and key in CONFIG_KEYS | catalog_keys and value:
                     file_values[key] = value
+        def value(key: str) -> str:
+            return os.environ.get(key, file_values.get(key, ""))
+        providers = []
+        for provider in catalog:
+            prefix = config_prefix(provider)
+            providers.append({
+                "slug": provider.slug, "name": provider.name, "model": provider.model,
+                "power": provider.power, "quota_weight": provider.quota_weight,
+                "transport": provider.transport, "endpoint": provider.endpoint,
+                "source_url": provider.source_url,
+                "enabled": value(f"{prefix}_ENABLED").casefold() in {"1", "true", "yes", "on"},
+                "configured_model": value(f"{prefix}_MODEL") or provider.model,
+                "has_api_key": bool(os.environ.get(f"{prefix}_API_KEY") or file_values.get(f"{prefix}_API_KEY")),
+                "adapter": "openai-compatible" if provider.transport == "openai-compatible" else "manual",
+            })
         return {
             "settings": {
-                key: os.environ.get(key, file_values.get(key, "")) for key in sorted(CONFIG_KEYS - SECRET_KEYS)
+                key: value(key) for key in sorted(CONFIG_KEYS - SECRET_KEYS)
             },
-            "secrets": {key: bool(os.environ.get(key) or file_values.get(key)) for key in sorted(SECRET_KEYS)},
+            "secrets": {key: bool(os.environ.get(key) or file_values.get(key)) for key in sorted(secret_keys)},
+            "providers": providers,
             "config_path": str(operator_config),
             "restart_required": True,
         }
@@ -161,26 +186,18 @@ def make_server(
                 self._send(200, config_snapshot())
                 return
             if self.path == "/admin":
-                self._send_html(200, """<!doctype html><meta charset=utf-8>
-<title>aipool provider configuration</title><h1>Provider configuration</h1>
-<p>Secrets are never displayed. Changes are written to the operator config and require a restart.</p>
-<form id=f><label>HF model <input name=AIPOOL_HF_MODEL></label><br>
-<label>HF token <input name=HF_TOKEN type=password autocomplete=new-password></label><br>
-<label>OpenAI-compatible endpoint <input name=AIPOOL_OPENAI_ENDPOINT></label><br>
-<label>OpenAI model <input name=AIPOOL_OPENAI_MODEL></label><br>
-<label>Authorized command worker <input name=AIPOOL_COMMAND></label><br>
-<label>Authorized browser wrapper <input name=AIPOOL_BROWSER_COMMAND></label><br>
-<label>Discord application ID <input name=AIPOOL_DISCORD_APPLICATION_ID></label><br>
-<label>Discord guild/server ID <input name=AIPOOL_DISCORD_GUILD_ID></label><br>
-<label>Discord test-channel ID <input name=AIPOOL_DISCORD_CHANNEL_ID></label><br>
-<p>Worker bots are discovered automatically from the configured server; no per-bot IDs are required. Optional prefix:</p>
-<label>Worker message prefix <input name=AIPOOL_DISCORD_MESSAGE_PREFIX></label><br>
-<label>Discord bot token <input name=AIPOOL_DISCORD_BOT_TOKEN type=password autocomplete=new-password></label><br>
-<label>OpenAI key <input name=AIPOOL_OPENAI_API_KEY type=password autocomplete=new-password></label><br>
-<button>Save</button></form><pre id=o></pre>
-<script>f.onsubmit=async e=>{e.preventDefault();let o={};for(let [k,v] of new FormData(f))if(v)o[k]=v;
-let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});
-o=await r.json();document.querySelector('#o').textContent=JSON.stringify(o,null,2);f.reset()}</script>""")
+                self._send_html(200, """<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>aipool / provider console</title><style>
+:root{color-scheme:dark;--bg:#101414;--panel:#182020;--panel2:#202b2a;--ink:#e9f0e9;--muted:#9eafaa;--line:#33423f;--accent:#c5f36b;--warn:#ffcf70;--bad:#ff8f86}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% -10%,#2d463a 0,#101414 42%);color:var(--ink);font:16px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}main{max-width:1120px;margin:0 auto;padding:52px 24px 80px}header{display:flex;justify-content:space-between;gap:24px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:30px}h1{font:800 clamp(2rem,5vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.06em;margin:0;max-width:650px}h1 span{color:var(--accent)}h2{font-size:1rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:34px 0 14px}.lede{color:var(--muted);max-width:720px}.signal{color:var(--warn);font-size:.8rem;text-align:right}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}.card{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 12px 32px #0003}.card header{border:0;padding:0;margin:0 0 16px;align-items:start}.card h3{margin:0;font-size:1rem}.tag{display:inline-block;border:1px solid #536558;border-radius:99px;color:var(--accent);font-size:.7rem;padding:2px 8px;margin-top:5px}.meta{color:var(--muted);font-size:.75rem;margin:10px 0 16px}.meta a{color:var(--accent)}label{display:block;color:var(--muted);font-size:.75rem;margin:12px 0 5px}input{width:100%;background:#0d1212;border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:10px;font:inherit;font-size:.85rem}input:focus,button:focus{outline:2px solid var(--accent);outline-offset:2px}.toggle{display:flex;gap:9px;align-items:center;color:var(--ink)}.toggle input{width:auto;accent-color:var(--accent)}button{border:0;border-radius:8px;background:var(--accent);color:#111a13;padding:12px 18px;font:800 .85rem ui-monospace;cursor:pointer}.actions{display:flex;align-items:center;gap:16px;margin-top:24px}.status{color:var(--muted);font-size:.8rem}.advanced{background:#0d1212;border:1px solid var(--line);padding:18px;border-radius:12px}.advanced .grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}small{color:var(--muted)}@media(max-width:560px){main{padding:28px 14px}header{display:block}.signal{text-align:left;margin-top:16px}}
+</style></head><body><main><header><div><h1>provider<br><span>console</span></h1><p class="lede">Configure free-tier compute by model, not by brand. Every card remains quarantined until its smoke test proves capability and quota economics.</p></div><div class="signal">LOCAL OPERATOR PANEL<br>SECRETS NEVER ECHOED</div></header><form id="f"><section><h2>Model pool</h2><div id="providers" class="grid"><p class="status">Loading catalog…</p></div></section><section><h2>Advanced bridges</h2><div class="advanced"><div class="grid"><div><label for="hfmodel">Legacy HF model</label><input id="hfmodel" name="AIPOOL_HF_MODEL" placeholder="Use a model card above"></div><div><label for="hftoken">HF token</label><input id="hftoken" name="HF_TOKEN" type="password" autocomplete="new-password" placeholder="Leave blank to keep current"></div><div><label for="endpoint">Custom OpenAI-compatible endpoint</label><input id="endpoint" name="AIPOOL_OPENAI_ENDPOINT"></div><div><label for="openmodel">Custom model</label><input id="openmodel" name="AIPOOL_OPENAI_MODEL"></div></div></div></section><div class="actions"><button type="submit">Save configuration</button><span id="o" class="status" role="status"></span></div></form></main><script>
+const form=document.querySelector('#f'),cards=document.querySelector('#providers'),out=document.querySelector('#o');
+const key=(slug,suffix)=>'AIPOOL_PROVIDER_'+slug.toUpperCase().replaceAll('-','_')+'_'+suffix;
+function card(p){let prefix=p.slug.toUpperCase().replaceAll('-','_');let keyName=key(p.slug,'API_KEY');return `<article class="card"><header><div><h3>${esc(p.name)}</h3><span class="tag">${esc(p.power)} · quota ×${p.quota_weight}</span></div><label class="toggle"><input type="checkbox" data-key="${key(p.slug,'ENABLED')}" ${p.enabled?'checked':''}> enable</label></header><p class="meta"><a href="${esc(p.source_url)}" target="_blank" rel="noreferrer">source</a> · ${esc(p.transport)} · ${p.adapter==='manual'?'adapter needed':'OpenAI-compatible'}<br>default model: ${esc(p.model)}</p><label>Model ID<input data-key="${key(p.slug,'MODEL')}" value="${esc(p.configured_model)}"></label><label>API key ${p.has_api_key?'(saved; leave blank to preserve)':''}<input type="password" autocomplete="new-password" data-key="${keyName}" placeholder="paste key locally"></label></article>`}
+function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function load(){let r=await fetch('/admin/config');let c=await r.json();document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';cards.innerHTML=c.providers.map(card).join('')||'<p class="status">No API models in the catalog.</p>'}
+form.onsubmit=async e=>{e.preventDefault();let payload={};for(let el of form.querySelectorAll('[data-key],input[name]')){let k=el.dataset.key||el.name;if(el.type==='password'&&!el.value)continue;payload[k]=el.type==='checkbox'?(el.checked?'1':'0'):el.value}let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json();out.textContent=data.updated?'Saved. Restart required before routing changes apply.':(data.error||'Save failed')};load();
+</script></body></html>""")
                 return
             if self.path in {"/stats", "/metrics"}:
                 self._send(200, coordinator.store.stats())
@@ -211,7 +228,7 @@ o=await r.json();document.querySelector('#o').textContent=JSON.stringify(o,null,
                         raise ValueError("configuration must be an object")
                     updates = {
                         str(key): str(value) for key, value in payload.items()
-                        if str(key) in CONFIG_KEYS and isinstance(value, str) and value
+                        if str(key) in CONFIG_KEYS | catalog_keys and isinstance(value, str) and value
                     }
                     save_config(updates)
                 except (ValueError, TypeError, KeyError, json.JSONDecodeError, OSError) as exc:

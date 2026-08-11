@@ -273,6 +273,12 @@ request/token limits, credit expiry, and source timestamp. Distinguish permanent
 free tiers, renewable credits, one-time trials, and local/self-hosted tools; do
 not represent any category as free forever without current evidence.
 
+Model discovery must use a cascade: provider-reported `/models` or equivalent
+metadata when available; curated source metadata when it is not; and an explicit
+operator-supplied model only as a last resort. Every discovered model becomes a
+separate provider profile with a capability tier and a `quota_weight` describing
+its expected share of the provider's free allowance—not a monetary price.
+
 **Exit gate:** a bounded source run produces quarantine-only API candidates with
 source links and structured cost/limit metadata; stale or contradictory entries
 are flagged instead of silently becoming active providers.

@@ -82,7 +82,7 @@ def choose_provider(task: TaskEnvelope, providers: Iterable[ProviderProfile]) ->
     def utility_cost(profile: ProviderProfile) -> float:
         capability = min(profile.capabilities.get(name, 0.0) for name in assessment.capabilities)
         utility = max(0.01, capability * max(0.01, profile.reliability))
-        return (profile.estimated_cost + profile.latency_ms / 100_000) / utility
+        return (profile.estimated_cost + (profile.quota_weight * 0.001) + profile.latency_ms / 100_000) / utility
 
     selected = min(eligible, key=utility_cost)
     strategy = task.strategy if task.strategy != Strategy.NO_DELEGATION else Strategy.SINGLE

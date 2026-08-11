@@ -247,11 +247,16 @@ profile declares capabilities and complexity limits, then benchmark and
 production evidence adjusts the routing score. No provider is trusted merely
 because it is free, popular, or fast.
 
-When the gateway is running, open `/admin` to configure allowlisted model,
-endpoint, and API-key settings. The panel requires the gateway bearer token on
-remote bindings, never displays existing secret values, writes the gitignored
-`.aipool.local` file with mode `0600`, and requires a coordinator restart before
-changes take effect.
+When the gateway is running, open `/admin` to configure model-specific API cards
+from the checked-in quarantine catalog. Each model is shown as its own provider
+with a capability tier and `quota_weight`—expected consumption from that
+provider's free allowance, not a dollar price. OpenAI-compatible cards can be
+enabled after review; other API shapes remain marked as requiring an adapter.
+The panel requires the gateway bearer token on remote bindings, never displays
+existing secret values, writes the gitignored `.aipool.local` file with mode
+`0600`, and requires a coordinator restart before changes take effect. Provider
+model discovery will prefer a live `/models` response, then curated catalog
+metadata, then an explicit operator-supplied model.
 
 ### Minimal Discord controller setup
 

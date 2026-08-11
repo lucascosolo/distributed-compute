@@ -140,6 +140,7 @@ class ProviderProfile:
     latency_ms: float = 0.0
     reliability: float = 0.0
     estimated_cost: float = 0.0
+    quota_weight: float = 1.0
     concurrency_limit: int = 1
     state: ProviderState = ProviderState.QUARANTINED
     max_complexity: int = 1
@@ -152,7 +153,7 @@ class ProviderProfile:
             raise ValueError("provider id, name, and transport are required")
         if self.context_limit < 0 or self.concurrency_limit < 1:
             raise ValueError("provider limits are invalid")
-        for field_name in ("latency_ms", "estimated_cost"):
+        for field_name in ("latency_ms", "estimated_cost", "quota_weight"):
             value = float(getattr(self, field_name))
             if not math.isfinite(value) or value < 0:
                 raise ValueError(f"{field_name} must be a finite non-negative number")

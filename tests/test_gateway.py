@@ -100,7 +100,7 @@ class GatewayTests(unittest.TestCase):
         status, content_type, body = self.raw_request("GET", "/admin")
         self.assertEqual(status, 200)
         self.assertTrue(content_type.startswith("text/html"))
-        self.assertIn(b"Provider configuration", body)
+        self.assertIn(b"provider console", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
         self.assertFalse(data["secrets"]["HF_TOKEN"])
@@ -125,6 +125,8 @@ class GatewayTests(unittest.TestCase):
                 "AIPOOL_DISCORD_CHANNEL_ID": "345678901234567890",
                 "AIPOOL_DISCORD_BOT_TOKEN": "discord-secret",
                 "HF_TOKEN": "hf-secret",
+                "AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_ENABLED": "1",
+                "AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_API_KEY": "model-secret",
                 "UNSAFE_SETTING": "must-not-persist",
             })
             self.assertEqual(status, 200)
@@ -136,13 +138,16 @@ class GatewayTests(unittest.TestCase):
             self.assertIn("AIPOOL_DISCORD_APPLICATION_ID=123456789012345678", text)
             self.assertIn("AIPOOL_DISCORD_BOT_TOKEN=discord-secret", text)
             self.assertIn("HF_TOKEN=hf-secret", text)
+            self.assertIn("AIPOOL_PROVIDER_HUGGING_FACE_INFERENCE_PROVIDERS_QWEN_QWEN3_8B_API_KEY=model-secret", text)
             self.assertNotIn("UNSAFE_SETTING", text)
             self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
             status, data = self.request("GET", "/admin/config")
             self.assertTrue(data["secrets"]["HF_TOKEN"])
             self.assertTrue(data["secrets"]["AIPOOL_DISCORD_BOT_TOKEN"])
+            self.assertTrue(any(provider["has_api_key"] for provider in data["providers"]))
             self.assertNotIn("hf-secret", json.dumps(data))
             self.assertNotIn("discord-secret", json.dumps(data))
+            self.assertNotIn("model-secret", json.dumps(data))
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}

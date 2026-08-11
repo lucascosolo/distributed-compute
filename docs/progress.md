@@ -206,6 +206,12 @@ or the operator's environment.
 - The operator requested removing Discord entirely. That removal is recorded as
   roadmap chunk 5.4d rather than being mixed into the current provider pivot;
   no Discord code has been deleted in this checkpoint.
+- The admin-panel chunk now expands catalog entries with model metadata into
+  separate model cards. Cards show a capability tier and `quota_weight`, meaning
+  expected consumption from a provider's free allowance rather than dollars;
+  configured keys remain masked and model cards remain quarantined until a later
+  smoke-test/activation path. The panel still needs live `/models` discovery for
+  providers whose model lists are not cleanly exposed.
 
 ## Non-negotiable design decisions
 
@@ -232,8 +238,8 @@ Continue with the configured Hugging Face API and bounded browser/API-candidate
 probes. Verify actual cost/credit behavior before treating Hugging Face as free,
 and keep candidates quarantined until a probe proves usable context transfer,
 valid output, acceptable terms, and a cheaper total cost. The next implementation
-chunk is the catalog-driven admin panel; Discord removal follows as roadmap chunk
-5.4d.
+chunk is live model-list discovery and quota accounting; Discord removal follows
+as roadmap chunk 5.4d.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

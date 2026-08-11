@@ -12,6 +12,7 @@
     {"name": "Nation AI", "url": "https://nation.ai/chat/"},
     {"name": "Vizly", "url": "https://vizly.ai/ai-chat"},
     {"name": "HuggingChat", "url": "https://huggingface.co/chat/"},
+    {"name": "Hugging Face Inference Providers", "url": "https://router.huggingface.co/v1/chat/completions", "source_url": "https://huggingface.co/docs/inference-providers/en/tasks/chat-completion", "transport": "huggingface-api", "models": [{"id": "meta-llama/Llama-3.1-8B-Instruct", "power": "medium", "quota_weight": 0.5}, {"id": "Qwen/Qwen3-8B", "power": "medium", "quota_weight": 0.5}, {"id": "Qwen/Qwen3-Coder-30B-A3B-Instruct", "power": "strong", "quota_weight": 1.0}, {"id": "openai/gpt-oss-20b", "power": "strong", "quota_weight": 1.0}, {"id": "openai/gpt-oss-120b", "power": "very-strong", "quota_weight": 2.0}, {"id": "deepseek-ai/DeepSeek-R1", "power": "very-strong", "quota_weight": 2.0}]},
     {"name": "TalkAI", "url": "https://talkai.info/"},
     {"name": "Gab AI", "url": "https://gab.ai/"},
     {"name": "Blushly", "url": "https://blushly.chat/topics/ai-chat-free-no-sign-in"},
@@ -26,13 +27,13 @@
     {"name": "Xavier", "url": "https://top.gg/bot/1203009089588695100", "source_url": "https://top.gg/bot/1203009089588695100", "transport": "discord"},
     {"name": "BoltBot", "url": "https://top.gg/bot/1250114494081007697", "source_url": "https://top.gg/bot/1250114494081007697", "transport": "discord"},
     {"name": "Clyde Reborn", "url": "https://clydereborn.github.io/", "source_url": "https://clydereborn.github.io/", "transport": "discord"},
-    {"name": "Google AI Studio API", "url": "https://generativelanguage.googleapis.com/v1beta", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api"},
-    {"name": "Cerebras API", "url": "https://api.cerebras.ai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
-    {"name": "Groq API", "url": "https://api.groq.com/openai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
-    {"name": "Cohere API", "url": "https://api.cohere.ai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api"},
-    {"name": "Cloudflare Workers AI", "url": "https://api.cloudflare.com/client/v4/accounts/", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api"},
-    {"name": "OpenRouter Free Models", "url": "https://openrouter.ai/api/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
-    {"name": "Z.AI GLM API", "url": "https://api.z.ai/api/paas/v4", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"},
-    {"name": "Inference.net API", "url": "https://api.inference.net/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible"}
+    {"name": "Google AI Studio API", "url": "https://generativelanguage.googleapis.com/v1beta", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api", "models": [{"id": "gemini-2.0-flash", "power": "medium", "quota_weight": 1.0}, {"id": "gemini-2.0-flash-lite", "power": "light", "quota_weight": 0.5}]},
+    {"name": "Cerebras API", "url": "https://api.cerebras.ai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible", "models": [{"id": "llama-3.1-8b", "power": "light", "quota_weight": 0.5}, {"id": "llama-3.1-70b", "power": "strong", "quota_weight": 1.0}, {"id": "qwen-3-32b", "power": "strong", "quota_weight": 1.0}]},
+    {"name": "Groq API", "url": "https://api.groq.com/openai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible", "models": [{"id": "llama-3.1-8b-instant", "power": "light", "quota_weight": 0.5}, {"id": "llama-3.3-70b-versatile", "power": "strong", "quota_weight": 1.0}, {"id": "qwen/qwen3-32b", "power": "strong", "quota_weight": 1.0}]},
+    {"name": "Cohere API", "url": "https://api.cohere.ai/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api", "models": [{"id": "command-r7b-12-2024", "power": "medium", "quota_weight": 1.0}, {"id": "command-r", "power": "strong", "quota_weight": 1.0}]},
+    {"name": "Cloudflare Workers AI", "url": "https://api.cloudflare.com/client/v4/accounts/", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "api", "models": [{"id": "@cf/meta/llama-3.1-8b-instruct", "power": "medium", "quota_weight": 1.0}, {"id": "@cf/qwen/qwen1.5-7b-chat-awq", "power": "medium", "quota_weight": 1.0}]},
+    {"name": "OpenRouter Free Models", "url": "https://openrouter.ai/api/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible", "models": [{"id": "google/gemini-2.0-flash-exp:free", "power": "medium", "quota_weight": 1.0}, {"id": "meta-llama/llama-3.3-70b-instruct:free", "power": "strong", "quota_weight": 1.0}, {"id": "deepseek/deepseek-r1:free", "power": "strong", "quota_weight": 1.0}]},
+    {"name": "Z.AI GLM API", "url": "https://api.z.ai/api/paas/v4", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible", "models": [{"id": "glm-4.5-flash", "power": "medium", "quota_weight": 1.0}, {"id": "glm-4.7-flash", "power": "strong", "quota_weight": 1.0}]},
+    {"name": "Inference.net API", "url": "https://api.inference.net/v1", "source_url": "https://github.com/nejib1/Free-LLM", "transport": "openai-compatible", "models": [{"id": "deepseek-ai/DeepSeek-R1", "power": "strong", "quota_weight": 1.0}, {"id": "meta-llama/Meta-Llama-3.1-8B-Instruct", "power": "medium", "quota_weight": 0.5}]}
   ]
 }
