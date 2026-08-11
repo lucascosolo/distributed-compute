@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `4772016`
+- Last pushed commit: pending this checkpoint
 - Working tree at the last checkpoint: clean
-- Verification for the current implementation: `190 tests passed` with
+- Verification for the current implementation: `191 tests passed` with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - VPS deployment is active; host, service, and operator configuration details remain outside the repository. The native systemd unit now points `AIPOOL_CONFIG_FILE` at its writable data directory, so the protected admin panel can persist settings without weakening the read-only project tree. The panel's `/` route redirects to `/admin`.
 
@@ -45,6 +45,9 @@ or the operator's environment.
 - Added xAI's OpenAI-compatible `grok-4.5` candidate from the official model
   documentation. Its current API pricing/free allowance must be verified for
   the operator's account before any call; it remains quarantined.
+- Added Grok Build as a separate native coding-agent candidate at `x.ai/bot`;
+  it is not treated as an xAI API model and will require an operator-installed,
+  authenticated CLI wrapper plus explicit approval before activation.
 - Added authenticated `/admin/readiness`, a redacted no-network report of key
   presence, enabled/loaded state, health holds, and shared quota-window usage.
 - Added source-backed quota guidance to provider cards for Hugging Face, Google
