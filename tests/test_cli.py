@@ -26,6 +26,19 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result["provider_id"], "fixture")
         self.assertEqual(result["output"], '{"label":"docs"}')
 
+    def test_task_can_use_an_operator_supplied_browser_wrapper_without_api_key(self) -> None:
+        task = json.dumps({
+            "task": "summarization", "input_ref": "public-page", "local_estimate": 1,
+        })
+        output = io.StringIO()
+        command = f"{os.sys.executable} -c \"import sys; print('browser summary')\""
+        with patch.dict(os.environ, {"AIPOOL_BROWSER_COMMAND": command}, clear=True), contextlib.redirect_stdout(output):
+            code = main(["task", "--json", task])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(result["provider_id"], "browser-chat")
+        self.assertEqual(result["output"].strip(), "browser summary")
+
     def test_invalid_task_returns_error_code_two(self) -> None:
         output = io.StringIO()
         with contextlib.redirect_stdout(output):

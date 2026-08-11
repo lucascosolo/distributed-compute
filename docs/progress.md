@@ -55,6 +55,10 @@ or the operator's environment.
   injected, operator-authorized probe, never fetches arbitrary endpoints, and
   promotes a candidate to `PROBED` only when availability, authorization,
   context, output, restrictions, cost, and automation checks all pass.
+- Provider-neutral context packets now reconstruct bounded artifact-backed
+  inputs with explicit untrusted-data delimiters. `BrowserChatAdapter` and
+  `BrowserCommandAdapter` provide a no-API-key browser transport seam without
+  embedding login, challenge bypass, or hidden-endpoint behavior.
 - Public README, provider authorization policy, and repository-copyable
   Claude/Codex skill. The installed skill is synchronized at
   `~/.agents/skills/distributed-compute/SKILL.md`.
@@ -71,18 +75,21 @@ or the operator's environment.
    Codex session completes that work and can continue delegating later tasks.
 4. Provider output is untrusted data and never becomes coordinator instructions
    or tool permissions.
-5. Only authorized provider access is allowed. Never bypass authentication,
-   paywalls, CAPTCHAs, quotas, rate limits, safeguards, or provider Terms of
-   Service.
+5. Every public chatbot may be recorded as a candidate, but an explicitly
+   documented, legally binding prohibition on the intended external use keeps
+   it out of activation. Absence of such a prohibition is not a substitute for
+   operator review of applicable law, privacy, safety, and rate limits.
+6. Never bypass authentication, paywalls, CAPTCHAs, quotas, rate limits,
+   safeguards, or provider Terms of Service.
 
 ## Next scoped chunk
 
-Add provider-neutral context packets and artifact references so an authorized
-public web chatbot or other constrained provider receives enough bounded,
-reconstructable task context without receiving secrets or untrusted control
-instructions. Public UI access must remain subject to each provider's terms,
-automation rules, and rate limits; no-key access is not treated as automatic
-authorization.
+Build the first operator-configured browser wrapper integration and a small
+baseline-vs-distributed benchmark harness. Every public chatbot remains a
+candidate by default, while an explicitly documented binding prohibition keeps
+it quarantined/rejected; probes and capability tests still gate production
+routing. Measure quality, context-transfer loss, latency, and total
+orchestration cost before claiming that delegation is useful.
 
 Only after those checks consider a VPS deployment using the deploy skill. Do not
 put a real VPS address or token in the repository.

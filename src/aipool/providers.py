@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Protocol
 from urllib import error, request
 
+from .artifacts import ArtifactStore
+from .context import ContextPacket
 from .domain import (
     ProviderErrorKind,
     ProviderProfile,
@@ -111,6 +113,88 @@ class CommandAdapter:
         if len(completed.stdout) > self.max_output_bytes:
             return _failure(self.profile.id, ProviderErrorKind.INTERNAL, "provider output exceeds limit", latency)
         return ProviderResult(provider_id=self.profile.id, output=completed.stdout.decode(errors="replace"), latency_ms=latency)
+
+
+@dataclass(slots=True)
+class BrowserChatAdapter:
+    """Adapter seam for a reviewed public web chat UI.
+
+    ``submit`` is supplied by an operator-owned browser session or a local
+    wrapper. The coordinator never logs in, bypasses a challenge, discovers
+    hidden endpoints, or decides that a public page overrides the provider's
+    terms or applicable law.
+    """
+
+    profile: ProviderProfile
+    submit: Callable[[str], str]
+    artifacts: ArtifactStore | None = None
+    max_prompt_chars: int = 12_000
+    max_output_chars: int = 1_000_000
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        try:
+            packet = ContextPacket.from_task(task, self.artifacts, max_chars=self.max_prompt_chars)
+            output = self.submit(packet.render())
+            if not isinstance(output, str):
+                raise ValueError("browser transport must return text")
+            if len(output) > self.max_output_chars:
+                return _failure(
+                    self.profile.id, ProviderErrorKind.INTERNAL,
+                    "provider output exceeds limit", (time.monotonic() - started) * 1000,
+                )
+            return ProviderResult(
+                provider_id=self.profile.id, output=output,
+                latency_ms=(time.monotonic() - started) * 1000,
+            )
+        except Exception as exc:
+            return _failure(
+                self.profile.id, ProviderErrorKind.INTERNAL, str(exc),
+                (time.monotonic() - started) * 1000,
+            )
+
+
+@dataclass(slots=True)
+class BrowserCommandAdapter:
+    """Run an operator-supplied browser wrapper with a rendered chat prompt."""
+
+    profile: ProviderProfile
+    command: tuple[str, ...]
+    artifacts: ArtifactStore | None = None
+    timeout_seconds: float = 120.0
+    max_prompt_chars: int = 12_000
+    max_output_bytes: int = 1_000_000
+
+    def complete(self, task: TaskEnvelope) -> ProviderResult:
+        started = time.monotonic()
+        if not self.command:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, "browser command is not configured", 0)
+        try:
+            prompt = ContextPacket.from_task(task, self.artifacts, max_chars=self.max_prompt_chars).render()
+            completed = subprocess.run(
+                self.command,
+                input=prompt.encode(),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=self.timeout_seconds,
+                check=False,
+                shell=False,
+            )
+        except subprocess.TimeoutExpired:
+            return _failure(self.profile.id, ProviderErrorKind.TIMEOUT, "browser wrapper timed out", (time.monotonic() - started) * 1000)
+        except (OSError, ValueError) as exc:
+            return _failure(self.profile.id, ProviderErrorKind.UNAVAILABLE, str(exc), (time.monotonic() - started) * 1000)
+        latency = (time.monotonic() - started) * 1000
+        if completed.returncode:
+            message = completed.stderr.decode(errors="replace").strip() or "browser wrapper failed"
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, message, latency)
+        if len(completed.stdout) > self.max_output_bytes:
+            return _failure(self.profile.id, ProviderErrorKind.INTERNAL, "provider output exceeds limit", latency)
+        return ProviderResult(
+            provider_id=self.profile.id,
+            output=completed.stdout.decode(errors="replace"),
+            latency_ms=latency,
+        )
 
 
 @dataclass(slots=True)

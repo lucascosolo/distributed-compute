@@ -11,10 +11,11 @@ import threading
 from pathlib import Path
 
 from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
+from .artifacts import ArtifactStore
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
-from .providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
+from .providers import BrowserCommandAdapter, CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
 from .service import Coordinator
 from .storage import Store
 from .worker import QueueWorker
@@ -72,6 +73,19 @@ def _build_registry(args: argparse.Namespace) -> ProviderRegistry:
             reliability=0.5, state=ProviderState.HEALTHY, max_complexity=4,
         )
         registry.register(OpenAICompatibleAdapter(profile, endpoint, os.environ["AIPOOL_OPENAI_MODEL"], "AIPOOL_OPENAI_API_KEY"))
+    browser_command = os.environ.get("AIPOOL_BROWSER_COMMAND")
+    if browser_command:
+        profile = ProviderProfile(
+            "browser-chat", "Configured browser chat", "browser-chat",
+            capabilities={"classification": 0.7, "structured_json": 0.6,
+                           "extraction": 0.7, "summarization": 0.6},
+            reliability=0.4, state=ProviderState.HEALTHY, max_complexity=2,
+        )
+        registry.register(BrowserCommandAdapter(
+            profile,
+            tuple(shlex.split(browser_command)),
+            ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")),
+        ))
     return registry
 
 

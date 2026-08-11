@@ -36,8 +36,9 @@ providers.
 
 ## Current capabilities
 
-- Standard provider adapters for fixtures, local commands, and
-  OpenAI-compatible APIs.
+- Standard provider adapters for fixtures, local commands, OpenAI-compatible
+  APIs, and an injected browser-chat transport for web chat interfaces whose
+  reviewed terms do not explicitly prohibit the intended external use.
 - Cost-aware routing across classification, extraction, summarization, coding,
   review, research, and related capability requirements.
 - Deterministic quality gates for empty, boilerplate, refusal-only, malformed,
@@ -56,6 +57,9 @@ providers.
   fails, a composite subtask cannot be delegated, or delegation is not cheaper.
 - Content-addressed artifact storage and a concise Claude/Codex skill under
   [`skills/distributed-compute`](skills/distributed-compute/SKILL.md).
+- Bounded, provider-neutral context packets that reconstruct artifact-backed
+  task context for constrained API or browser transports without passing
+  credentials or treating source text as coordinator instructions.
 
 ## Quick start: run everything on one computer
 

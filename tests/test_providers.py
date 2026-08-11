@@ -5,11 +5,50 @@ import unittest
 from unittest.mock import patch
 
 from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderState, TaskEnvelope
+from aipool.artifacts import ArtifactStore
+from aipool.providers import BrowserChatAdapter, BrowserCommandAdapter
+import tempfile
+from pathlib import Path
 from aipool.providers import CommandAdapter, FixtureAdapter, OpenAICompatibleAdapter, ProviderRegistry
 
 
 def task() -> TaskEnvelope:
     return TaskEnvelope(task="classify", input_ref="artifact:sha256:test")
+
+
+class BrowserChatAdapterTests(unittest.TestCase):
+    def test_browser_adapter_sends_rendered_context_without_an_api_key(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = ArtifactStore(Path(directory))
+            reference = artifacts.put(b"source code")
+            prompts: list[str] = []
+            profile = ProviderProfile(
+                id="public-chat:fixture", name="Public chat", transport="browser-chat",
+                capabilities={"summarization": 0.7}, context_limit=4096,
+                reliability=0.8, estimated_cost=0.0, state=ProviderState.HEALTHY,
+                max_complexity=2,
+            )
+            adapter = BrowserChatAdapter(profile, lambda prompt: prompts.append(prompt) or "summary", artifacts)
+            result = adapter.complete(TaskEnvelope(task="summarization", input_ref=reference))
+            self.assertTrue(result.success)
+            self.assertEqual(result.output, "summary")
+            self.assertIn("source code", prompts[0])
+            self.assertNotIn("Authorization:", prompts[0])
+
+    def test_browser_command_adapter_can_feed_a_local_browser_wrapper(self) -> None:
+        profile = ProviderProfile(
+            id="public-chat:command", name="Public chat wrapper", transport="browser-chat",
+            capabilities={"summarization": 0.7}, context_limit=4096,
+            reliability=0.8, estimated_cost=0.0, state=ProviderState.HEALTHY,
+            max_complexity=2,
+        )
+        adapter = BrowserCommandAdapter(
+            profile,
+            (sys.executable, "-c", "import sys; print('browser result')"),
+        )
+        result = adapter.complete(TaskEnvelope(task="summarization", input_ref="public-page"))
+        self.assertTrue(result.success)
+        self.assertEqual(result.output.strip(), "browser result")
 
 
 class ProvidersTests(unittest.TestCase):

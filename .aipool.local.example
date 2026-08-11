@@ -9,3 +9,6 @@ AIPOOL_PORT=8765
 AIPOOL_TOKEN=
 AIPOOL_DB=.aipool-data/aipool.sqlite
 AIPOOL_ARTIFACT_ROOT=.aipool-artifacts
+# Optional no-key browser-chat wrapper. The wrapper must read the rendered
+# prompt from stdin and write only the chatbot's text response to stdout.
+# AIPOOL_BROWSER_COMMAND=/path/to/authorized-browser-wrapper

@@ -7,9 +7,12 @@ obtaining compute by defeating a provider's controls.
 
 An adapter may target a local model, a public API, a paid or free tier used by
 its account owner, an OpenAI-compatible service with documented access, or a
-user-authorized interface whose Terms of Service explicitly permit the intended
-automation. The operator must retain whatever authorization the provider
-requires.
+user-reviewed interface whose Terms of Service do not explicitly prohibit the
+intended external use. This includes a no-key public chat UI when its rules do
+not prohibit the intended interaction; a page being publicly viewable is not,
+by itself, a determination that every use is lawful or risk-free. The operator
+must retain whatever authorization the provider requires and is responsible for
+the legal interpretation of the terms.
 
 ## Prohibited implementation goals
 
