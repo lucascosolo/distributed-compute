@@ -107,7 +107,10 @@ def _baseline_command(command: tuple[str, ...], timeout: float):
 
 def _build_registry(args: argparse.Namespace, store: Store | None = None) -> ProviderRegistry:
     registry = ProviderRegistry()
-    artifact_store = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts"))
+    artifact_root = os.environ.get("AIPOOL_ARTIFACT_ROOT")
+    if not artifact_root and os.environ.get("AIPOOL_CONFIG_FILE"):
+        artifact_root = str(Path(os.environ["AIPOOL_CONFIG_FILE"]).expanduser().parent / "artifacts")
+    artifact_store = ArtifactStore(artifact_root or ".aipool-artifacts")
     fixture_output = os.environ.get("AIPOOL_FIXTURE_OUTPUT")
     if fixture_output is not None:
         profile = ProviderProfile(

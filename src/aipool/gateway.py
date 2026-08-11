@@ -80,7 +80,10 @@ def make_server(
         raise ValueError("a token is required for non-loopback gateway binding")
 
     task_queue = queue or TaskQueue(coordinator.store, max_pending=max_pending)
-    artifact_store = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts"))
+    artifact_root = os.environ.get("AIPOOL_ARTIFACT_ROOT")
+    if not artifact_root and os.environ.get("AIPOOL_CONFIG_FILE"):
+        artifact_root = str(Path(os.environ["AIPOOL_CONFIG_FILE"]).expanduser().parent / "artifacts")
+    artifact_store = ArtifactStore(artifact_root or ".aipool-artifacts")
     operator_config = Path(config_path or os.environ.get("AIPOOL_CONFIG_FILE", ".aipool.local")).expanduser()
     catalog = load_catalog()
     catalog_keys = frozenset(key for provider in catalog for key in _provider_config_keys(provider))
