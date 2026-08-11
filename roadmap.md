@@ -256,8 +256,8 @@ The checked-in `providers/candidate-catalog.json` is an operator-supplied seed
 catalog only. It is intentionally not a default active provider list; that list
 will be generated after the bounded external test run.
 
-TokenRouter is currently included as a model-family candidate using the operator-
-supplied `https://api.tokenrouter.com/v1` endpoint. Its model IDs are provisional
+TokenRouter is currently included as a model-family candidate using the official
+`https://api.tokenrouter.io/v1` endpoint. Its model IDs are provisional
 metadata: live `/models` discovery and an explicit smoke test must supersede stale
 catalog values. Inference.net was removed after its login path was not usable for
 this deployment.
@@ -305,6 +305,20 @@ and explicitly promote a candidate to `HEALTHY`.
 The candidate-aware command adapter is the initial known-transport path for
 authorized external wrappers; `candidate benchmark` records evidence,
 but approval and routing configuration remain separate actions.
+
+### Chunk 5.4c: Evaluate existing open-source gateways
+
+Evaluate projects such as [OmniRoute](https://github.com/diegosouzapw/OmniRoute)
+as possible provider-discovery sources or compatible upstream gateways. Treat
+them as infrastructure candidates, not automatically trusted providers: inspect
+license, security model, routing behavior, free-tier claims, context handling,
+and whether the project preserves our capability, quota, cost, and human-approval
+invariants. Prefer reusing a proven gateway only when it reduces total complexity
+without hiding provider usage or silently falling back to paid routes.
+
+**Exit gate:** a bounded review records whether the gateway is (a) useful as a
+catalog/source adapter, (b) useful as an optional upstream transport, or (c) not
+worth integrating; no gateway is activated without operator approval.
 
 
 ### Chunk 5.4a: Free-LLM directory ingestion

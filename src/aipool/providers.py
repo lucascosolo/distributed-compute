@@ -414,16 +414,23 @@ class OpenAICompatibleAdapter:
     static_api_key: str = ""
     headers_extra: Mapping[str, str] = field(default_factory=dict)
     allow_anonymous: bool = False
+    artifacts: ArtifactStore | None = None
+    max_prompt_chars: int = 12_000
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         started = time.monotonic()
         api_key = self.static_api_key or os.environ.get(self.api_key_env)
         if not api_key and not self.allow_anonymous:
             return _failure(self.profile.id, ProviderErrorKind.AUTH, "configured API key is unavailable", 0)
+        content = (
+            ContextPacket.from_task(task, self.artifacts, max_chars=self.max_prompt_chars).render()
+            if self.artifacts is not None
+            else json.dumps(task.to_dict(), separators=(",", ":"))
+        )
         body = json.dumps(
             {
                 "model": self.model,
-                "messages": [{"role": "user", "content": json.dumps(task.to_dict(), separators=(",", ":"))}],
+                "messages": [{"role": "user", "content": content}],
             }
         ).encode()
         headers = {"Content-Type": "application/json"}
@@ -640,6 +647,7 @@ class HuggingFaceInferenceAdapter:
     endpoint: str = "https://router.huggingface.co/v1/chat/completions"
     timeout_seconds: float = 30.0
     opener: Callable[..., object] = request.urlopen
+    artifacts: ArtifactStore | None = None
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
         return OpenAICompatibleAdapter(
@@ -649,6 +657,7 @@ class HuggingFaceInferenceAdapter:
             self.api_key_env,
             timeout_seconds=self.timeout_seconds,
             opener=self.opener,
+            artifacts=self.artifacts,
         ).complete(task)
 
 

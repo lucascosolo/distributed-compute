@@ -237,6 +237,31 @@ class ProvidersTests(unittest.TestCase):
         self.assertEqual(result.output, "local")
         self.assertEqual(requests[0].get_header("Authorization"), "Bearer ollama")
 
+    def test_openai_adapter_sends_reconstructed_artifact_context(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = ArtifactStore(Path(directory))
+            reference = artifacts.put(b"context for the API model")
+            requests = []
+
+            class Response:
+                def __enter__(self): return self
+                def __exit__(self, *args): return False
+                def read(self):
+                    return json.dumps({"choices": [{"message": {"content": "ok"}}]}).encode()
+
+            def opener(req, timeout):
+                requests.append(json.loads(req.data))
+                return Response()
+
+            adapter = OpenAICompatibleAdapter(
+                ProviderProfile("api-context", "API", "openai", state=ProviderState.HEALTHY),
+                "https://example.test/v1/chat/completions", "model", "",
+                static_api_key="local", opener=opener, artifacts=artifacts,
+            )
+            result = adapter.complete(TaskEnvelope(task="summarization", input_ref=reference))
+            self.assertTrue(result.success)
+            self.assertIn("context for the API model", requests[0]["messages"][0]["content"])
+
     def test_huggingface_adapter_uses_router_and_hf_token(self) -> None:
         class Response:
             def __enter__(self):

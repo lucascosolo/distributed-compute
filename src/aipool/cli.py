@@ -148,7 +148,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             capabilities={"classification": 0.8, "structured_json": 0.8, "extraction": 0.8, "summarization": 0.8, "coding": 0.7, "instruction_following": 0.8},
             reliability=0.5, state=ProviderState.HEALTHY, max_complexity=4,
         )
-        registry.register(OpenAICompatibleAdapter(profile, endpoint, os.environ["AIPOOL_OPENAI_MODEL"], "AIPOOL_OPENAI_API_KEY"))
+        registry.register(OpenAICompatibleAdapter(profile, endpoint, os.environ["AIPOOL_OPENAI_MODEL"], "AIPOOL_OPENAI_API_KEY", artifacts=artifact_store))
     hf_model = os.environ.get("AIPOOL_HF_MODEL")
     if hf_model:
         profile = ProviderProfile(
@@ -160,7 +160,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
         registry.register(HuggingFaceInferenceAdapter(
             profile, hf_model, endpoint=os.environ.get(
                 "AIPOOL_HF_ENDPOINT", "https://router.huggingface.co/v1/chat/completions"
-            ),
+            ), artifacts=artifact_store,
         ))
     ollama_model = os.environ.get("AIPOOL_OLLAMA_MODEL")
     if ollama_model:
@@ -181,6 +181,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             ),
             os.environ.get("AIPOOL_OLLAMA_ENDPOINT", "http://127.0.0.1:11434/v1/chat/completions"),
             ollama_model, "", static_api_key="ollama",
+            artifacts=artifact_store,
         ))
     for catalog_provider in load_catalog():
         provider_prefix = config_prefix(catalog_provider)
@@ -227,6 +228,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             registry.register(OpenAICompatibleAdapter(
                 profile, endpoint, model, api_key_env,
                 headers_extra=headers_extra, allow_anonymous=catalog_provider.api_key_optional,
+                artifacts=artifact_store,
             ))
         elif catalog_provider.transport == "cloudflare-workers-ai":
             registry.register(CloudflareWorkersAIAdapter(

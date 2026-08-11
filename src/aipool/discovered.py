@@ -6,6 +6,7 @@ import json
 from collections.abc import Mapping
 
 from .domain import ProviderProfile, ProviderState
+from .artifacts import ArtifactStore
 from .providers import HuggingFaceInferenceAdapter, OpenAICompatibleAdapter, ProviderAdapter
 
 
@@ -17,6 +18,7 @@ def build_discovered_adapter(
     token_limit: int = 0,
     usage_window_seconds: float = 60.0,
     state: ProviderState = ProviderState.QUARANTINED,
+    artifacts: ArtifactStore | None = None,
 ) -> ProviderAdapter:
     """Create a quarantined adapter for one bounded smoke test.
 
@@ -43,9 +45,9 @@ def build_discovered_adapter(
         usage_window_seconds=usage_window_seconds,
     )
     if transport == "huggingface-api":
-        return HuggingFaceInferenceAdapter(profile, model_id, api_key_env, endpoint)
+        return HuggingFaceInferenceAdapter(profile, model_id, api_key_env, endpoint, artifacts=artifacts)
     if transport == "openai-compatible":
         if not endpoint.rstrip("/").endswith("/chat/completions"):
             endpoint = endpoint.rstrip("/") + "/chat/completions"
-        return OpenAICompatibleAdapter(profile, endpoint, model_id, api_key_env)
+        return OpenAICompatibleAdapter(profile, endpoint, model_id, api_key_env, artifacts=artifacts)
     raise ValueError("discovered transport does not support API smoke tests")
