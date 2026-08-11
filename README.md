@@ -251,6 +251,21 @@ remote bindings, never displays existing secret values, writes the gitignored
 `.aipool.local` file with mode `0600`, and requires a coordinator restart before
 changes take effect.
 
+### Minimal Discord controller setup
+
+For a controlled Discord testbed, create a private server and a dedicated test
+channel. In the [Discord Developer Portal](https://discord.com/developers/applications),
+create an application and bot, then install it to that server with the `bot`
+and `applications.commands` scopes. Grant only `View Channel`, `Send Messages`,
+`Read Message History`, and `Use Application Commands`; do not grant
+Administrator or `Manage Server`.
+
+Copy the application ID, server ID, channel ID, and bot token into the `/admin`
+panel. The token is stored masked in the gitignored config and must never be
+sent through chat or committed. The server should contain synthetic test data
+only. Third-party bots still require their own authorized invite/integration
+path; the controller bot does not silently install or operate them.
+
 Quarantined candidates can be tested with `aipool candidate probe`. Set
 `AIPOOL_CANDIDATE_PROBE_COMMAND` (or pass `--probe-command`) to an
 operator-owned, non-shell wrapper. It receives one candidate JSON object on

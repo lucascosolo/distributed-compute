@@ -105,6 +105,10 @@ class GatewayTests(unittest.TestCase):
                 "AIPOOL_HF_MODEL": "openai/gpt-oss-20b",
                 "AIPOOL_BROWSER_COMMAND": "/usr/local/bin/authorized-browser-wrapper",
                 "AIPOOL_COMMAND": "/usr/local/bin/authorized-discord-wrapper",
+                "AIPOOL_DISCORD_APPLICATION_ID": "123456789012345678",
+                "AIPOOL_DISCORD_GUILD_ID": "234567890123456789",
+                "AIPOOL_DISCORD_CHANNEL_ID": "345678901234567890",
+                "AIPOOL_DISCORD_BOT_TOKEN": "discord-secret",
                 "HF_TOKEN": "hf-secret",
                 "UNSAFE_SETTING": "must-not-persist",
             })
@@ -114,12 +118,16 @@ class GatewayTests(unittest.TestCase):
             self.assertIn("AIPOOL_HF_MODEL=openai/gpt-oss-20b", text)
             self.assertIn("AIPOOL_BROWSER_COMMAND=/usr/local/bin/authorized-browser-wrapper", text)
             self.assertIn("AIPOOL_COMMAND=/usr/local/bin/authorized-discord-wrapper", text)
+            self.assertIn("AIPOOL_DISCORD_APPLICATION_ID=123456789012345678", text)
+            self.assertIn("AIPOOL_DISCORD_BOT_TOKEN=discord-secret", text)
             self.assertIn("HF_TOKEN=hf-secret", text)
             self.assertNotIn("UNSAFE_SETTING", text)
             self.assertEqual(config_path.stat().st_mode & 0o777, 0o600)
             status, data = self.request("GET", "/admin/config")
             self.assertTrue(data["secrets"]["HF_TOKEN"])
+            self.assertTrue(data["secrets"]["AIPOOL_DISCORD_BOT_TOKEN"])
             self.assertNotIn("hf-secret", json.dumps(data))
+            self.assertNotIn("discord-secret", json.dumps(data))
 
     def test_queue_enqueue_status_and_cancel(self) -> None:
         task = {"task": "classification", "input_ref": "artifact:queued", "local_estimate": 1}

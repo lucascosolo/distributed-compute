@@ -70,6 +70,9 @@ or the operator's environment.
   `aipool candidate benchmark`; the candidate-aware command adapter passes
   metadata and task envelopes to an operator wrapper and persists capability
   observations without auto-activating the provider.
+- The secure panel now has Discord controller fields for application, guild,
+  channel, and masked bot-token configuration, with a least-privilege setup
+  documented for a private synthetic test server.
 - Provider registration now validates identity, adapter shape, finite limits,
   and capability scores. `aipool.discovery` keeps sourced candidates separate
   from active adapters, rejects prohibited access/evasion language, and

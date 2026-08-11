@@ -18,10 +18,14 @@ from .service import Coordinator
 MAX_BODY_BYTES = 256 * 1024
 CONFIG_KEYS = frozenset({
     "AIPOOL_HF_MODEL", "AIPOOL_HF_ENDPOINT", "AIPOOL_OPENAI_ENDPOINT",
-    "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND", "HF_TOKEN",
+    "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND",
+    "AIPOOL_DISCORD_APPLICATION_ID", "AIPOOL_DISCORD_GUILD_ID",
+    "AIPOOL_DISCORD_CHANNEL_ID", "AIPOOL_DISCORD_BOT_TOKEN", "HF_TOKEN",
     "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN",
 })
-SECRET_KEYS = frozenset({"HF_TOKEN", "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN"})
+SECRET_KEYS = frozenset({
+    "HF_TOKEN", "AIPOOL_OPENAI_API_KEY", "AIPOOL_TOKEN", "AIPOOL_DISCORD_BOT_TOKEN",
+})
 
 
 def _outcome_json(outcome) -> dict[str, object]:
@@ -160,6 +164,10 @@ def make_server(
 <label>OpenAI model <input name=AIPOOL_OPENAI_MODEL></label><br>
 <label>Authorized command worker <input name=AIPOOL_COMMAND></label><br>
 <label>Authorized browser wrapper <input name=AIPOOL_BROWSER_COMMAND></label><br>
+<label>Discord application ID <input name=AIPOOL_DISCORD_APPLICATION_ID></label><br>
+<label>Discord guild/server ID <input name=AIPOOL_DISCORD_GUILD_ID></label><br>
+<label>Discord test-channel ID <input name=AIPOOL_DISCORD_CHANNEL_ID></label><br>
+<label>Discord bot token <input name=AIPOOL_DISCORD_BOT_TOKEN type=password autocomplete=new-password></label><br>
 <label>OpenAI key <input name=AIPOOL_OPENAI_API_KEY type=password autocomplete=new-password></label><br>
 <button>Save</button></form><pre id=o></pre>
 <script>f.onsubmit=async e=>{e.preventDefault();let o={};for(let [k,v] of new FormData(f))if(v)o[k]=v;
