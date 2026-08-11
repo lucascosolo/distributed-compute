@@ -1,0 +1,21 @@
+[Unit]
+Description=Distributed AI Compute Coordinator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace these placeholders locally; do not commit the edited unit.
+User=REPLACE_WITH_OPERATOR_USER
+WorkingDirectory=REPLACE_WITH_PROJECT_ROOT
+EnvironmentFile=%h/.agents/distributed-compute.env
+ExecStart=REPLACE_WITH_PROJECT_ROOT/.venv/bin/aipool serve --db REPLACE_WITH_PROJECT_ROOT/.aipool-data/aipool.sqlite
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=REPLACE_WITH_PROJECT_ROOT/.aipool-data REPLACE_WITH_PROJECT_ROOT/.aipool-artifacts
+
+[Install]
+WantedBy=multi-user.target

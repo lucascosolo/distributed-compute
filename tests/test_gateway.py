@@ -51,6 +51,18 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(data["success"])
 
+    def test_status_and_stats_expose_authenticated_operational_metrics(self) -> None:
+        status, data = self.request("GET", "/status")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["provider_states"][0]["id"], "p")
+        self.assertEqual(data["provider_states"][0]["state"], "healthy")
+        self.assertIn("stats", data)
+        status, data = self.request("GET", "/stats")
+        self.assertEqual(status, 200)
+        self.assertIn("tasks", data)
+        status, _ = self.request("GET", "/stats", token=None)
+        self.assertEqual(status, 401)
+
     def test_non_loopback_requires_token(self) -> None:
         store = Store()
         self.addCleanup(store.close)

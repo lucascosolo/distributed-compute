@@ -47,12 +47,26 @@ def make_server(coordinator: Coordinator, *, host: str = "127.0.0.1", port: int 
         def _authorized(self) -> bool:
             return token is None or self.headers.get("Authorization") == f"Bearer {token}"
 
+        def _operational_status(self) -> dict[str, object]:
+            profiles = coordinator.health.profiles(adapter.profile for adapter in coordinator.registry.all())
+            return {
+                "providers": len(profiles),
+                "provider_states": [
+                    {"id": profile.id, "state": profile.state.value}
+                    for profile in profiles
+                ],
+                "stats": coordinator.store.stats(),
+            }
+
         def do_GET(self) -> None:  # noqa: N802
             if not self._authorized():
                 self._send(401, {"error": "unauthorized"})
                 return
             if self.path == "/status":
-                self._send(200, {"providers": len(coordinator.registry.all())})
+                self._send(200, self._operational_status())
+                return
+            if self.path in {"/stats", "/metrics"}:
+                self._send(200, coordinator.store.stats())
                 return
             self._send(404, {"error": "not_found"})
 

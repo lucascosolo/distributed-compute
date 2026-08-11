@@ -164,7 +164,8 @@ Those values must never appear in tracked files, documentation, tests, or skill
 files. The standard-library gateway and thin remote client are available now;
 service supervision, TLS termination, durable queueing, and the production VPS
 deployment workflow remain roadmap work. Do not infer a production VPS address
-or token from this repository.
+or token from this repository. A generic, placeholder-only systemd example is in
+[`deploy/aipool.service.example`](deploy/aipool.service.example).
 
 ## Responsible use and provider terms
 
