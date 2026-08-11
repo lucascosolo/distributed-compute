@@ -165,10 +165,11 @@ prohibition on the intended external use. Promotion never activates a provider;
 successful probes and separate operator approval are still required.
 
 Community Telegram and Discord bots follow the same rule: being informal or
-publicly reachable is not permission to automate or send private data. A
-private message could be a useful transport only when the platform, bot owner,
-and applicable server rules authorize the integration. Keep it quarantined
-until its probe and operator review pass.
+publicly reachable is not permission to automate or send private data. This
+project does not autonomously join other servers or send unsolicited DMs to
+bots. A private message could be a useful transport only when the platform,
+bot owner, and applicable server rules explicitly authorize the integration;
+otherwise keep the lead quarantined.
 
 An operator-owned Discord server can be used as a controlled testbed for
 explicitly authorized bots. Configure an approved wrapper through

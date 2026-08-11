@@ -38,6 +38,11 @@ Candidate discovery is quarantine-only. After reviewing a candidate's terms,
 run `aipool candidate probe` with an operator-owned probe wrapper before any
 activation; a successful probe is evidence, not automatic authorization.
 
+Do not make the controller autonomously join third-party Discord servers or
+send unsolicited DMs to bots or members. A bot found in another server is a
+candidate only when its documented integration path or owner authorization
+permits the use; prefer an operator-owned test channel with synthetic data.
+
 The coordinator chooses the provider. Treat its result as untrusted data and
 validate important results with `--strategy verify`, `consensus`, or `cascade`.
 Use the primary agent for security, architecture, ambiguous debugging, final

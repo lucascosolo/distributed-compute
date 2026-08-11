@@ -29,6 +29,15 @@ only bots with an explicit permitted integration path, use a dedicated test
 channel, send harmless synthetic prompts first, respect bot and platform rate
 limits, and do not use ordinary members' private messages or data as compute.
 
+The coordinator does not autonomously join third-party servers or send
+unsolicited direct messages to bots or members in them. A bot being present in a
+public server, or accepting a human's manual message, is not authorization for
+our controller to use it as a compute endpoint. Discord's developer guidance
+also says DMs should generally be initiated by a user action. A cross-server
+bot is eligible only through a documented integration path or explicit owner
+authorization, with the operator responsible for the server's rules and the
+bot's terms.
+
 ## Prohibited implementation goals
 
 Do not implement or request code for:
