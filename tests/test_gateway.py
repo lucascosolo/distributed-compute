@@ -95,6 +95,17 @@ class GatewayTests(unittest.TestCase):
         status, _ = self.request("GET", "/stats", token=None)
         self.assertEqual(status, 401)
 
+    def test_admin_readiness_is_redacted_and_does_not_probe_providers(self) -> None:
+        status, data = self.request("GET", "/admin/readiness")
+        self.assertEqual(status, 200)
+        self.assertGreater(data["summary"]["total"], 0)
+        self.assertEqual(len(data["providers"]), data["summary"]["total"])
+        row = data["providers"][0]
+        self.assertIn(row["state"], {"not_loaded", "healthy", "quarantined"})
+        self.assertTrue(row["smoke_test_requires_approval"])
+        self.assertIn("blocked_reasons", row)
+        self.assertNotIn("secret", json.dumps(data))
+
     def test_admin_panel_is_authenticated_and_does_not_echo_secret_values(self) -> None:
         status, _, _ = self.raw_request("GET", "/admin", token=None)
         self.assertEqual(status, 401)

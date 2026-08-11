@@ -8,9 +8,9 @@ or the operator's environment.
 ## Current checkpoint
 
 - Branch: `main`
-- Last pushed commit: `bd87d43`
-- Working tree at the last checkpoint: clean
-- Verification for this chunk: `148 tests passed` with
+- Last pushed commit: `d33eace` (provider catalog/readiness changes are pending)
+- Working tree at the last checkpoint: uncommitted provider catalog/readiness changes
+- Verification for this chunk: gateway tests passed (`17 tests`) with
   `PYTHONPATH=src python3 -m unittest discover -s tests -q`
 - No VPS deployment has been performed.
 
@@ -38,6 +38,12 @@ or the operator's environment.
 - Provider usage windows now support configured request/token limits with
   persistent SQLite accounting. Exhausted providers enter `RATE_LIMITED` hold
   until the window ends; HTTP 429 `Retry-After` values extend health backoff.
+- Added BazaarLink's OpenAI-compatible free-tier candidates (`auto:free`,
+  DeepSeek V4 Flash, and Qwen3.7 Flash) plus a Coze discovery lead. These remain
+  quarantined; BazaarLink's documented free tier is limited and may continue at
+  paid rates after quota, so no smoke test is automatic.
+- Added authenticated `/admin/readiness`, a redacted no-network report of key
+  presence, enabled/loaded state, health holds, and shared quota-window usage.
 - Operator queue commands now support local and authenticated remote
   `submit`, `status`, and `cancel` operations. The supervised worker records a
   bounded failure outcome when a coordinator invocation raises, and exits

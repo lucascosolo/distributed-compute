@@ -19,6 +19,7 @@ from .model_discovery import classify_model, discover_models
 from .provider_catalog import CatalogProvider, config_prefix, load_catalog, model_config_prefix
 from .queue import QueueFull, TaskQueue, record_to_dict
 from .service import Coordinator
+from .usage import UsageManager
 
 
 MAX_BODY_BYTES = 256 * 1024
@@ -131,8 +132,62 @@ def make_server(
                 for row in coordinator.store.discovered_model_rows()
             ],
             "config_path": str(operator_config),
-            "restart_required": True,
+            "restart_required": reload_callback is None,
         }
+
+    def readiness_snapshot() -> dict[str, object]:
+        """Return a redacted, no-network report for operator approval decisions."""
+        now = time.time()
+        configured = {str(row["slug"]): row for row in config_snapshot()["providers"]}
+        effective = coordinator.health.profiles(adapter.profile for adapter in coordinator.registry.all())
+        by_id = {profile.id: profile for profile in effective}
+        rows: list[dict[str, object]] = []
+        for provider in catalog:
+            card = configured[provider.slug]
+            key_present = bool(card["has_api_key"])
+            enabled = bool(card["enabled"])
+            profile = by_id.get(f"catalog:{provider.slug}")
+            request_limit = int(str(card["request_limit"] or 0))
+            token_limit = int(str(card["token_limit"] or 0))
+            window_seconds = float(str(card["usage_window_seconds"] or 60))
+            if profile is not None:
+                _, window_end = UsageManager.window(profile, now)
+                requests, tokens = coordinator.store.usage(profile.quota_group, window_start)
+                state = profile.state.value
+                next_probe_at = coordinator.store.health(profile.id)
+                next_probe = float(next_probe_at["next_probe_at"]) if next_probe_at else 0.0
+            else:
+                window_end = (now // window_seconds + 1) * window_seconds
+                requests, tokens, state, next_probe = 0, 0, "not_loaded", 0.0
+            reasons = []
+            if not key_present:
+                reasons.append("missing_api_key")
+            if not enabled:
+                reasons.append("disabled")
+            if profile is None and key_present and enabled:
+                reasons.append("not_loaded")
+            if state in {"rate_limited", "auth_required", "broken", "degraded"}:
+                reasons.append(state)
+            rows.append({
+                "slug": provider.slug,
+                "provider_slug": provider.provider_slug,
+                "name": provider.name,
+                "power": provider.power,
+                "key_present": key_present,
+                "enabled": enabled,
+                "loaded": profile is not None,
+                "state": state,
+                "request_limit": request_limit,
+                "requests_used": requests,
+                "token_limit": token_limit,
+                "tokens_used": tokens,
+                "window_ends_at": window_end,
+                "next_probe_at": next_probe,
+                "smoke_test_requires_approval": True,
+                "blocked_reasons": reasons,
+            })
+        counts = {state: sum(1 for row in rows if row["state"] == state) for state in sorted({str(row["state"]) for row in rows})}
+        return {"generated_at": now, "providers": rows, "summary": {"total": len(rows), "states": counts}}
 
     def save_config(updates: dict[str, str]) -> None:
         operator_config.parent.mkdir(parents=True, exist_ok=True)
@@ -228,6 +283,9 @@ def make_server(
                 return
             if self.path == "/admin/config":
                 self._send(200, config_snapshot())
+                return
+            if self.path == "/admin/readiness":
+                self._send(200, readiness_snapshot())
                 return
             parsed_path = urlsplit(self.path)
             if parsed_path.path == "/admin/discover-models":

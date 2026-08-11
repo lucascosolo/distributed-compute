@@ -340,6 +340,11 @@ token limits, and window duration. Model cards in one family share the same
 persistent usage bucket, so selecting a different model cannot evade the
 provider's configured free allowance.
 
+The console's authenticated `/admin/readiness` report is the preflight review
+surface for smoke testing. It makes no provider calls; it shows key presence,
+enabled/loaded state, health holds, and the current shared quota window so the
+operator can choose a bounded test batch with known exposure.
+
 For large work split into independent scopes, rotate eligible provider families so
 different model biases contribute without provider-to-provider back-and-forth. If
 independent opinions are explicitly requested, use a bounded batch of at most
