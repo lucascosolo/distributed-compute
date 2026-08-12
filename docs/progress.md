@@ -567,3 +567,19 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   loaded, and 41 quarantined catalog entries. Quarantine decreased because
   the eligible models were actually tested; it is still intentional for
   unverified candidates.
+
+## 2026-08-12 — remaining verified quarantine sweep
+
+- Ran the remaining 40 verified, configured, quarantine-state catalog models
+  with one bounded case each. New successful models included HF Qwen3-8B,
+  Gemini 3.5 Flash, OpenRouter Nemotron Ultra, NVIDIA GPT-OSS 20B, NVIDIA
+  Nemotron Nano 30B, and Ollama Cloud Nemotron Nano.
+- The other tested entries moved into explicit auth-required, degraded,
+  rate-limited, or unusable-result states. The only catalog entry still in
+  quarantine is TokenRouter, whose official endpoint/access contract remains
+  unresolved; it was not force-enabled.
+- Current dashboard state is 11 healthy, 20 degraded, 26 auth-required, 4 not
+  loaded, and 1 quarantined. This is the intended result of unblocking every
+  candidate that had enough evidence to test without bypassing authentication,
+  quota holds, missing Cloudflare account metadata, disabled account tiers, or
+  pending provider-contract review.
