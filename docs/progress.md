@@ -592,3 +592,15 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   compute saved. It did not use native fallback.
 - This confirms the coordinator continues to choose a healthy direct provider
   instead of forcing the degraded OmniRoute aggregate route.
+
+## 2026-08-12 — systemwide skill integration verified
+
+- The repository skill and installed `~/.agents/skills/distributed-compute/SKILL.md`
+  are byte-for-byte identical. The skill documents remote mode, the Cloudflare
+  Access handshake variable names, Claude/Codex origin separation, native
+  fallback behavior, bounded delegation, and provider-output safety rules.
+- Both `~/.claude/distributed-compute.env` and
+  `~/.codex/distributed-compute.env` are operator-local, mode-600 configurations
+  with the correct distinct origins and populated handshake credentials.
+- Both Claude and Codex launcher contexts reach the remote coordinator status
+  endpoint successfully; the live HTTPS status check returned HTTP 200.
