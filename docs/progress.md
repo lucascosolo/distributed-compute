@@ -552,3 +552,18 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   HTTP 403 from its Cloudflare protection and OmniRoute placed it on a
   temporary hold. Neither should be routed until the operator confirms a
   permitted access path or replaces the model/key; no bypass was attempted.
+
+## 2026-08-12 — complete eligible catalog smoke
+
+- After fixing the batch endpoint to honor `cases=1`, the full current
+  aipool smoke plan ran 13 eligible catalog models with exactly one case each.
+- Passed 1/1: Cohere Command A+, Kilo free Nemotron, Ollama Cloud GPT-OSS,
+  OpenRouter free Nemotron.
+- Failed or unusable: Aion, Cerebras, Groq (authentication); Hugging Face,
+  Mistral, NVIDIA, BazaarLink, and Google AI Studio (invalid/unusable output
+  or provider response); Z.AI (rate limited). These remain out of reliable
+  routing until repaired or re-tested after quota reset.
+- The dashboard now reports 5 healthy, 5 degraded, 7 auth-required, 4 not
+  loaded, and 41 quarantined catalog entries. Quarantine decreased because
+  the eligible models were actually tested; it is still intentional for
+  unverified candidates.
