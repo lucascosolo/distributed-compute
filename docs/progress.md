@@ -583,3 +583,12 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   candidate that had enough evidence to test without bypassing authentication,
   quota holds, missing Cloudflare account metadata, disabled account tiers, or
   pending provider-contract review.
+
+## 2026-08-12 — live coordinator check after sweep
+
+- A normal production-path classification task succeeded after the sweep:
+  aipool selected direct Hugging Face, returned valid JSON, used 464 worker
+  tokens, and reported 0.08 orchestration cost versus 0.92 estimated delegated
+  compute saved. It did not use native fallback.
+- This confirms the coordinator continues to choose a healthy direct provider
+  instead of forcing the degraded OmniRoute aggregate route.
