@@ -540,3 +540,15 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
 - Created a mode-600 SQLite backup on the VPS before deletion. OmniRoute was
   restarted with its configured environment file, is healthy, and its
   authenticated `/v1/models` endpoint returns 184 current models.
+
+## 2026-08-12 — post-cleanup provider smoke
+
+- The dashboard added more providers during the run; the four selected for the
+  bounded suite were Agnes, AINative, Aion, and API Airforce.
+- Agnes (`agnes-2.0-flash`) and AINative (`qwen3-14b`) returned HTTP 200 and
+  usable bounded Python output.
+- Aion (`aion-3.0-mini`) returned HTTP 403: its site blocked the VPS request
+  and OmniRoute also recorded the model as forbidden. API Airforce returned
+  HTTP 403 from its Cloudflare protection and OmniRoute placed it on a
+  temporary hold. Neither should be routed until the operator confirms a
+  permitted access path or replaces the model/key; no bypass was attempted.
