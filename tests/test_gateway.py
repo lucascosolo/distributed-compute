@@ -393,11 +393,15 @@ class GatewayTests(unittest.TestCase):
             "catalog:" + provider.slug: BenchmarkResult("catalog:" + provider.slug, {"classification": 1.0}, 1, 1),
         }) as benchmark:
             status, data = self.request("POST", "/admin/provider/smoke-batch", {
-                "operator_approved": True, "slugs": [provider.slug],
+                "operator_approved": True, "slugs": [provider.slug], "cases": 1,
             })
         self.assertEqual(status, 200)
         self.assertTrue(data["sequential"])
-        benchmark.assert_called_once_with(("catalog:" + provider.slug,))
+        benchmark.assert_called_once()
+        called_ids = benchmark.call_args.args[0]
+        called_cases = benchmark.call_args.kwargs["cases"]
+        self.assertEqual(called_ids, ("catalog:" + provider.slug,))
+        self.assertEqual(len(called_cases), 1)
 
     def test_admin_model_discovery_is_protected_and_redacted(self) -> None:
         status, config = self.request("GET", "/admin/config")

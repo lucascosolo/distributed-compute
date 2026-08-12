@@ -15,7 +15,7 @@ from html import escape
 
 from .domain import TaskEnvelope
 from .artifacts import ArtifactStore
-from .benchmark import run_benchmark
+from .benchmark import default_cases, run_benchmark
 from .discovered import build_discovered_adapter
 from .model_discovery import classify_model, discover_models
 from .provider_catalog import CatalogProvider, config_prefix, load_catalog, model_config_prefix, provider_config_name
@@ -30,6 +30,8 @@ CONFIG_KEYS = frozenset({
     "AIPOOL_HF_MODEL", "AIPOOL_HF_ENDPOINT", "AIPOOL_OPENAI_ENDPOINT",
     "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND",
     "AIPOOL_OMNIROUTE_ENABLED", "AIPOOL_OMNIROUTE_ENDPOINT", "AIPOOL_OMNIROUTE_MODEL",
+    "AIPOOL_OMNIROUTE_MODEL_CODING", "AIPOOL_OMNIROUTE_MODEL_CODE_REVIEW",
+    "AIPOOL_OMNIROUTE_MODEL_REASONING",
     "AIPOOL_OMNIROUTE_POWER", "AIPOOL_OMNIROUTE_API_KEY_FILE",
     "AIPOOL_OMNIROUTE_REQUEST_LIMIT", "AIPOOL_OMNIROUTE_TOKEN_LIMIT",
     "AIPOOL_OMNIROUTE_USAGE_WINDOW_SECONDS",
@@ -687,6 +689,9 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                         raise ValueError("smoke batch must contain 1 to 12 model slugs")
                     if len(set(slugs)) != len(slugs):
                         raise ValueError("smoke batch slugs must be unique")
+                    cases = payload.get("cases", 3)
+                    if not isinstance(cases, int) or isinstance(cases, bool) or not 1 <= cases <= 3:
+                        raise ValueError("smoke batch cases must be between 1 and 3")
                     readiness = {str(row["slug"]): row for row in readiness_snapshot()["providers"]}
                     providers = []
                     for slug in slugs:
@@ -697,10 +702,10 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                             raise RuntimeError(f"provider_not_ready: {slug} ({row['state']})")
                         if row["preflight_status"] != "verified":
                             raise RuntimeError(f"provider_preflight_pending: {slug}")
-                        if row["request_limit"] and row["requests_used"] + 3 > row["request_limit"]:
+                        if row["request_limit"] and row["requests_used"] + cases > row["request_limit"]:
                             raise RuntimeError(f"request_quota_headroom_insufficient: {slug}")
                         providers.append(f"catalog:{slug}")
-                    results = coordinator.benchmark_providers(tuple(providers))
+                    results = coordinator.benchmark_providers(tuple(providers), cases=default_cases()[:cases])
                 except LookupError as exc:
                     self._send(404, {"error": str(exc)})
                     return
