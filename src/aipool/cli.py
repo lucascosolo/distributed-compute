@@ -21,6 +21,7 @@ from .context import ContextPacket
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
 from .discovered import build_discovered_adapter
+from .model_discovery import classify_model
 from .domain import ProviderProfile, ProviderState, TaskEnvelope
 from .gateway import make_server
 from .queue import QueueFull, TaskQueue, record_to_dict
@@ -214,6 +215,35 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             },
             artifacts=artifact_store,
         ))
+        selected_models = tuple(dict.fromkeys(
+            model.strip() for model in os.environ.get("AIPOOL_OMNIROUTE_MODELS", "").split(",")
+            if model.strip() and model.strip() != omniroute_model
+        ))
+        for selected_model in selected_models:
+            metadata = classify_model(selected_model)
+            selected_power = str(metadata["power"])
+            selected_complexity = 1 if selected_power == "light" else 2 if selected_power == "medium" else 3 if selected_power == "strong" else 4
+            selected_capabilities = {
+                "classification": 0.6, "structured_json": 0.6,
+                "extraction": 0.6, "summarization": 0.6,
+            }
+            for capability in metadata["capabilities"]:
+                selected_capabilities[str(capability)] = 0.7
+            selected_profile = ProviderProfile(
+                f"omniroute:{selected_model}", f"OmniRoute · {selected_model}", "omniroute",
+                capabilities=selected_capabilities, reliability=0.3,
+                state=ProviderState.QUARANTINED, max_complexity=selected_complexity,
+                quota_weight=float(metadata["quota_weight"]),
+                request_limit=_nonnegative_int(os.environ.get("AIPOOL_OMNIROUTE_REQUEST_LIMIT")),
+                token_limit=_nonnegative_int(os.environ.get("AIPOOL_OMNIROUTE_TOKEN_LIMIT")),
+                usage_window_seconds=_positive_float(os.environ.get("AIPOOL_OMNIROUTE_USAGE_WINDOW_SECONDS"), 60.0),
+                quota_group="omniroute",
+            )
+            registry.register(OpenAICompatibleAdapter(
+                selected_profile, endpoint, selected_model, "AIPOOL_OMNIROUTE_API_KEY",
+                api_key_file=os.environ.get("AIPOOL_OMNIROUTE_API_KEY_FILE", ""),
+                artifacts=artifact_store,
+            ))
     hf_model = os.environ.get("AIPOOL_HF_MODEL")
     if hf_model:
         profile = ProviderProfile(

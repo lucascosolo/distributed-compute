@@ -438,6 +438,20 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual({row["model_id"] for row in snapshot["discovered_models"]}, {"model-a", "model-b"})
 
+    def test_omniroute_model_scan_is_bounded_and_redacted(self) -> None:
+        from aipool.model_discovery import ModelDiscovery
+        with patch.dict(os.environ, {
+            "AIPOOL_OMNIROUTE_ENDPOINT": "http://127.0.0.1:20128/v1",
+            "AIPOOL_OMNIROUTE_API_KEY": "secret",
+            "AIPOOL_OMNIROUTE_MODELS": "auto/best-free",
+        }, clear=False), patch("aipool.gateway.discover_models") as discover:
+            discover.return_value = ModelDiscovery(True, ("auto/best-free", "groq/openai/gpt-oss-120b"), "http://127.0.0.1:20128/v1/models")
+            status, data = self.request("GET", "/admin/omniroute/models")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["count"], 2)
+        self.assertTrue(data["models"][0]["selected"])
+        self.assertNotIn("secret", json.dumps(data))
+
     def test_discovered_model_review_is_explicit_and_persisted(self) -> None:
         status, config = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)

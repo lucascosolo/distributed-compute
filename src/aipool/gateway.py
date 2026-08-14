@@ -30,6 +30,7 @@ CONFIG_KEYS = frozenset({
     "AIPOOL_HF_MODEL", "AIPOOL_HF_ENDPOINT", "AIPOOL_OPENAI_ENDPOINT",
     "AIPOOL_OPENAI_MODEL", "AIPOOL_COMMAND", "AIPOOL_BROWSER_COMMAND",
     "AIPOOL_OMNIROUTE_ENABLED", "AIPOOL_OMNIROUTE_ENDPOINT", "AIPOOL_OMNIROUTE_MODEL",
+    "AIPOOL_OMNIROUTE_MODELS",
     "AIPOOL_OMNIROUTE_MODEL_CODING", "AIPOOL_OMNIROUTE_MODEL_CODE_REVIEW",
     "AIPOOL_OMNIROUTE_MODEL_REASONING",
     "AIPOOL_OMNIROUTE_POWER", "AIPOOL_OMNIROUTE_API_KEY_FILE",
@@ -159,6 +160,10 @@ def make_server(
             "settings": {
                 key: value(key) for key in sorted(CONFIG_KEYS - SECRET_KEYS)
             },
+            "omniroute": {
+                "selected_models": [item for item in value("AIPOOL_OMNIROUTE_MODELS").split(",") if item.strip()],
+                "enabled": value("AIPOOL_OMNIROUTE_ENABLED").casefold() in {"1", "true", "yes", "on"},
+            },
             "secrets": {key: bool(os.environ.get(key) or file_values.get(key)) for key in sorted(secret_keys)},
             "providers": providers,
             "discovered_models": [
@@ -178,6 +183,17 @@ def make_server(
             "config_path": str(operator_config),
             "restart_required": reload_callback is None,
         }
+
+    def omniroute_credentials() -> tuple[str, str]:
+        endpoint = os.environ.get("AIPOOL_OMNIROUTE_ENDPOINT", "")
+        api_key = os.environ.get("AIPOOL_OMNIROUTE_API_KEY", "")
+        key_file = os.environ.get("AIPOOL_OMNIROUTE_API_KEY_FILE", "")
+        if not api_key and key_file:
+            try:
+                api_key = Path(key_file).read_text(encoding="utf-8").strip()
+            except OSError:
+                api_key = ""
+        return endpoint, api_key
 
     def readiness_snapshot() -> dict[str, object]:
         """Return a redacted, no-network report for operator approval decisions."""
@@ -427,6 +443,40 @@ def make_server(
             if self.path == "/admin/readiness":
                 self._send(200, readiness_snapshot())
                 return
+            if self.path == "/admin/omniroute/models":
+                endpoint, api_key = omniroute_credentials()
+                if not endpoint:
+                    self._send(409, {"error": "omniroute_endpoint_not_configured"})
+                    return
+                result = discover_models(endpoint, api_key)
+                selected = set(config_snapshot()["omniroute"]["selected_models"])
+                self._send(200, {
+                    "success": result.success,
+                    "endpoint": result.endpoint,
+                    "error": result.error,
+                    "models": [
+                        {**classify_model(model), "selected": model in selected}
+                        for model in result.models
+                    ],
+                    "count": len(result.models),
+                })
+                return
+            if self.path == "/admin/omniroute/readiness":
+                profiles = coordinator.health.profiles(
+                    adapter.profile for adapter in coordinator.registry.all()
+                    if adapter.profile.transport == "omniroute"
+                )
+                self._send(200, {
+                    "models": [
+                        {
+                            "provider_id": profile.id, "model": profile.id.removeprefix("omniroute:"),
+                            "name": profile.name, "state": profile.state.value,
+                            "last_benchmark": coordinator.store.latest_benchmark(profile.id),
+                        }
+                        for profile in profiles
+                    ],
+                })
+                return
             parsed_path = urlsplit(self.path)
             if parsed_path.path == "/admin/provider/smoke-batch-plan":
                 try:
@@ -465,7 +515,7 @@ def make_server(
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>aipool / provider console</title><style>
 :root{color-scheme:dark;--bg:#101414;--panel:#182020;--panel2:#202b2a;--ink:#e9f0e9;--muted:#9eafaa;--line:#33423f;--accent:#c5f36b;--warn:#ffcf70;--bad:#ff8f86}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% -10%,#2d463a 0,#101414 42%);color:var(--ink);font:16px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}main{max-width:1120px;margin:0 auto;padding:52px 24px 80px}header{display:flex;justify-content:space-between;gap:24px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:28px;margin-bottom:30px}h1{font:800 clamp(2rem,5vw,4.5rem)/.95 Georgia,serif;letter-spacing:-.06em;margin:0;max-width:650px}h1 span{color:var(--accent)}h2{font-size:1rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin:34px 0 14px}.lede{color:var(--muted);max-width:720px}.signal{color:var(--warn);font-size:.8rem;text-align:right}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px}.card{background:linear-gradient(145deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 12px 32px #0003}.card header{border:0;padding:0;margin:0 0 16px;align-items:start}.card h3{margin:0;font-size:1rem}.tag{display:inline-block;border:1px solid #536558;border-radius:99px;color:var(--accent);font-size:.7rem;padding:2px 8px;margin-top:5px}.meta{color:var(--muted);font-size:.75rem;margin:10px 0 16px}.meta a{color:var(--accent)}label{display:block;color:var(--muted);font-size:.75rem;margin:12px 0 5px}input{width:100%;background:#0d1212;border:1px solid var(--line);border-radius:7px;color:var(--ink);padding:10px;font:inherit;font-size:.85rem}input:focus,button:focus{outline:2px solid var(--accent);outline-offset:2px}.toggle{display:flex;gap:9px;align-items:center;color:var(--ink)}.toggle input{width:auto;accent-color:var(--accent)}button{border:0;border-radius:8px;background:var(--accent);color:#111a13;padding:12px 18px;font:800 .85rem ui-monospace;cursor:pointer}.actions{display:flex;align-items:center;gap:16px;margin-top:24px}.status{color:var(--muted);font-size:.8rem}.advanced{background:#0d1212;border:1px solid var(--line);padding:18px;border-radius:12px}.advanced .grid{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}small{color:var(--muted)}.family-card{grid-column:1/-1}.family-card.configured{border-color:#607f4b}.family-card .family-header{border:0;padding:0;margin:0 0 10px;align-items:start}.family-card .family-header h3{font-size:1.1rem}.family-card .family-actions{display:flex;align-items:center;gap:12px;margin-top:14px}.model-details{margin-top:16px}.model-details[hidden]{display:none}.model-details .grid{grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}.setup-needed{color:var(--warn);font-size:.72rem;border:1px solid #806b3d;border-radius:99px;padding:3px 8px}.provider-issue{color:var(--bad);border:1px solid #824b47;border-radius:9px;padding:10px;font-size:.75rem}.provider-issue strong{color:var(--warn)}.family-key{max-width:600px}@media(max-width:560px){main{padding:28px 14px}header{display:block}.signal{text-align:left;margin-top:16px}}
-.key-status{display:inline-flex;align-items:center;gap:5px;border-radius:99px;font-size:.68rem;padding:3px 8px;margin-top:8px}.key-status::before{content:'●';font-size:.6rem}.key-set{color:var(--accent);border:1px solid #607f4b}.key-unset{color:var(--muted);border:1px solid var(--line)}.savebar{position:fixed;left:50%;bottom:20px;transform:translate(-50%,140%);transition:transform .2s ease;z-index:5;width:min(720px,calc(100% - 28px));display:flex;justify-content:space-between;align-items:center;gap:16px;background:#182020f5;border:1px solid #607f4b;border-radius:12px;padding:12px 14px;backdrop-filter:blur(12px);box-shadow:0 12px 32px #0006}.savebar.is-dirty{transform:translate(-50%,0)}.savebar strong{font-size:.8rem}.savebar span{color:var(--muted);font-size:.72rem}@media(max-width:560px){.savebar{bottom:8px}.savebar span{display:block;font-size:.65rem}}</style><style>.provider-section{margin-top:30px}.provider-section h3{margin:0 0 4px;color:var(--accent);font-size:1rem}.provider-section>p{margin:0 0 12px;color:var(--muted);font-size:.78rem}</style></head><body><main><header><div><h1>provider<br><span>console</span></h1><p class="lede">Configure free-tier compute by model, not by brand. Every card remains quarantined until its smoke test proves capability and quota economics.</p></div><div class="signal">LOCAL OPERATOR PANEL<br>SECRETS NEVER ECHOED</div></header><form id="f"><div class="savebar"><div><strong>Hey! Looks like you made some changes. Wanna save 'em?</strong><br><span>Changes apply immediately.</span></div><button type="submit">Save configuration</button></div><section><h2>Readiness — no provider calls</h2><div id="readiness" class="advanced"><p class="status">Loading readiness…</p></div><button type="button" onclick="smokeAllFamilies()">Run bounded smoke test on quarantined models</button><span id="smoke-all" class="status"></span></section><section><h2>Model pool</h2><div id="providers" class="grid"><p class="status">Loading catalog…</p></div></section><section><h2>Advanced bridges</h2><div class="advanced"><div class="grid"><div><label for="hfmodel">Legacy HF model</label><input id="hfmodel" name="AIPOOL_HF_MODEL" placeholder="Use a model card above"></div><div><label for="hftoken">HF token</label><input id="hftoken" name="HF_TOKEN" type="password" autocomplete="new-password" placeholder="Leave blank to keep current"></div><div><label for="endpoint">Custom OpenAI-compatible endpoint</label><input id="endpoint" name="AIPOOL_OPENAI_ENDPOINT"></div><div><label for="openmodel">Custom model</label><input id="openmodel" name="AIPOOL_OPENAI_MODEL"></div></div></div></section><div class="actions"><button type="submit">Save configuration</button><span id="o" class="status" role="status"></span></div></form></main><script>
+.key-status{display:inline-flex;align-items:center;gap:5px;border-radius:99px;font-size:.68rem;padding:3px 8px;margin-top:8px}.key-status::before{content:'●';font-size:.6rem}.key-set{color:var(--accent);border:1px solid #607f4b}.key-unset{color:var(--muted);border:1px solid var(--line)}.savebar{position:fixed;left:50%;bottom:20px;transform:translate(-50%,140%);transition:transform .2s ease;z-index:5;width:min(720px,calc(100% - 28px));display:flex;justify-content:space-between;align-items:center;gap:16px;background:#182020f5;border:1px solid #607f4b;border-radius:12px;padding:12px 14px;backdrop-filter:blur(12px);box-shadow:0 12px 32px #0006}.savebar.is-dirty{transform:translate(-50%,0)}.savebar strong{font-size:.8rem}.savebar span{color:var(--muted);font-size:.72rem}@media(max-width:560px){.savebar{bottom:8px}.savebar span{display:block;font-size:.65rem}}</style><style>.provider-section{margin-top:30px}.provider-section h3{margin:0 0 4px;color:var(--accent);font-size:1rem}.provider-section>p{margin:0 0 12px;color:var(--muted);font-size:.78rem}</style></head><body><main><header><div><h1>provider<br><span>console</span></h1><p class="lede">Configure free-tier compute by model, not by brand. Every card remains quarantined until its smoke test proves capability and quota economics.</p></div><div class="signal">LOCAL OPERATOR PANEL<br>SECRETS NEVER ECHOED</div></header><form id="f"><div class="savebar"><div><strong>Hey! Looks like you made some changes. Wanna save 'em?</strong><br><span>Changes apply immediately.</span></div><button type="submit">Save configuration</button></div><section><h2>Readiness — no provider calls</h2><div id="readiness" class="advanced"><p class="status">Loading readiness…</p></div><button type="button" onclick="smokeAllFamilies()">Run bounded smoke test on quarantined models</button><span id="smoke-all" class="status"></span></section><section><h2>Model pool</h2><div id="providers" class="grid"><p class="status">Loading catalog…</p></div></section><section><h2>Advanced bridges</h2><div class="advanced omni-panel"><strong>OmniRoute direct model routes</strong><p class="status">Scan the live OmniRoute catalog, then select only the routes you have reviewed. Selected routes become individual quarantined models for smoke testing and routing.</p><label>Selected model IDs<input id="omni-models" name="AIPOOL_OMNIROUTE_MODELS" placeholder="Paste comma-separated model IDs from the live scan"></label><div class="actions"><button type="button" onclick="scanOmniRouteModels()">Scan OmniRoute models</button><button type="button" onclick="smokeOmniModels()">Smoke-test selected OmniRoute models</button><span id="omni-status" class="status"></span></div><label>Live model options <input id="omni-filter" placeholder="Filter model IDs" oninput="filterOmniModels()"></label><select id="omni-model-options" multiple size="8" onchange="syncOmniSelection()"></select></div><div class="advanced"><div class="grid"><div><label for="hfmodel">Legacy HF model</label><input id="hfmodel" name="AIPOOL_HF_MODEL" placeholder="Use a model card above"></div><div><label for="hftoken">HF token</label><input id="hftoken" name="HF_TOKEN" type="password" autocomplete="new-password" placeholder="Leave blank to keep current"></div><div><label for="endpoint">Custom OpenAI-compatible endpoint</label><input id="endpoint" name="AIPOOL_OPENAI_ENDPOINT"></div><div><label for="openmodel">Custom model</label><input id="openmodel" name="AIPOOL_OPENAI_MODEL"></div></div></div></section><div class="actions"><button type="submit">Save configuration</button><span id="o" class="status" role="status"></span></div></form></main><script>
 const form=document.querySelector('#f'),cards=document.querySelector('#providers'),out=document.querySelector('#o'),savebar=document.querySelector('.savebar');
 const readiness=document.querySelector('#readiness');
 const key=(slug,suffix)=>'AIPOOL_MODEL_'+slug.toUpperCase().replaceAll('-','_')+'_'+suffix;
@@ -480,6 +530,11 @@ function familyStatus(group){let states=group.items.map(p=>p.state);if(states.in
 function statusSection(title,description,groups){if(!groups.length)return '';return `<section class="provider-section"><h3>${title}</h3><p>${description}</p><div class="grid">${groups.map(familyCard).join('')}</div></section>`}
 
 function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function omniSelected(){return (document.querySelector('#omni-models').value||'').split(',').map(x=>x.trim()).filter(Boolean)}
+function syncOmniSelection(){let selected=[...document.querySelector('#omni-model-options').selectedOptions].map(x=>x.value);if(selected.length)document.querySelector('#omni-models').value=selected.join(',')}
+function filterOmniModels(){let filter=(document.querySelector('#omni-filter').value||'').toLowerCase();for(let option of document.querySelector('#omni-model-options').options)option.hidden=!option.value.toLowerCase().includes(filter)}
+async function scanOmniRouteModels(){let node=document.querySelector('#omni-status');node.textContent=' scanning…';let r=await fetch('/admin/omniroute/models'),d=await r.json();if(!r.ok||!d.success){node.textContent=' '+(d.error||'scan failed');return}let selected=new Set(omniSelected()),list=document.querySelector('#omni-model-options');list.innerHTML=d.models.map(m=>`<option value="${esc(m.id)}" ${selected.has(m.id)?'selected':''}>${esc(m.id)} · ${esc(m.power)}</option>`).join('');node.textContent=' found '+d.count+' live routes; '+selected.size+' selected'}
+async function smokeOmniModels(){let models=omniSelected(),node=document.querySelector('#omni-status');if(!models.length){node.textContent=' select or enter at least one model first';return}node.textContent=' testing '+models.length+' selected routes…';let r=await fetch('/admin/omniroute/smoke-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator_approved:true,models,cases:1})}),d=await r.json();node.textContent=r.ok?' completed '+d.results.length+' OmniRoute model tests':' '+(d.error||'smoke test failed')}
 async function loadReadiness(){let r=await fetch('/admin/readiness');let d=await r.json();let states=Object.entries(d.summary.states).map(([state,count])=>count+' '+state).join(' · ');readiness.innerHTML='<p class="meta">'+d.summary.total+' catalog models · '+states+'</p><p class="status">No provider calls were made. Review key, quota, and health state before running a smoke test.</p>'}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
 async function smokeProvider(slug){let node=document.querySelector('#smoke-'+slug);node.textContent=' testing…';let r=await fetch('/admin/provider/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug,operator_approved:true})});let d=await r.json();node.textContent=r.ok?' smoke '+d.valid+'/'+d.attempts+' valid · '+d.state:' '+(d.error||'smoke test failed');}
@@ -489,7 +544,7 @@ async function smokeTestModel(encoded){let key=decodeURIComponent(encoded);let r
 async function activationChange(encoded,path,attribute){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('['+attribute+']')).find(el=>el.getAttribute(attribute)===key);let note=input?.value.trim()||'';if(!note){alert('Add a short decision note first.');return}let r=await fetch('/admin/discovered-model/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,note})});let d=await r.json();if(!r.ok){alert(d.error||'Activation change failed');return}await load()}
 async function activateModel(encoded){return activationChange(encoded,'activate','data-activation-model')}
 async function deactivateModel(encoded){return activationChange(encoded,'deactivate','data-deactivation-model')}
-async function load(){let r=await fetch('/admin/config');let c=await r.json();let health=(await (await fetch('/admin/readiness')).json()).providers;let bySlug=Object.fromEntries(health.map(p=>[p.slug,p]));c.providers.forEach(p=>Object.assign(p,bySlug[p.slug]||{}));document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);for(let g of Object.values(groups))g.items.forEach((p,i)=>p.showLimits=i===0);let grouped=Object.values(groups);let buckets={working:[],attention:[],quarantined:[],setup:[]};for(let g of grouped)buckets[familyStatus(g)].push(g);for(let bucket of Object.values(buckets))bucket.sort((a,b)=>a.name.localeCompare(b.name));let catalog=statusSection('Working providers','Validated models available for routing now.',buckets.working)+statusSection('Needs attention','Providers that responded with a failure, rate limit, or unhealthy state.',buckets.attention)+statusSection('Quarantined — awaiting validation','Configured providers held out of routing until the bounded smoke test passes.',buckets.quarantined)+statusSection('Setup needed','Providers that need credentials, required account settings, or an explicit model enablement.',buckets.setup);let findings=c.discovered_models?.length?`<section><h3>Live findings</h3><p class="status">${c.discovered_models.length} discovered models are available for review in the coordinator database. Individual model cards are intentionally hidden; use the bounded smoke-test control above.</p></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
+async function load(){let r=await fetch('/admin/config');let c=await r.json();let health=(await (await fetch('/admin/readiness')).json()).providers;let bySlug=Object.fromEntries(health.map(p=>[p.slug,p]));c.providers.forEach(p=>Object.assign(p,bySlug[p.slug]||{}));document.querySelector('#hfmodel').value=c.settings.AIPOOL_HF_MODEL||'';document.querySelector('#endpoint').value=c.settings.AIPOOL_OPENAI_ENDPOINT||'';document.querySelector('#openmodel').value=c.settings.AIPOOL_OPENAI_MODEL||'';document.querySelector('#omni-models').value=c.settings.AIPOOL_OMNIROUTE_MODELS||'';let groups={};for(let p of c.providers)(groups[p.provider_slug]??={name:p.provider_name,items:[]}).items.push(p);for(let g of Object.values(groups))g.items.forEach((p,i)=>p.showLimits=i===0);let grouped=Object.values(groups);let buckets={working:[],attention:[],quarantined:[],setup:[]};for(let g of grouped)buckets[familyStatus(g)].push(g);for(let bucket of Object.values(buckets))bucket.sort((a,b)=>a.name.localeCompare(b.name));let catalog=statusSection('Working providers','Validated models available for routing now.',buckets.working)+statusSection('Needs attention','Providers that responded with a failure, rate limit, or unhealthy state.',buckets.attention)+statusSection('Quarantined — awaiting validation','Configured providers held out of routing until the bounded smoke test passes.',buckets.quarantined)+statusSection('Setup needed','Providers that need credentials, required account settings, or an explicit model enablement.',buckets.setup);let findings=c.discovered_models?.length?`<section><h3>Live findings</h3><p class="status">${c.discovered_models.length} discovered models are available for review in the coordinator database. Individual model cards are intentionally hidden; use the bounded smoke-test control above.</p></section>`:'';cards.innerHTML=(catalog||'<p class="status">No API models in the catalog.</p>')+findings}
 form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.target;if(el.dataset.provider&&el.value){for(let box of form.querySelectorAll('input[type="checkbox"][data-provider="'+el.dataset.provider+'"]'))box.checked=true}});form.onsubmit=async e=>{e.preventDefault();let payload={};for(let el of form.querySelectorAll('[data-key],input[name]')){let k=el.dataset.key||el.name;if(el.type==='password'&&!el.value)continue;payload[k]=el.type==='checkbox'?(el.checked?'1':'0'):el.value}let r=await fetch('/admin/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});let data=await r.json();if(data.updated)savebar.classList.remove('is-dirty');out.textContent=data.updated?'Saved and applied immediately.':(data.error||'Save failed')};loadReadiness();load();
 </script></body></html>""")
                 return
@@ -746,6 +801,43 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                          "valid": result.valid, "scores": result.scores,
                          "stopped_error": result.stopped_error, "failure_kind": result.failure_kind,
                          "failure_reason": result.failure_reason,
+                         "retry_after_seconds": result.retry_after_seconds}
+                        for result in results.values()
+                    ],
+                })
+                return
+            if path == "/admin/omniroute/smoke-batch":
+                try:
+                    payload = self._read_json()
+                    if not isinstance(payload, dict) or payload.get("operator_approved") is not True:
+                        raise ValueError("explicit operator approval is required before an OmniRoute smoke batch")
+                    models = payload.get("models")
+                    if not isinstance(models, list) or not models or len(models) > 32 or any(not isinstance(model, str) or not model.strip() for model in models):
+                        raise ValueError("OmniRoute smoke batch must contain 1 to 32 unique models")
+                    if len(set(models)) != len(models):
+                        raise ValueError("OmniRoute smoke batch models must be unique")
+                    cases = payload.get("cases", 1)
+                    if not isinstance(cases, int) or isinstance(cases, bool) or not 1 <= cases <= 3:
+                        raise ValueError("smoke batch cases must be between 1 and 3")
+                    registry_ids = tuple(f"omniroute:{model.strip()}" for model in models)
+                    available = {adapter.profile.id for adapter in coordinator.registry.all()}
+                    missing = [provider_id for provider_id in registry_ids if provider_id not in available]
+                    if missing:
+                        raise LookupError("OmniRoute models are not selected in the configuration: " + ", ".join(missing))
+                    results = coordinator.benchmark_providers(registry_ids, cases=default_cases()[:cases])
+                except LookupError as exc:
+                    self._send(404, {"error": str(exc)})
+                    return
+                except (ValueError, TypeError, json.JSONDecodeError) as exc:
+                    self._send(400, {"error": str(exc)[:300]})
+                    return
+                self._send(200, {
+                    "operator_approved": True, "sequential": True,
+                    "results": [
+                        {"provider_id": result.provider_id, "attempts": result.attempts,
+                         "valid": result.valid, "scores": result.scores,
+                         "stopped_error": result.stopped_error,
+                         "failure_kind": result.failure_kind, "failure_reason": result.failure_reason,
                          "retry_after_seconds": result.retry_after_seconds}
                         for result in results.values()
                     ],

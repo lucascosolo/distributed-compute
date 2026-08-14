@@ -82,6 +82,7 @@ class CliTests(unittest.TestCase):
             "AIPOOL_OMNIROUTE_POWER": "strong",
             "AIPOOL_OMNIROUTE_MODEL_CODING": "auto/best-coding",
             "AIPOOL_OMNIROUTE_MODEL_REASONING": "auto/best-reasoning",
+            "AIPOOL_OMNIROUTE_MODELS": "groq/openai/gpt-oss-120b, openrouter/openai/gpt-oss-20b:free",
         }, clear=True):
             registry = _build_registry(__import__("argparse").Namespace(command="providers"))
         adapter = registry.get("omniroute:auto/best-coding")
@@ -90,6 +91,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(adapter.api_key_file, "/var/lib/omniroute/aipool-api-key")
         self.assertEqual(adapter.model_by_task["coding"], "auto/best-coding")
         self.assertEqual(adapter.model_by_task["planning"], "auto/best-reasoning")
+        selected = {item.profile.id for item in registry.all() if item.profile.transport == "omniroute"}
+        self.assertIn("omniroute:groq/openai/gpt-oss-120b", selected)
+        self.assertIn("omniroute:openrouter/openai/gpt-oss-20b:free", selected)
 
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
