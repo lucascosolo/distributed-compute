@@ -28,7 +28,9 @@ def _remote_json(
     base_url = base_url.strip().rstrip("/")
     if not base_url.startswith(("http://", "https://")):
         raise RemoteCoordinatorError("remote coordinator URL must use http or https")
-    headers = {"Content-Type": "application/json"}
+    # Some authorized edge proxies reject urllib's default Python user agent;
+    # identify the coordinator client explicitly for remote gateway traffic.
+    headers = {"Content-Type": "application/json", "User-Agent": "aipool/0.1"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
     if headers_extra:

@@ -170,9 +170,12 @@ class Coordinator:
             self.store.record_outcome(outcome)
             return outcome
 
+        # A dispatched provider can still fail after every eligible fallback
+        # was attempted. This is a native handoff, not a successful delegated
+        # result; callers must be told not to retry the same pool request.
         outcome = TaskOutcome(
-            task.task_id, decision.strategy, decision.provider.id, None, False, False,
-            "all_candidate_providers_failed",
+            task.task_id, Strategy.NO_DELEGATION, None, None, True, True,
+            "all_candidate_providers_failed", native_fallback=True,
             orchestration_cost=decision.assessment.single_cost * len(attempted),
         )
         self.store.record_outcome(outcome)

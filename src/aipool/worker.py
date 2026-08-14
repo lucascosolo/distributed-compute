@@ -39,6 +39,21 @@ class QueueWorker:
         if latest is not None and latest.cancel_requested:
             self.queue.cancel_claimed(record.task_id, record.lease_id or "", now=self.clock())
             return True
+        lease_lost = threading.Event()
+        heartbeat_stop = threading.Event()
+
+        def renew_lease() -> None:
+            interval = min(max(self.lease_seconds / 3.0, 0.01), 1.0)
+            while not heartbeat_stop.wait(interval):
+                if not self.queue.renew(
+                    record.task_id, record.lease_id or "",
+                    lease_seconds=self.lease_seconds, now=self.clock(),
+                ):
+                    lease_lost.set()
+                    return
+
+        heartbeat = threading.Thread(target=renew_lease, name=f"{self.worker_id}-lease", daemon=True)
+        heartbeat.start()
         try:
             outcome = self.coordinator.submit(record.task)
         except Exception:
@@ -48,7 +63,10 @@ class QueueWorker:
                 task_id=record.task_id, strategy=Strategy.SINGLE, provider_id=None,
                 output=None, success=False, valid=False, reason="worker_exception",
             )
-        self.queue.complete(record.task_id, record.lease_id or "", outcome, now=self.clock())
+        heartbeat_stop.set()
+        heartbeat.join(timeout=max(0.1, min(self.lease_seconds / 2.0, 2.0)))
+        if not lease_lost.is_set():
+            self.queue.complete(record.task_id, record.lease_id or "", outcome, now=self.clock())
         return True
 
     def run_forever(self, stop_event: threading.Event) -> None:

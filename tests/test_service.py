@@ -86,7 +86,9 @@ class ServiceTests(unittest.TestCase):
         outcome = Coordinator(ProviderRegistry({"first": first, "second": second}), store).submit(
             TaskEnvelope(task="classification", input_ref="synthetic", local_estimate=1.0)
         )
-        self.assertFalse(outcome.success)
+        self.assertTrue(outcome.success)
+        self.assertTrue(outcome.native_fallback)
+        self.assertEqual(outcome.reason, "all_candidate_providers_failed")
         self.assertEqual(calls, {"first": 1, "second": 0})
 
     def test_invalid_first_provider_falls_back_and_records_scores(self) -> None:
@@ -100,6 +102,22 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(outcome.provider_id, "good")
         self.assertEqual(store.observation("bad", "classification"), (1, 0))
         self.assertEqual(store.observation("good", "classification"), (1, 1))
+
+    def test_all_provider_failures_return_native_fallback(self) -> None:
+        failing = FixtureAdapter(
+            profile("failing", classification=0.8, structured_json=0.8),
+            lambda _: "I cannot complete this",
+        )
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"failing": failing}), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:x", local_estimate=1.0)
+        )
+        self.assertTrue(outcome.success)
+        self.assertTrue(outcome.valid)
+        self.assertTrue(outcome.native_fallback)
+        self.assertEqual(outcome.reason, "all_candidate_providers_failed")
+        self.assertIsNone(outcome.provider_id)
 
     def test_unhealthy_provider_is_bypassed(self) -> None:
         disabled = FixtureAdapter(profile("disabled", classification=1.0, structured_json=1.0, state=ProviderState.DISABLED), lambda _: "bad")

@@ -450,7 +450,7 @@ class OpenAICompatibleAdapter:
                 "messages": [{"role": "user", "content": content}],
             }
         ).encode()
-        headers = {"Content-Type": "application/json"}
+        headers = {"Content-Type": "application/json", "User-Agent": "aipool/0.1"}
         if api_key:
             headers["Authorization"] = f"Bearer {api_key}"
         headers.update(self.headers_extra)
@@ -531,7 +531,7 @@ class CloudflareWorkersAIAdapter:
         req = request.Request(
             url,
             data=body,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "aipool/0.1"},
             method="POST",
         )
         try:
@@ -601,7 +601,7 @@ class TokenRouterResponsesAdapter:
         req = request.Request(
             endpoint,
             data=body,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "User-Agent": "aipool/0.1"},
             method="POST",
         )
         try:

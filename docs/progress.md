@@ -604,3 +604,38 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   with the correct distinct origins and populated handshake credentials.
 - Both Claude and Codex launcher contexts reach the remote coordinator status
   endpoint successfully; the live HTTPS status check returned HTTP 200.
+
+## 2026-08-13 — queue execution hardening
+
+- Durable queue workers renew their leases while a provider call is running, so
+  long real-compute tasks cannot be reclaimed by another worker at the initial
+  lease deadline. Cancellation remains cooperative and stops renewal.
+- Focused queue tests and the full 201-test suite pass. The repository launcher
+  also completed a fixture-backed end-to-end task with valid JSON output.
+- Shared gateway settings and Cloudflare Access credentials now live in the
+  mode-600 `~/.agents/distributed-compute.env`; Claude and Codex files retain
+  only their distinct caller identities. The CLI merges shared settings
+  automatically while preserving repository-local configs as local mode.
+- The shared skill now authorizes automatic bounded delegation without a
+  permission prompt, falls back natively on unavailable/uneconomical work, and
+  exposes `aipool artifact upload` so sessions can transfer bounded context
+  before submitting remote tasks.
+
+## 2026-08-13 — coordinator failure diagnosis and discovery round
+
+- A production-path coding task reached the coordinator but every eligible
+  provider failed. The coordinator returned `success=false` with
+  `native_fallback=false`, so callers could not safely hand the work back to
+  Claude/Codex. The local fix now returns an explicit native-fallback outcome
+  with `reason=all_candidate_providers_failed`; a regression test covers it.
+- Provider HTTP calls now identify themselves as `aipool/0.1`. This avoids the
+  Cloudflare 1010 rejection observed with Python's default user-agent.
+- The candidate catalog now includes SiliconFlow and FreeInference. Both are
+  documented OpenAI-compatible/free candidates, but remain inactive until an
+  account-key smoke test proves current access; no provider was activated based
+  on documentation alone. GitHub Models was excluded because its official
+  service retirement was confirmed.
+- The live service still runs the pre-fix checkout. Its current all-degraded
+  state cannot safely distinguish stale health from permanently dead providers;
+  release the fixes first, then run one bounded smoke test per configured family
+  and remove only entries with confirmed permanent failure.

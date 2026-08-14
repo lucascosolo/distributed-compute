@@ -13,7 +13,7 @@ from dataclasses import replace
 from dataclasses import asdict
 from pathlib import Path
 
-from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote
+from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote, upload_artifact_remote
 from .artifacts import ArtifactStore
 from .benchmark import default_cases, run_benchmark
 from .comparison import run_comparison
@@ -33,17 +33,31 @@ from .worker import QueueWorker
 
 def _load_local_config() -> None:
     """Load ignored operator config without overwriting explicit environment values."""
-    candidates = []
+    candidates: list[Path] = []
     configured = os.environ.get("AIPOOL_CONFIG_FILE")
     if configured:
         candidates.append(Path(configured).expanduser())
     else:
-        candidates.extend((
-            Path.cwd() / ".aipool.local",
-            Path.home() / ".claude" / "distributed-compute.env",
-            Path.home() / ".codex" / "distributed-compute.env",
-            Path.home() / ".agents" / "distributed-compute.env",
-        ))
+        local_config = Path.cwd() / ".aipool.local"
+        candidates.append(local_config)
+        # A repository-local config is an explicit local development boundary;
+        # do not let shared remote settings silently switch its default mode.
+        if local_config.is_file() and "AIPOOL_MODE" not in os.environ:
+            os.environ["AIPOOL_MODE"] = "local"
+        # A session's origin, when already supplied by its launcher, selects
+        # the matching per-agent file. Otherwise retain the historical Claude
+        # then Codex discovery order, while always merging shared settings.
+        origin = os.environ.get("AIPOOL_ORIGIN_PROVIDER_ID", "")
+        if origin == "agent:codex":
+            candidates.append(Path.home() / ".codex" / "distributed-compute.env")
+        elif origin == "agent:claude":
+            candidates.append(Path.home() / ".claude" / "distributed-compute.env")
+        else:
+            candidates.extend((
+                Path.home() / ".claude" / "distributed-compute.env",
+                Path.home() / ".codex" / "distributed-compute.env",
+            ))
+        candidates.append(Path.home() / ".agents" / "distributed-compute.env")
     for path in candidates:
         if not path.is_file():
             continue
@@ -55,7 +69,6 @@ def _load_local_config() -> None:
             key, value = key.strip(), value.strip().strip("'\"")
             if key.startswith("AIPOOL_") or key in {"HF_TOKEN"}:
                 os.environ.setdefault(key, value)
-        break
 
 
 def _nonnegative_int(value: str | None, default: int = 0) -> int:
@@ -328,6 +341,10 @@ def _parser() -> argparse.ArgumentParser:
     task = subparsers.add_parser("task", help="submit one compact task envelope")
     task.add_argument("--json", required=True, dest="task_json")
     task.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
+    artifact = subparsers.add_parser("artifact", help="upload bounded task context")
+    artifact_subparsers = artifact.add_subparsers(dest="artifact_action", required=True)
+    upload = artifact_subparsers.add_parser("upload", help="upload one bounded file or stdin payload")
+    upload.add_argument("--file", default="-", help="file to upload, or - for stdin")
     subparsers.add_parser("providers", help="list configured providers")
     discover = subparsers.add_parser("discover", help="collect bounded public chatbot discovery leads")
     discover_input = discover.add_mutually_exclusive_group(required=True)
@@ -662,6 +679,24 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             store.close()
         return 0
+    if args.command == "artifact" and args.artifact_action == "upload":
+        try:
+            content = sys.stdin.buffer.read(128 * 1024 + 1) if args.file == "-" else Path(args.file).read_bytes()
+            if len(content) > 128 * 1024:
+                raise ValueError("artifact exceeds 131072 byte limit")
+            if os.environ.get("AIPOOL_MODE", "local").lower() == "remote":
+                reference = upload_artifact_remote(
+                    os.environ.get("AIPOOL_BASE_URL", ""), content,
+                    token=os.environ.get("AIPOOL_TOKEN") or None,
+                    headers_extra=_cloudflare_access_headers(),
+                )
+            else:
+                reference = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")).put(content)
+            print(json.dumps({"reference": reference, "bytes": len(content)}, separators=(",", ":")))
+            return 0
+        except (OSError, ValueError, RemoteCoordinatorError) as exc:
+            print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+            return 1
     try:
         task = _apply_origin(TaskEnvelope.from_dict(json.loads(args.task_json)))
     except (ValueError, TypeError, json.JSONDecodeError, KeyError) as exc:

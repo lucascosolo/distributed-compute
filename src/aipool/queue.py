@@ -178,6 +178,26 @@ class TaskQueue:
             self.store.connection.commit()
             return True
 
+    def renew(self, task_id: str, lease_id: str, *, lease_seconds: float = 60.0, now: float = 0.0) -> bool:
+        """Extend an active lease while a provider call is still running."""
+        if not lease_id or lease_seconds <= 0:
+            raise ValueError("lease_id and positive lease_seconds are required")
+        with self.store._lock:
+            row = self.store.connection.execute(
+                "SELECT status, lease_id, cancel_requested FROM queue_tasks WHERE task_id = ?",
+                (task_id,),
+            ).fetchone()
+            if row is None or row["status"] != "running" or row["lease_id"] != lease_id:
+                return False
+            if row["cancel_requested"]:
+                return False
+            self.store.connection.execute(
+                "UPDATE queue_tasks SET lease_until = ?, updated_at = ? WHERE task_id = ? AND lease_id = ?",
+                (now + lease_seconds, now, task_id, lease_id),
+            )
+            self.store.connection.commit()
+            return True
+
     def cancel_claimed(self, task_id: str, lease_id: str, *, now: float = 0.0) -> bool:
         """Acknowledge a cancellation without invoking the provider."""
         with self.store._lock:

@@ -1,6 +1,7 @@
 import threading
 import time
 import unittest
+from unittest import mock
 
 from aipool.domain import Strategy, TaskEnvelope, TaskOutcome
 from aipool.queue import QueueFull, TaskQueue
@@ -33,6 +34,13 @@ class QueueTests(unittest.TestCase):
         self.assertTrue(self.queue.complete(record.task_id, reclaimed.lease_id, outcome, now=112))
         self.assertEqual(self.queue.get(record.task_id).status, "succeeded")
         self.assertEqual(self.queue.get(record.task_id).outcome.output, "ok")
+
+    def test_active_lease_can_be_renewed_during_long_provider_call(self) -> None:
+        record = self.queue.enqueue(self.task, idempotency_key="renew")
+        claimed = self.queue.claim("worker-a", lease_seconds=10, now=100)
+        self.assertTrue(self.queue.renew(record.task_id, claimed.lease_id, lease_seconds=10, now=109))
+        self.assertIsNone(self.queue.claim("worker-b", lease_seconds=10, now=110))
+        self.assertIsNotNone(self.queue.claim("worker-b", lease_seconds=10, now=120))
 
     def test_queued_task_can_be_cancelled_and_wrong_lease_cannot_complete(self) -> None:
         record = self.queue.enqueue(self.task, idempotency_key="cancel")
@@ -82,7 +90,7 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(submitted, [])
 
     def test_worker_run_forever_stops_without_leaking_thread(self) -> None:
-        worker = QueueWorker(self.queue, unittest.mock.Mock(), poll_seconds=0.01)
+        worker = QueueWorker(self.queue, mock.Mock(), poll_seconds=0.01)
         stop = threading.Event()
         thread = threading.Thread(target=worker.run_forever, args=(stop,))
         thread.start()
@@ -93,7 +101,7 @@ class QueueTests(unittest.TestCase):
 
     def test_worker_records_provider_exception_as_failed_outcome(self) -> None:
         self.queue.enqueue(self.task)
-        coordinator = unittest.mock.Mock()
+        coordinator = mock.Mock()
         coordinator.submit.side_effect = RuntimeError("coordinator unavailable")
         worker = QueueWorker(self.queue, coordinator, clock=lambda: 10.0)
         self.assertTrue(worker.run_once(now=10.0))

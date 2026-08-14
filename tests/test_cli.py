@@ -12,6 +12,21 @@ from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
+    def test_artifact_upload_returns_content_addressed_reference(self) -> None:
+        output = io.StringIO()
+
+        class Stdin:
+            buffer = io.BytesIO(b"bounded context")
+
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, {
+            "AIPOOL_ARTIFACT_ROOT": directory,
+        }, clear=True), contextlib.redirect_stdout(output), patch("sys.stdin", Stdin()):
+            code = main(["artifact", "upload"])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertTrue(result["reference"].startswith("artifact:sha256:"))
+        self.assertEqual(result["bytes"], len(b"bounded context"))
+
     def test_task_stamps_native_origin_from_operator_environment(self) -> None:
         task = json.dumps({"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
         output = io.StringIO()
