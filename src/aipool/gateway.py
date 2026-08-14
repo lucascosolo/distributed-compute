@@ -691,7 +691,7 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     if not isinstance(payload, dict) or payload.get("operator_approved") is not True:
                         raise ValueError("explicit operator approval is required before a provider smoke batch")
                     slugs = payload.get("slugs")
-                    if not isinstance(slugs, list) or not slugs or len(slugs) > 12 or any(not isinstance(slug, str) or not slug.strip() for slug in slugs):
+                    if not isinstance(slugs, list) or not slugs or len(slugs) > 32 or any(not isinstance(slug, str) or not slug.strip() for slug in slugs):
                         raise ValueError("smoke batch must contain 1 to 32 model slugs")
                     if len(set(slugs)) != len(slugs):
                         raise ValueError("smoke batch slugs must be unique")
