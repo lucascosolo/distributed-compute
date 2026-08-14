@@ -246,7 +246,10 @@ def make_server(
         counts = {state: sum(1 for row in rows if row["state"] == state) for state in sorted({str(row["state"]) for row in rows})}
         return {"generated_at": now, "providers": rows, "summary": {"total": len(rows), "states": counts}}
 
-    def smoke_batch_plan(max_models: int = 12, cases: int = 3, state_filter: str = "") -> dict[str, object]:
+    def smoke_batch_plan(
+        max_models: int = 12, cases: int = 3, state_filter: str = "",
+        all_models: bool = False, excluded: frozenset[str] = frozenset(),
+    ) -> dict[str, object]:
         """Choose a bounded, reviewable smoke batch without contacting providers."""
         if not 1 <= max_models <= 32:
             raise ValueError("max_models must be between 1 and 32")
@@ -266,13 +269,17 @@ def make_server(
                 item for item in items
                 if item["loaded"] and item["enabled"] and item["state"] in {"healthy", "quarantined"}
                 and item["preflight_status"] == "verified"
+                and str(item["slug"]) not in excluded
                 and (not state_filter or item["state"] == state_filter)
             ]
             if not eligible:
                 skipped.append({"provider_slug": family, "reason": "no_loaded_enabled_candidate"})
                 continue
-            selected = max(eligible, key=lambda item: (rank.get(str(item["power"]), -1), -float(item["quota_weight"])))
-            candidates.append(selected)
+            if all_models:
+                candidates.extend(eligible)
+            else:
+                selected = max(eligible, key=lambda item: (rank.get(str(item["power"]), -1), -float(item["quota_weight"])))
+                candidates.append(selected)
         candidates.sort(key=lambda item: (-rank.get(str(item["power"]), -1), str(item["provider_slug"]), str(item["slug"])))
         selected = candidates[:max_models]
         for item in candidates[max_models:]:
@@ -294,8 +301,11 @@ def make_server(
         return {
             "network_calls_made": False, "approval_required": True,
             "cases": cases, "max_models": max_models,
+            "all_models": all_models, "excluded": len(excluded),
             "selected_models": models, "skipped": skipped,
-            "total_models": len(models), "expected_calls": len(models) * cases,
+            "total_models": len(models), "eligible_models": len(candidates),
+            "remaining_models": max(0, len(candidates) - len(selected)),
+            "expected_calls": len(models) * cases,
             "token_cost": "unknown until provider responses; local token caps are reported per model",
         }
 
@@ -424,7 +434,12 @@ def make_server(
                     max_models = int(query.get("max_models", ["12"])[0])
                     cases = int(query.get("cases", ["3"])[0])
                     state_filter = query.get("state", [""])[0]
-                    self._send(200, smoke_batch_plan(max_models=max_models, cases=cases, state_filter=state_filter))
+                    all_models = query.get("all_models", ["0"])[0].lower() in {"1", "true", "yes"}
+                    excluded = frozenset(item for item in query.get("exclude", [""])[0].split(",") if item)
+                    self._send(200, smoke_batch_plan(
+                        max_models=max_models, cases=cases, state_filter=state_filter,
+                        all_models=all_models, excluded=excluded,
+                    ))
                 except (TypeError, ValueError) as exc:
                     self._send(400, {"error": str(exc)[:300]})
                 return
@@ -466,7 +481,7 @@ function esc(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;',
 async function loadReadiness(){let r=await fetch('/admin/readiness');let d=await r.json();let states=Object.entries(d.summary.states).map(([state,count])=>count+' '+state).join(' · ');readiness.innerHTML='<p class="meta">'+d.summary.total+' catalog models · '+states+'</p><p class="status">No provider calls were made. Review key, quota, and health state before running a smoke test.</p>'}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
 async function smokeProvider(slug){let node=document.querySelector('#smoke-'+slug);node.textContent=' testing…';let r=await fetch('/admin/provider/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug,operator_approved:true})});let d=await r.json();node.textContent=r.ok?' smoke '+d.valid+'/'+d.attempts+' valid · '+d.state:' '+(d.error||'smoke test failed');}
-async function smokeAllFamilies(){let node=document.querySelector('#smoke-all');node.textContent=' planning…';let plan=await (await fetch('/admin/provider/smoke-batch-plan?max_models=32&cases=1&state=quarantined')).json();if(!plan.expected_calls){node.textContent=' no eligible quarantined models';return}node.textContent=' testing '+plan.expected_calls+' quarantined models…';let r=await fetch('/admin/provider/smoke-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator_approved:true,slugs:plan.selected_models.map(x=>x.slug),cases:1})});let d=await r.json();node.textContent=r.ok?' completed '+d.results.length+' bounded smoke tests':' '+(d.error||'smoke batch failed');}
+async function smokeAllFamilies(){let node=document.querySelector('#smoke-all'),done=0,failed=0,excluded=[];node.textContent=' planning all quarantined models…';for(;;){let query='/admin/provider/smoke-batch-plan?max_models=32&cases=1&state=quarantined&all_models=1'+(excluded.length?'&exclude='+encodeURIComponent(excluded.join(',')):''),plan=await (await fetch(query)).json();if(!plan.expected_calls)break;let slugs=plan.selected_models.map(x=>x.slug);node.textContent=' testing '+(done+slugs.length)+'+ quarantined models…';let r=await fetch('/admin/provider/smoke-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator_approved:true,slugs,cases:1})}),d=await r.json();if(!r.ok){node.textContent=' smoke batch stopped: '+(d.error||'unknown failure');return}done+=d.results.length;failed+=d.results.filter(x=>x.valid<x.attempts).length;excluded.push(...slugs)}node.textContent=done?' completed '+done+' model smoke tests ('+failed+' failed; see readiness details)':' no eligible quarantined models';}
 async function reviewModel(encoded,decision){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('[data-review-model]')).find(el=>el.dataset.reviewModel===key);let note=input?.value.trim()||'';if(!note){alert('Add a short review note before deciding.');return}let r=await fetch('/admin/discovered-model/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,decision,note})});let d=await r.json();if(!r.ok){alert(d.error||'Review failed');return}await load()}
 async function smokeTestModel(encoded){let key=decodeURIComponent(encoded);let r=await fetch('/admin/discovered-model/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key})});let d=await r.json();if(!r.ok){alert(d.error||'Smoke test failed');return}await load()}
 async function activationChange(encoded,path,attribute){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('['+attribute+']')).find(el=>el.getAttribute(attribute)===key);let note=input?.value.trim()||'';if(!note){alert('Add a short decision note first.');return}let r=await fetch('/admin/discovered-model/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,note})});let d=await r.json();if(!r.ok){alert(d.error||'Activation change failed');return}await load()}
@@ -681,7 +696,8 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                 self._send(200, {
                     "provider_id": result.provider_id, "attempts": result.attempts,
                     "valid": result.valid, "scores": result.scores,
-                    "stopped_error": result.stopped_error,
+                    "stopped_error": result.stopped_error, "failure_kind": result.failure_kind,
+                    "failure_reason": result.failure_reason,
                     "retry_after_seconds": result.retry_after_seconds, "state": state,
                 })
                 return
@@ -726,7 +742,8 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     "results": [
                         {"provider_id": result.provider_id, "attempts": result.attempts,
                          "valid": result.valid, "scores": result.scores,
-                         "stopped_error": result.stopped_error,
+                         "stopped_error": result.stopped_error, "failure_kind": result.failure_kind,
+                         "failure_reason": result.failure_reason,
                          "retry_after_seconds": result.retry_after_seconds}
                         for result in results.values()
                     ],

@@ -26,6 +26,8 @@ class BenchmarkResult:
     valid: int
     stopped_error: ProviderErrorKind | None = None
     retry_after_seconds: float | None = None
+    failure_kind: ProviderErrorKind | None = None
+    failure_reason: str | None = None
 
 
 def default_cases() -> tuple[BenchmarkCase, ...]:
@@ -74,16 +76,24 @@ def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | Non
     valid = 0
     stopped_error: ProviderErrorKind | None = None
     retry_after_seconds: float | None = None
+    failure_kind: ProviderErrorKind | None = None
+    failure_reason: str | None = None
     attempts = 0
     for case in selected:
         attempts += 1
         result = adapter.complete(case.task)
+        if not result.success and failure_reason is None:
+            failure_kind = result.error_kind or ProviderErrorKind.INTERNAL
+            failure_reason = (result.error or "provider returned an unsuccessful result")[:300]
         report = validate_output(
             result.output,
             require_json=case.task.requirements.get("output") == "json",
             task=case.task.task.value if hasattr(case.task.task, "value") else str(case.task.task),
         ) if result.success else None
         passed = bool(report and report.valid and case.accepts(result.output))
+        if not passed and failure_reason is None:
+            failure_kind = result.error_kind or ProviderErrorKind.INTERNAL
+            failure_reason = "provider returned output that failed benchmark validation"
         if passed:
             valid += 1
         capabilities = [case.capability]
@@ -102,4 +112,5 @@ def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | Non
     return BenchmarkResult(
         adapter.profile.id, scores, attempts, valid,
         stopped_error=stopped_error, retry_after_seconds=retry_after_seconds,
+        failure_kind=failure_kind, failure_reason=failure_reason,
     )

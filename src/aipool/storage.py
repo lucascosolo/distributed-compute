@@ -99,6 +99,10 @@ class Store:
         ):
             if name not in columns:
                 self.connection.execute(f"ALTER TABLE discovered_models ADD COLUMN {name} {definition}")
+        benchmark_columns = {str(row["name"]) for row in self.connection.execute("PRAGMA table_info(benchmark_results)")}
+        for name, definition in (("failure_kind", "TEXT"), ("failure_reason", "TEXT")):
+            if name not in benchmark_columns:
+                self.connection.execute(f"ALTER TABLE benchmark_results ADD COLUMN {name} {definition}")
         self.connection.commit()
 
     def record_outcome(self, outcome: TaskOutcome) -> None:
@@ -130,9 +134,10 @@ class Store:
         with self._lock:
             self.connection.execute(
                 """INSERT OR REPLACE INTO benchmark_results
-                (provider_id, attempts, valid, scores_json, stopped_error, recorded_at)
-                VALUES (?, ?, ?, ?, ?, strftime('%s','now'))""",
-                (provider_id, result.attempts, result.valid, json.dumps(result.scores, sort_keys=True), result.stopped_error),
+                (provider_id, attempts, valid, scores_json, stopped_error, failure_kind, failure_reason, recorded_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, strftime('%s','now'))""",
+                (provider_id, result.attempts, result.valid, json.dumps(result.scores, sort_keys=True), result.stopped_error,
+                 result.failure_kind, result.failure_reason),
             )
             for capability, score in result.scores.items():
                 self.connection.execute(
@@ -146,7 +151,7 @@ class Store:
     def latest_benchmark(self, provider_id: str) -> dict[str, object] | None:
         with self._lock:
             row = self.connection.execute(
-                "SELECT attempts, valid, scores_json, stopped_error, recorded_at FROM benchmark_results WHERE provider_id = ?",
+                "SELECT attempts, valid, scores_json, stopped_error, failure_kind, failure_reason, recorded_at FROM benchmark_results WHERE provider_id = ?",
                 (provider_id,),
             ).fetchone()
         if row is None:
@@ -154,6 +159,7 @@ class Store:
         return {
             "attempts": int(row["attempts"]), "valid": int(row["valid"]),
             "scores": json.loads(row["scores_json"]), "stopped_error": row["stopped_error"],
+            "failure_kind": row["failure_kind"], "failure_reason": row["failure_reason"],
             "recorded_at": float(row["recorded_at"]),
         }
 

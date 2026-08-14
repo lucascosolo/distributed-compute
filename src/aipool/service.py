@@ -54,8 +54,8 @@ class Coordinator:
         else:
             self.health.failure(
                 adapter.profile,
-                result.stopped_error or ProviderErrorKind.INTERNAL,
-                "benchmark stopped before completion" if result.stopped_error else "benchmark produced no valid results",
+                result.failure_kind or result.stopped_error or ProviderErrorKind.INTERNAL,
+                result.failure_reason or ("benchmark stopped before completion" if result.stopped_error else "benchmark produced no valid results"),
                 retry_after_seconds=result.retry_after_seconds,
             )
         return result
