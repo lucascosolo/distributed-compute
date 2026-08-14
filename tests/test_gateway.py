@@ -211,6 +211,22 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(data["providers"][0]["quota_guidance"]["status"], "documented")
         self.assertIn("$0.10", data["providers"][0]["quota_guidance"]["summary"])
 
+    def test_every_catalog_provider_is_exposed_for_token_entry(self) -> None:
+        from aipool.provider_catalog import load_catalog
+
+        status, snapshot = self.request("GET", "/admin/config")
+        self.assertEqual(status, 200)
+        catalog = load_catalog()
+        self.assertEqual(
+            {row["slug"] for row in snapshot["providers"]},
+            {provider.slug for provider in catalog},
+        )
+        for provider in catalog:
+            row = next(item for item in snapshot["providers"] if item["slug"] == provider.slug)
+            self.assertEqual(row["provider_slug"], provider.provider_slug)
+            self.assertIn("AIPOOL_PROVIDER_" + provider.provider_slug.upper().replace("-", "_") + "_API_KEY", snapshot["secrets"])
+        self.assertIn("LLM7.io", {row["provider_name"] for row in snapshot["providers"]})
+
     def test_root_redirects_to_admin_panel(self) -> None:
         status, content_type, body = self.raw_request("GET", "/")
         self.assertEqual(status, 302)
