@@ -103,6 +103,35 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(store.observation("bad", "classification"), (1, 0))
         self.assertEqual(store.observation("good", "classification"), (1, 1))
 
+    def test_provider_failure_tries_up_to_three_models_before_native_fallback(self) -> None:
+        calls = []
+
+        def failing(provider_id: str):
+            def complete(_: TaskEnvelope) -> ProviderResult:
+                calls.append(provider_id)
+                return ProviderResult(provider_id, success=False, error="offline")
+            return complete
+
+        adapters = {
+            provider_id: FixtureAdapter(
+                ProviderProfile(
+                    provider_id, provider_id, provider_id,
+                    capabilities={"classification": 0.9, "structured_json": 0.9},
+                    reliability=0.9, state=ProviderState.HEALTHY,
+                ),
+                failing(provider_id) if provider_id != "third" else lambda _: calls.append("third") or '{"label":"docs"}',
+            )
+            for provider_id in ("first", "second", "third", "fourth")
+        }
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry(adapters), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:x", requirements={"output": "json"}, local_estimate=1.0)
+        )
+        self.assertTrue(outcome.success)
+        self.assertEqual(outcome.provider_id, "third")
+        self.assertEqual(calls, ["first", "second", "third"])
+
     def test_all_provider_failures_return_native_fallback(self) -> None:
         failing = FixtureAdapter(
             profile("failing", classification=0.8, structured_json=0.8),

@@ -19,6 +19,7 @@ from .usage import UsageManager
 
 
 MAX_MAP_REDUCE_INPUT_BYTES = 256 * 1024
+MAX_PROVIDER_ATTEMPTS = 3
 
 
 class Coordinator:
@@ -92,12 +93,28 @@ class Coordinator:
         attempted: set[str] = set()
         blocked_transports: set[str] = set()
         dispatched = False
-        candidates = [decision.provider] + [profile for profile in profiles if profile.id != decision.provider.id]
+        capable_fallbacks = [
+            profile for profile in profiles
+            if profile.id != decision.provider.id
+            and profile.state in {ProviderState.HEALTHY, ProviderState.DEGRADED}
+            and choose_provider(task, (profile,)).provider is not None
+        ]
+        # If the learned capability record is stale or too conservative, use
+        # remaining healthy models as a last-resort response attempt rather
+        # than immediately handing the task back to the native model.
+        best_effort_fallbacks = [
+            profile for profile in profiles
+            if profile.id != decision.provider.id
+            and profile not in capable_fallbacks
+            and profile.state in {ProviderState.HEALTHY, ProviderState.DEGRADED}
+        ]
+        candidates = [decision.provider] + capable_fallbacks + best_effort_fallbacks
         for profile in candidates:
             if (
                 profile.id in excluded or profile.id in attempted
                 or profile.transport in blocked_transports
                 or profile.state not in {ProviderState.HEALTHY, ProviderState.DEGRADED}
+                or len(attempted) >= MAX_PROVIDER_ATTEMPTS
             ):
                 continue
             attempted.add(profile.id)
