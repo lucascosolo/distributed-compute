@@ -237,6 +237,7 @@ class ProvidersTests(unittest.TestCase):
         self.assertTrue(adapter.complete(TaskEnvelope(task="coding", input_ref="artifact:test")).success)
         self.assertTrue(adapter.complete(TaskEnvelope(task="classify", input_ref="artifact:test")).success)
         self.assertEqual([r["model"] for r in requests], ["auto/best-coding", "auto/best-free"])
+        self.assertEqual([r["stream"] for r in requests], [False, False])
 
     def test_openai_adapter_can_read_a_rotation_friendly_key_file(self) -> None:
         class Response:

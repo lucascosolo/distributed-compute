@@ -451,6 +451,9 @@ class OpenAICompatibleAdapter:
             {
                 "model": self.model_by_task.get(task.task, self.model),
                 "messages": [{"role": "user", "content": content}],
+                # Some OpenAI-compatible gateways (including OmniRoute)
+                # default to SSE unless streaming is explicitly disabled.
+                "stream": False,
             }
         ).encode()
         headers = {"Content-Type": "application/json", "User-Agent": "aipool/0.1"}
