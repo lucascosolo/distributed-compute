@@ -119,9 +119,7 @@ class GatewayTests(unittest.TestCase):
         self.assertTrue(row["smoke_test_requires_approval"])
         self.assertIn("blocked_reasons", row)
         self.assertIn("preflight_status", row)
-        pending = next(item for item in data["providers"] if item["provider_slug"] == "tokenrouter")
-        self.assertEqual(pending["preflight_status"], "pending")
-        self.assertIn("preflight_pending", pending["blocked_reasons"])
+        self.assertFalse(any(item["preflight_status"] == "pending" for item in data["providers"] if item["loaded"]))
         self.assertNotIn("secret", json.dumps(data))
 
     def test_admin_readiness_reports_usage_for_loaded_catalog_provider(self) -> None:
@@ -200,7 +198,6 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"Requests per window", body)
         self.assertIn(b"Tokens per window", body)
         self.assertIn(b"Quota guidance", body)
-        self.assertIn(b"Cloudflare account ID", body)
         self.assertIn(b"Anonymous free access", body)
         status, data = self.request("GET", "/admin/config")
         self.assertEqual(status, 200)
@@ -301,24 +298,6 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(family[0]["token_limit"], "1200")
         self.assertEqual(family[0]["usage_window_seconds"], "86400")
 
-    def test_cloudflare_account_id_is_configurable_and_redacted_as_nonsecret_metadata(self) -> None:
-        status, snapshot = self.request("GET", "/admin/config")
-        self.assertEqual(status, 200)
-        provider = next(item for item in snapshot["providers"] if item["provider_name"] == "Cloudflare Workers AI")
-        account_field = next(field for field in provider["config_fields"] if field["name"] == "account_id")
-        self.assertFalse(account_field["present"])
-        status, data = self.request("POST", "/admin/config", {
-            account_field["key"]: "account-123",
-        })
-        self.assertEqual(status, 200)
-        self.assertTrue(data["updated"])
-        status, snapshot = self.request("GET", "/admin/config")
-        provider = next(item for item in snapshot["providers"] if item["provider_name"] == "Cloudflare Workers AI")
-        account_field = next(field for field in provider["config_fields"] if field["name"] == "account_id")
-        self.assertTrue(account_field["present"])
-        self.assertEqual(account_field["value"], "account-123")
-        self.assertNotIn("account-123", json.dumps(snapshot["secrets"]))
-
     def test_configured_catalog_provider_has_explicit_bounded_smoke_test(self) -> None:
         from aipool.benchmark import BenchmarkResult
         from aipool.provider_catalog import load_catalog
@@ -347,20 +326,6 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(data["provider_id"], profile.id)
         self.assertEqual(data["valid"], 1)
         benchmark.assert_called_once_with(profile.id)
-
-    def test_individual_smoke_test_rejects_pending_provider_contract(self) -> None:
-        from aipool.provider_catalog import load_catalog
-        provider = next(item for item in load_catalog() if item.provider_name == "TokenRouter")
-        profile = ProviderProfile(
-            "catalog:" + provider.slug, provider.name, provider.transport,
-            capabilities={"classification": 0.7}, state=ProviderState.QUARANTINED,
-        )
-        self.server.aipool_coordinator.registry.register(FixtureAdapter(profile, lambda _: "ok"))  # type: ignore[attr-defined]
-        status, data = self.request("POST", "/admin/provider/smoke-test", {
-            "slug": provider.slug, "operator_approved": True,
-        })
-        self.assertEqual(status, 409)
-        self.assertIn("provider_preflight_pending", data["error"])
 
     def test_smoke_batch_plan_is_bounded_and_makes_no_provider_call(self) -> None:
         from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix

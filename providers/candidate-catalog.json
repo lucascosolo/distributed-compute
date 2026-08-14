@@ -1,48 +1,578 @@
 {
   "items": [
-    {"name": "Pi", "url": "https://pi.ai/"},
-    {"name": "HIX AI chatbot", "url": "https://hix.ai/hixchatbot"},
-    {"name": "HIX ChatGPT", "url": "https://hix.ai/chatgpt"},
-    {"name": "iSEOAI chatbot", "url": "https://iseoai.com/chatbot/"},
-    {"name": "LibreChat", "url": "https://www.librechat.ai/"},
-    {"name": "Chai AI", "url": "https://en-chaiai.com/"},
-    {"name": "Labiba", "url": "https://www.olabiba.com/"},
-    {"name": "NoteGPT", "url": "https://notegpt.io/ai-chat"},
-    {"name": "TurboChat", "url": "https://theturbochat.com/"},
-    {"name": "Nation AI", "url": "https://nation.ai/chat/"},
-    {"name": "Vizly", "url": "https://vizly.ai/ai-chat"},
-    {"name": "HuggingChat", "url": "https://huggingface.co/chat/"},
-    {"name": "Hugging Face Inference Providers", "preflight_status": "verified", "preflight_note": "Endpoint and adapter shape are confirmed, but the account has demonstrated paid usage.", "url": "https://router.huggingface.co/v1/chat/completions", "source_url": "https://huggingface.co/docs/inference-providers/en/pricing", "transport": "huggingface-api", "quota": {"status": "documented", "scope": "account", "dimensions": ["monthly credits"], "reset": "monthly; exact date/account details may vary", "summary": "Free users receive $0.10/month in inference credits; extra usage requires purchased credits. Request/token caps are not stated here.", "checked_at": "2026-08-11"}, "models": [{"id": "meta-llama/Llama-3.1-8B-Instruct", "power": "medium", "quota_weight": 0.5}, {"id": "Qwen/Qwen3-8B", "power": "medium", "quota_weight": 0.5}, {"id": "Qwen/Qwen3-Coder-30B-A3B-Instruct", "power": "strong", "quota_weight": 1.0}, {"id": "openai/gpt-oss-20b", "power": "strong", "quota_weight": 1.0}, {"id": "openai/gpt-oss-120b", "power": "very-strong", "quota_weight": 2.0}, {"id": "deepseek-ai/DeepSeek-R1", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "TalkAI", "url": "https://talkai.info/"},
-    {"name": "Gab AI", "url": "https://gab.ai/"},
-    {"name": "Blushly", "url": "https://blushly.chat/topics/ai-chat-free-no-sign-in"},
-    {"name": "PixelDojo", "url": "https://pixeldojo.ai/free-ai-chatbot-no-sign-up"},
-    {"name": "Talkie AI", "url": "https://www.talkie-ai.com/pages/ai-chat-no-login"},
-    {"name": "Rewind", "url": "https://rewind.ai/chat/"},
-    {"name": "HoneyChat", "url": "https://honeychat.bot/en/blog/ai-roleplay-no-sign-up/"},
-    {"name": "Coze", "url": "https://www.coze.com/"},
-    {"name": "Character.AI", "url": "https://character.ai/", "source_url": "https://character.ai/", "transport": "browser-chat"},
-    {"name": "Free LLM Playground", "url": "https://freellmplayground.com/", "source_url": "https://freellmplayground.com/", "transport": "browser-chat"},
-    {"name": "Google AI Studio API", "preflight_status": "verified", "preflight_note": "Endpoint and adapter shape are confirmed from primary documentation; account limits still require operator review.", "url": "https://generativelanguage.googleapis.com/v1beta/openai/", "source_url": "https://ai.google.dev/gemini-api/docs/openai", "transport": "openai-compatible", "quota": {"status": "account-dependent", "scope": "project", "dimensions": ["RPM", "input TPM", "RPD"], "reset": "RPD resets at midnight Pacific; other windows vary", "summary": "Limits vary by model and project. Google exposes RPM, input TPM, and RPD; exact values must be read from AI Studio. The API key alone does not prove a free tier for a given model.", "checked_at": "2026-08-11"}, "models": [{"id": "models/gemini-3.6-flash", "power": "strong", "quota_weight": 1.0}, {"id": "models/gemini-3.5-flash", "power": "strong", "quota_weight": 1.0}, {"id": "models/gemini-3.5-flash-lite", "power": "medium", "quota_weight": 0.5}, {"id": "models/gemini-2.5-flash", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "Cerebras API", "preflight_status": "verified", "preflight_note": "Official Chat Completions documentation confirms the OpenAI-compatible endpoint and model contract; the operator supplied current Free Trial limits. This is trial access, not a permanent unlimited free tier.", "url": "https://api.cerebras.ai/v1", "source_url": "https://inference-docs.cerebras.ai/api-reference/chat-completions", "transport": "openai-compatible", "quota": {"status": "documented free trial", "scope": "organization and model", "dimensions": ["RPM", "TPM", "TPH"], "reset": "continuous token-bucket replenishment; hourly trial caps apply", "summary": "The operator-provided Cerebras Free Trial screen shows 5 RPM, 30K TPM, and 1M TPH for gpt-oss-120b, zai-glm-4.7, and gemma-4-31b. The official Chat Completions reference confirms Bearer authentication, POST /v1/chat/completions, and the current model IDs. Use these as conservative local caps; any daily limit remains account-specific.", "checked_at": "2026-08-14"}, "models": [{"id": "gpt-oss-120b", "power": "very-strong", "quota_weight": 2.0}, {"id": "gemma-4-31b", "power": "strong", "quota_weight": 1.0}, {"id": "zai-glm-4.7", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "Groq API", "preflight_status": "verified", "preflight_note": "Endpoint and current catalog IDs are confirmed from primary documentation.", "url": "https://api.groq.com/openai/v1", "source_url": "https://console.groq.com/docs/models", "transport": "openai-compatible", "quota": {"status": "account-dependent", "scope": "organization", "dimensions": ["RPM", "RPD", "TPM", "TPD"], "reset": "provider headers report the applicable reset; exact values vary by model/account", "summary": "Groq publishes model-specific free-plan examples, but exact organization limits and the first exhausted dimension must be read from response headers/account settings. The catalog avoids model IDs already scheduled for deprecation.", "checked_at": "2026-08-11"}, "models": [{"id": "openai/gpt-oss-20b", "power": "strong", "quota_weight": 0.5}, {"id": "openai/gpt-oss-120b", "power": "very-strong", "quota_weight": 1.0}, {"id": "qwen/qwen3.6-27b", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "Cohere API", "preflight_status": "verified", "preflight_note": "Compatibility endpoint and current model IDs are confirmed; free eligibility remains account-dependent.", "url": "https://api.cohere.ai/compatibility/v1", "source_url": "https://docs.cohere.com/v2/docs/compatibility-api", "transport": "openai-compatible", "quota": {"status": "account-dependent", "scope": "account", "dimensions": ["requests", "tokens"], "reset": "provider-defined", "summary": "Cohere documents an OpenAI-compatible chat endpoint. Cohere's Command A+ page says trial and production keys are free until rate limits are reached, while Command A publishes paid prices; verify the key's actual tier and headers before use.", "checked_at": "2026-08-11"}, "models": [{"id": "command-a-plus-05-2026", "power": "very-strong", "quota_weight": 2.0}, {"id": "command-a-03-2025", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "Cloudflare Workers AI", "preflight_status": "pending", "preflight_note": "Account ID and credential must be supplied and verified before model access can be checked.", "url": "https://api.cloudflare.com/client/v4/accounts", "source_url": "https://developers.cloudflare.com/workers-ai/models/", "transport": "cloudflare-workers-ai", "required_config": ["account_id"], "quota": {"status": "account-dependent", "scope": "Cloudflare account", "dimensions": ["daily neurons", "requests", "account plan"], "reset": "provider-defined; inspect the Cloudflare dashboard", "summary": "Workers AI requires an account ID plus API token. Usage limits and included neurons depend on the Cloudflare account plan; local caps should be set conservatively until the dashboard values are confirmed.", "checked_at": "2026-08-11"}, "models": [{"id": "@cf/zai-org/glm-4.7-flash", "power": "strong", "quota_weight": 1.0}, {"id": "@cf/qwen/qwen3-30b-a3b-fp8", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "OpenRouter Free Models", "preflight_status": "verified", "preflight_note": "Read-only /models access succeeded, but the catalog was refreshed to currently listed free IDs; the existing degraded health state still requires review.", "url": "https://openrouter.ai/api/v1", "source_url": "https://openrouter.ai/docs/faq", "transport": "openai-compatible", "quota": {"status": "documented", "scope": "account", "dimensions": ["requests per day"], "reset": "daily; exact reset behavior should be confirmed from account headers", "summary": "Free models are limited to 50 requests/day without purchased credits; OpenRouter documents 1,000/day after at least $10 in credits. A no-generation /models request succeeded; exact token limits and free-route health remain account-dependent.", "checked_at": "2026-08-11"}, "models": [{"id": "openai/gpt-oss-20b:free", "power": "strong", "quota_weight": 0.5}, {"id": "nvidia/nemotron-3-super-120b-a12b:free", "power": "very-strong", "quota_weight": 2.0}, {"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "power": "very-strong", "quota_weight": 2.5}]},
-    {"name": "Z.AI GLM API", "preflight_status": "verified", "preflight_note": "Read-only /models access succeeded for the saved key; the catalog was refreshed to currently listed IDs. Generation remains quarantined until an approved smoke test.", "url": "https://api.z.ai/api/paas/v4", "source_url": "https://docs.z.ai/guides/llm/glm-4.7", "transport": "openai-compatible", "models": [{"id": "glm-5", "power": "very-strong", "quota_weight": 2.0}, {"id": "glm-4.7", "power": "very-strong", "quota_weight": 1.5}]},
-    {"name": "TokenRouter", "preflight_status": "pending", "preflight_note": "Official API docs use the .io host; the saved credential and routed-model access still need a no-generation verification.", "url": "https://api.tokenrouter.io/v1", "source_url": "https://docs.tokenrouter.io/api-reference/overview/", "transport": "tokenrouter-responses", "quota": {"status": "unknown", "scope": "account and routed provider", "dimensions": ["provider-defined request/token limits"], "reset": "unknown", "summary": "TokenRouter's official API documentation describes a Responses API at the .io host and requires at least one upstream provider key. Rate limits vary by plan; keep this family quarantined until the saved key and routed access are verified.", "checked_at": "2026-08-11"}, "models": [{"id": "auto:balance", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "NVIDIA NIM", "preflight_status": "verified", "preflight_note": "Read-only /models access succeeded for the saved key and the selected GPT-OSS model was present; generation remains quarantined until an approved smoke test.", "url": "https://integrate.api.nvidia.com/v1", "source_url": "https://build.nvidia.com/models?api=true", "transport": "openai-compatible", "quota": {"status": "account-dependent", "scope": "NVIDIA API key/trial", "dimensions": ["requests", "tokens", "model endpoint availability"], "reset": "provider-defined; inspect NVIDIA account headers/dashboard", "summary": "NVIDIA marks several hosted endpoints as free, but exact request/token limits and access depend on the NVIDIA API key and endpoint. A no-generation /models request succeeded for the saved key; generation and free-tier headroom still require operator review.", "checked_at": "2026-08-11"}, "models": [{"id": "openai/gpt-oss-20b", "power": "strong", "quota_weight": 0.5}, {"id": "openai/gpt-oss-120b", "power": "very-strong", "quota_weight": 1.0}, {"id": "nvidia/nemotron-3-ultra-550b-a55b", "power": "very-strong", "quota_weight": 2.5}, {"id": "nvidia/nemotron-3-super-120b-a12b", "power": "very-strong", "quota_weight": 2.0}, {"id": "nvidia/nemotron-3-nano-30b-a3b", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "Mistral AI", "preflight_status": "verified", "preflight_note": "Endpoint and current model IDs are confirmed; account free eligibility remains unverified.", "url": "https://api.mistral.ai/v1", "source_url": "https://docs.mistral.ai/models", "transport": "openai-compatible", "quota": {"status": "account-dependent", "scope": "organization", "dimensions": ["requests per second", "tokens per minute", "model-specific limits"], "reset": "varies by plan and model", "summary": "Free mode is available without a card, but current limits are shown in the Mistral Admin Panel. Completion limits are per model and organization; model pages list current API IDs and paid prices, so do not assume a free tier.", "checked_at": "2026-08-11"}, "models": [{"id": "mistral-small-2603", "power": "strong", "quota_weight": 1.0}, {"id": "codestral-2508", "power": "strong", "quota_weight": 1.0}, {"id": "mistral-large-2512", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "FreeInference", "preflight_status": "verified", "preflight_note": "Official documentation confirms an OpenAI-compatible endpoint and free coding models; the account key and current access still require operator smoke testing.", "url": "https://freeinference.org/v1", "source_url": "https://doc.freeinference.org/quickstart", "transport": "openai-compatible", "quota": {"status": "documented free access", "scope": "account and model", "dimensions": ["provider-defined requests", "provider-defined tokens"], "reset": "provider-defined", "summary": "FreeInference documents free access for coding agents and lists glm-5.1, minimax-m2.5, minimax-m3, qwen3.6-35b, diffusiongemma, and deepseek-v4-flash as free models. The authenticated /v1/models response is the source of truth for each account.", "checked_at": "2026-08-13"}, "models": [{"id": "glm-5.1", "power": "very-strong", "quota_weight": 1.5}, {"id": "minimax-m2.5", "power": "strong", "quota_weight": 1.0}, {"id": "minimax-m3", "power": "very-strong", "quota_weight": 2.0}, {"id": "qwen3.6-35b", "power": "strong", "quota_weight": 1.0}, {"id": "deepseek-v4-flash", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "LLM7.io", "preflight_status": "verified", "preflight_note": "Official documentation confirms the OpenAI-compatible endpoint, free token access, and the default model selector; the supplied account key still requires a live smoke test.", "url": "https://api.llm7.io/v1", "source_url": "https://docs.llm7.io/quickstart", "transport": "openai-compatible", "quota": {"status": "documented free tier", "scope": "token and account", "dimensions": ["requests per second", "requests per minute", "requests per hour", "daily tokens"], "reset": "rolling provider-defined windows", "summary": "LLM7 documents a free tier and recommends the `default` selector, which routes to an available free model. Its limits documentation lists 2 requests/second, 20/minute, and 100/hour for free tokens; use conservative local limits until the live key's headers confirm current quotas.", "checked_at": "2026-08-13"}, "models": [{"id": "default", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "SiliconFlow", "preflight_status": "verified", "preflight_note": "Official docs confirm the OpenAI-compatible endpoint and list free model IDs; account access and current free-model availability still require operator smoke testing.", "url": "https://api.siliconflow.com/v1", "source_url": "https://docs.siliconflow.com/en/userguide/quickstart", "transport": "openai-compatible", "quota": {"status": "documented", "scope": "account and model", "dimensions": ["RPM", "TPM", "RPH", "RPD"], "reset": "provider-defined; DeepSeek R1/V3 have 30 requests/hour and 100/day for unverified users", "summary": "SiliconFlow documents free model families including Qwen2-7B-Instruct, Qwen2-1.5B-Instruct, Qwen1.5-7B-Chat, GLM-4-9B, ChatGLM3-6B, InternLM2.5-7B, and Mistral-7B. Free models have fixed limits; account eligibility and model availability must be verified before routing.", "checked_at": "2026-08-13"}, "models": [{"id": "Qwen/Qwen2-7B-Instruct", "power": "medium", "quota_weight": 0.5}, {"id": "Qwen/Qwen2-1.5B-Instruct", "power": "light", "quota_weight": 0.25}, {"id": "Qwen/Qwen1.5-7B-Chat", "power": "medium", "quota_weight": 0.5}, {"id": "THUDM/glm-4-9b-chat", "power": "medium", "quota_weight": 0.5}, {"id": "THUDM/chatglm3-6b", "power": "medium", "quota_weight": 0.5}, {"id": "internlm/internlm2_5-7b-chat", "power": "medium", "quota_weight": 0.5}, {"id": "mistralai/Mistral-7B-Instruct-v0.2", "power": "medium", "quota_weight": 0.5}]},
-    {"name": "SambaNova Cloud", "preflight_status": "verified", "preflight_note": "Endpoint and selected model IDs are confirmed; operator has this family disabled.", "url": "https://api.sambanova.ai/v1", "source_url": "https://docs.sambanova.ai/docs/en/models/rate-limits", "transport": "openai-compatible", "quota": {"status": "documented", "scope": "account and model", "dimensions": ["RPM", "RPD", "TPD"], "reset": "provider response headers report the applicable reset", "summary": "SambaNova's free tier applies when no payment method is linked. Current documented free limits for Meta-Llama-3.3-70B-Instruct and gpt-oss-120b are 20 RPM, 20 RPD, and 200,000 TPD; response headers report remaining/reset values. Keep this family disabled until the operator confirms the account tier.", "checked_at": "2026-08-11"}, "models": [{"id": "Meta-Llama-3.3-70B-Instruct", "power": "strong", "quota_weight": 1.0}, {"id": "gpt-oss-120b", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "Aion Labs", "preflight_status": "verified", "preflight_note": "Endpoint, model IDs, and documented model-list envelope are confirmed.", "url": "https://api.aionlabs.ai/v1", "source_url": "https://api.aionlabs.ai/docs/api-reference/", "transport": "openai-compatible", "quota": {"status": "documented", "scope": "account tier", "dimensions": ["RPM", "tokens per minute", "daily tokens"], "reset": "daily token limit; exact reset time is provider-defined", "summary": "The default free tier documents 15 RPM, 20,000 tokens/minute, and 20,000 tokens/day. The API is OpenAI-compatible; no credit card is required for the free tier according to the provider pricing page. Roleplay/storytelling specialization is provider-described, not independently benchmarked.", "checked_at": "2026-08-11"}, "models": [{"id": "aion-labs/aion-rp-llama-3.1-8b", "power": "medium", "quota_weight": 0.5}, {"id": "aion-labs/aion-2.0", "power": "strong", "quota_weight": 1.0}, {"id": "aion-labs/aion-2.5", "power": "strong", "quota_weight": 1.0}, {"id": "aion-labs/aion-3.0-mini", "power": "very-strong", "quota_weight": 1.5}, {"id": "aion-labs/aion-3.0", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "Kilo Code", "url": "https://kilo.ai/install", "source_url": "https://kilo.ai/install", "transport": "agent-command"},
-    {"name": "Kilo Gateway", "preflight_status": "verified", "preflight_note": "Read-only /models access succeeded and the current catalog exposes free models; generation remains quarantined until an approved smoke test.", "url": "https://api.kilo.ai/api/gateway", "source_url": "https://kilo.ai/docs/gateway/models-and-providers", "transport": "openai-compatible", "api_key_optional": true, "quota": {"status": "partially documented", "scope": "account/IP and model", "dimensions": ["free-model availability", "requests per hour", "provider-defined request/token limits"], "reset": "IP-based anonymous limit is hourly; model/account limits vary", "summary": "Kilo documents unauthenticated access for free models with a 200 requests/hour/IP limit. A current no-generation /models request succeeded; the selected free IDs are live now, but availability and generation quality still require review.", "checked_at": "2026-08-11"}, "models": [{"id": "nvidia/nemotron-3-ultra-550b-a55b:free", "power": "very-strong", "quota_weight": 2.5}, {"id": "nvidia/nemotron-3-super-120b-a12b:free", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "Ollama Cloud", "preflight_status": "verified", "preflight_note": "Cloud OpenAI-compatible endpoint is documented; account/model limits remain qualitative.", "url": "https://ollama.com/v1", "source_url": "https://ollama.com/pricing", "transport": "openai-compatible", "quota": {"status": "documented qualitative", "scope": "account plan and model", "dimensions": ["session window", "weekly window", "model-weighted usage"], "reset": "session limits reset every 5 hours; weekly limits reset every 7 days", "summary": "Ollama's Free plan includes cloud-model access with light usage. Limits are not a fixed token number: usage depends on input, cached input, output, and model compute weight. The provider documents a 5-hour session window and 7-day weekly window; exact allowances are account/model dependent.", "checked_at": "2026-08-11"}, "models": [{"id": "gpt-oss:120b", "power": "very-strong", "quota_weight": 2.0}, {"id": "deepseek-v4-pro", "power": "very-strong", "quota_weight": 2.0}, {"id": "deepseek-v4-flash:preview", "power": "strong", "quota_weight": 1.0}, {"id": "qwen3.5:397b", "power": "very-strong", "quota_weight": 2.0}, {"id": "kimi-k2.6", "power": "very-strong", "quota_weight": 2.0}, {"id": "kimi-k2.7-code", "power": "very-strong", "quota_weight": 2.0}, {"id": "kimi-k3", "power": "very-strong", "quota_weight": 2.0}, {"id": "minimax-m3", "power": "very-strong", "quota_weight": 2.0}, {"id": "minimax-m2.7", "power": "very-strong", "quota_weight": 2.0}, {"id": "glm-5.2", "power": "very-strong", "quota_weight": 2.0}, {"id": "glm-5.1", "power": "very-strong", "quota_weight": 2.0}, {"id": "gemma4:31b", "power": "strong", "quota_weight": 1.0}, {"id": "nemotron-3-ultra", "power": "very-strong", "quota_weight": 2.0}, {"id": "nemotron-3-super", "power": "very-strong", "quota_weight": 2.0}, {"id": "nemotron-3-nano:30b", "power": "strong", "quota_weight": 1.0}, {"id": "mistral-large-3:675b", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "BazaarLink", "preflight_status": "verified", "preflight_note": "Read-only /models access succeeded; auto:free and the current free DeepSeek route are present. Generation remains quarantined until an approved smoke test.", "url": "https://bazaarlink.ai/api/v1", "source_url": "https://bazaarlink.ai/docs", "transport": "openai-compatible", "quota": {"status": "documented", "scope": "account", "dimensions": ["RPM", "requests per day", "free credits"], "reset": "RPM is rolling; daily usage is unlimited subject to free quota/credits", "summary": "BazaarLink documents a free tier of 10 RPM and 150 requests/day for accounts without credit, plus an auto:free route. A no-generation /models request succeeded and exposed auto:free plus the current `deepseek/deepseek-v4-flash:free` route; paid fallback remains disabled.", "checked_at": "2026-08-11"}, "models": [{"id": "auto:free", "power": "strong", "quota_weight": 1.0}, {"id": "deepseek/deepseek-v4-flash:free", "power": "strong", "quota_weight": 1.0}]},
-    {"name": "xAI Inference API", "preflight_status": "pending", "preflight_note": "The saved credential received HTTP 403 from the read-only /models check; operator access or account eligibility must be resolved before model use.", "url": "https://api.x.ai/v1", "source_url": "https://docs.x.ai/developers/models", "transport": "openai-compatible", "models": [{"id": "grok-4.5", "power": "very-strong", "quota_weight": 2.0}]},
-    {"name": "Grok Build", "url": "https://x.ai/bot", "source_url": "https://x.ai/cli", "transport": "agent-command", "preflight_status": "pending", "preflight_note": "Native coding-agent candidate only. Requires an operator-installed, authenticated CLI and an explicit wrapper; no automated activation or browser automation is configured."}
+    {
+      "name": "Pi",
+      "url": "https://pi.ai/"
+    },
+    {
+      "name": "HIX AI chatbot",
+      "url": "https://hix.ai/hixchatbot"
+    },
+    {
+      "name": "HIX ChatGPT",
+      "url": "https://hix.ai/chatgpt"
+    },
+    {
+      "name": "iSEOAI chatbot",
+      "url": "https://iseoai.com/chatbot/"
+    },
+    {
+      "name": "LibreChat",
+      "url": "https://www.librechat.ai/"
+    },
+    {
+      "name": "Chai AI",
+      "url": "https://en-chaiai.com/"
+    },
+    {
+      "name": "Labiba",
+      "url": "https://www.olabiba.com/"
+    },
+    {
+      "name": "NoteGPT",
+      "url": "https://notegpt.io/ai-chat"
+    },
+    {
+      "name": "TurboChat",
+      "url": "https://theturbochat.com/"
+    },
+    {
+      "name": "Nation AI",
+      "url": "https://nation.ai/chat/"
+    },
+    {
+      "name": "Vizly",
+      "url": "https://vizly.ai/ai-chat"
+    },
+    {
+      "name": "HuggingChat",
+      "url": "https://huggingface.co/chat/"
+    },
+    {
+      "name": "Hugging Face Inference Providers",
+      "preflight_status": "verified",
+      "preflight_note": "Endpoint and adapter shape are confirmed, but the account has demonstrated paid usage.",
+      "url": "https://router.huggingface.co/v1/chat/completions",
+      "source_url": "https://huggingface.co/docs/inference-providers/en/pricing",
+      "transport": "huggingface-api",
+      "quota": {
+        "status": "documented",
+        "scope": "account",
+        "dimensions": [
+          "monthly credits"
+        ],
+        "reset": "monthly; exact date/account details may vary",
+        "summary": "Free users receive $0.10/month in inference credits; extra usage requires purchased credits. Request/token caps are not stated here.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "openai/gpt-oss-120b",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        }
+      ]
+    },
+    {
+      "name": "TalkAI",
+      "url": "https://talkai.info/"
+    },
+    {
+      "name": "Gab AI",
+      "url": "https://gab.ai/"
+    },
+    {
+      "name": "Blushly",
+      "url": "https://blushly.chat/topics/ai-chat-free-no-sign-in"
+    },
+    {
+      "name": "PixelDojo",
+      "url": "https://pixeldojo.ai/free-ai-chatbot-no-sign-up"
+    },
+    {
+      "name": "Talkie AI",
+      "url": "https://www.talkie-ai.com/pages/ai-chat-no-login"
+    },
+    {
+      "name": "Rewind",
+      "url": "https://rewind.ai/chat/"
+    },
+    {
+      "name": "HoneyChat",
+      "url": "https://honeychat.bot/en/blog/ai-roleplay-no-sign-up/"
+    },
+    {
+      "name": "Coze",
+      "url": "https://www.coze.com/"
+    },
+    {
+      "name": "Character.AI",
+      "url": "https://character.ai/",
+      "source_url": "https://character.ai/",
+      "transport": "browser-chat"
+    },
+    {
+      "name": "Free LLM Playground",
+      "url": "https://freellmplayground.com/",
+      "source_url": "https://freellmplayground.com/",
+      "transport": "browser-chat"
+    },
+    {
+      "name": "Google AI Studio API",
+      "preflight_status": "verified",
+      "preflight_note": "Endpoint and adapter shape are confirmed from primary documentation; account limits still require operator review.",
+      "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+      "source_url": "https://ai.google.dev/gemini-api/docs/openai",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "account-dependent",
+        "scope": "project",
+        "dimensions": [
+          "RPM",
+          "input TPM",
+          "RPD"
+        ],
+        "reset": "RPD resets at midnight Pacific; other windows vary",
+        "summary": "Limits vary by model and project. Google exposes RPM, input TPM, and RPD; exact values must be read from AI Studio. The API key alone does not prove a free tier for a given model.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "models/gemini-3.6-flash",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "models/gemini-3.5-flash",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "models/gemini-3.5-flash-lite",
+          "power": "medium",
+          "quota_weight": 0.5
+        }
+      ]
+    },
+    {
+      "name": "Groq API",
+      "preflight_status": "verified",
+      "preflight_note": "Endpoint and current catalog IDs are confirmed from primary documentation.",
+      "url": "https://api.groq.com/openai/v1",
+      "source_url": "https://console.groq.com/docs/models",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "account-dependent",
+        "scope": "organization",
+        "dimensions": [
+          "RPM",
+          "RPD",
+          "TPM",
+          "TPD"
+        ],
+        "reset": "provider headers report the applicable reset; exact values vary by model/account",
+        "summary": "Groq publishes model-specific free-plan examples, but exact organization limits and the first exhausted dimension must be read from response headers/account settings. The catalog avoids model IDs already scheduled for deprecation.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "openai/gpt-oss-20b",
+          "power": "strong",
+          "quota_weight": 0.5
+        },
+        {
+          "id": "openai/gpt-oss-120b",
+          "power": "very-strong",
+          "quota_weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Cohere API",
+      "preflight_status": "verified",
+      "preflight_note": "Compatibility endpoint and current model IDs are confirmed; free eligibility remains account-dependent.",
+      "url": "https://api.cohere.ai/compatibility/v1",
+      "source_url": "https://docs.cohere.com/v2/docs/compatibility-api",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "account-dependent",
+        "scope": "account",
+        "dimensions": [
+          "requests",
+          "tokens"
+        ],
+        "reset": "provider-defined",
+        "summary": "Cohere documents an OpenAI-compatible chat endpoint. Cohere's Command A+ page says trial and production keys are free until rate limits are reached, while Command A publishes paid prices; verify the key's actual tier and headers before use.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "command-a-plus-05-2026",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "command-a-03-2025",
+          "power": "strong",
+          "quota_weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "OpenRouter Free Models",
+      "preflight_status": "verified",
+      "preflight_note": "Read-only /models access succeeded, but the catalog was refreshed to currently listed free IDs; the existing degraded health state still requires review.",
+      "url": "https://openrouter.ai/api/v1",
+      "source_url": "https://openrouter.ai/docs/faq",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "documented",
+        "scope": "account",
+        "dimensions": [
+          "requests per day"
+        ],
+        "reset": "daily; exact reset behavior should be confirmed from account headers",
+        "summary": "Free models are limited to 50 requests/day without purchased credits; OpenRouter documents 1,000/day after at least $10 in credits. A no-generation /models request succeeded; exact token limits and free-route health remain account-dependent.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "nvidia/nemotron-3-super-120b-a12b:free",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+          "power": "very-strong",
+          "quota_weight": 2.5
+        }
+      ]
+    },
+    {
+      "name": "NVIDIA NIM",
+      "preflight_status": "verified",
+      "preflight_note": "Read-only /models access succeeded for the saved key and the selected GPT-OSS model was present; generation remains quarantined until an approved smoke test.",
+      "url": "https://integrate.api.nvidia.com/v1",
+      "source_url": "https://build.nvidia.com/models?api=true",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "account-dependent",
+        "scope": "NVIDIA API key/trial",
+        "dimensions": [
+          "requests",
+          "tokens",
+          "model endpoint availability"
+        ],
+        "reset": "provider-defined; inspect NVIDIA account headers/dashboard",
+        "summary": "NVIDIA marks several hosted endpoints as free, but exact request/token limits and access depend on the NVIDIA API key and endpoint. A no-generation /models request succeeded for the saved key; generation and free-tier headroom still require operator review.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "openai/gpt-oss-20b",
+          "power": "strong",
+          "quota_weight": 0.5
+        },
+        {
+          "id": "openai/gpt-oss-120b",
+          "power": "very-strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b",
+          "power": "very-strong",
+          "quota_weight": 2.5
+        },
+        {
+          "id": "nvidia/nemotron-3-super-120b-a12b",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "nvidia/nemotron-3-nano-30b-a3b",
+          "power": "strong",
+          "quota_weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Mistral AI",
+      "preflight_status": "verified",
+      "preflight_note": "Endpoint and current model IDs are confirmed; account free eligibility remains unverified.",
+      "url": "https://api.mistral.ai/v1",
+      "source_url": "https://docs.mistral.ai/models",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "account-dependent",
+        "scope": "organization",
+        "dimensions": [
+          "requests per second",
+          "tokens per minute",
+          "model-specific limits"
+        ],
+        "reset": "varies by plan and model",
+        "summary": "Free mode is available without a card, but current limits are shown in the Mistral Admin Panel. Completion limits are per model and organization; model pages list current API IDs and paid prices, so do not assume a free tier.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "mistral-small-2603",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "codestral-2508",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "mistral-large-2512",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        }
+      ]
+    },
+    {
+      "name": "FreeInference",
+      "preflight_status": "verified",
+      "preflight_note": "Official documentation confirms an OpenAI-compatible endpoint and free coding models; the account key and current access still require operator smoke testing.",
+      "url": "https://freeinference.org/v1",
+      "source_url": "https://doc.freeinference.org/quickstart",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "documented free access",
+        "scope": "account and model",
+        "dimensions": [
+          "provider-defined requests",
+          "provider-defined tokens"
+        ],
+        "reset": "provider-defined",
+        "summary": "FreeInference documents free access for coding agents and lists glm-5.1, minimax-m2.5, minimax-m3, qwen3.6-35b, diffusiongemma, and deepseek-v4-flash as free models. The authenticated /v1/models response is the source of truth for each account.",
+        "checked_at": "2026-08-13"
+      },
+      "models": [
+        {
+          "id": "glm-5.1",
+          "power": "very-strong",
+          "quota_weight": 1.5
+        },
+        {
+          "id": "minimax-m2.5",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "minimax-m3",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "qwen3.6-35b",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "deepseek-v4-flash",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        }
+      ]
+    },
+    {
+      "name": "LLM7.io",
+      "preflight_status": "verified",
+      "preflight_note": "Official documentation confirms the OpenAI-compatible endpoint, free token access, and the default model selector; the supplied account key still requires a live smoke test.",
+      "url": "https://api.llm7.io/v1",
+      "source_url": "https://docs.llm7.io/quickstart",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "documented free tier",
+        "scope": "token and account",
+        "dimensions": [
+          "requests per second",
+          "requests per minute",
+          "requests per hour",
+          "daily tokens"
+        ],
+        "reset": "rolling provider-defined windows",
+        "summary": "LLM7 documents a free tier and recommends the `default` selector, which routes to an available free model. Its limits documentation lists 2 requests/second, 20/minute, and 100/hour for free tokens; use conservative local limits until the live key's headers confirm current quotas.",
+        "checked_at": "2026-08-13"
+      },
+      "models": [
+        {
+          "id": "default",
+          "power": "strong",
+          "quota_weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Aion Labs",
+      "preflight_status": "verified",
+      "preflight_note": "Endpoint, model IDs, and documented model-list envelope are confirmed.",
+      "url": "https://api.aionlabs.ai/v1",
+      "source_url": "https://api.aionlabs.ai/docs/api-reference/",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "documented",
+        "scope": "account tier",
+        "dimensions": [
+          "RPM",
+          "tokens per minute",
+          "daily tokens"
+        ],
+        "reset": "daily token limit; exact reset time is provider-defined",
+        "summary": "The default free tier documents 15 RPM, 20,000 tokens/minute, and 20,000 tokens/day. The API is OpenAI-compatible; no credit card is required for the free tier according to the provider pricing page. Roleplay/storytelling specialization is provider-described, not independently benchmarked.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "aion-labs/aion-2.0",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "aion-labs/aion-3.0-mini",
+          "power": "very-strong",
+          "quota_weight": 1.5
+        },
+        {
+          "id": "aion-labs/aion-3.0",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        }
+      ]
+    },
+    {
+      "name": "Kilo Code",
+      "url": "https://kilo.ai/install",
+      "source_url": "https://kilo.ai/install",
+      "transport": "agent-command"
+    },
+    {
+      "name": "Kilo Gateway",
+      "preflight_status": "verified",
+      "preflight_note": "Read-only /models access succeeded and the current catalog exposes free models; generation remains quarantined until an approved smoke test.",
+      "url": "https://api.kilo.ai/api/gateway",
+      "source_url": "https://kilo.ai/docs/gateway/models-and-providers",
+      "transport": "openai-compatible",
+      "api_key_optional": true,
+      "quota": {
+        "status": "partially documented",
+        "scope": "account/IP and model",
+        "dimensions": [
+          "free-model availability",
+          "requests per hour",
+          "provider-defined request/token limits"
+        ],
+        "reset": "IP-based anonymous limit is hourly; model/account limits vary",
+        "summary": "Kilo documents unauthenticated access for free models with a 200 requests/hour/IP limit. A current no-generation /models request succeeded; the selected free IDs are live now, but availability and generation quality still require review.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+          "power": "very-strong",
+          "quota_weight": 2.5
+        },
+        {
+          "id": "nvidia/nemotron-3-super-120b-a12b:free",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        }
+      ]
+    },
+    {
+      "name": "Ollama Cloud",
+      "preflight_status": "verified",
+      "preflight_note": "Cloud OpenAI-compatible endpoint is documented; account/model limits remain qualitative.",
+      "url": "https://ollama.com/v1",
+      "source_url": "https://ollama.com/pricing",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "documented qualitative",
+        "scope": "account plan and model",
+        "dimensions": [
+          "session window",
+          "weekly window",
+          "model-weighted usage"
+        ],
+        "reset": "session limits reset every 5 hours; weekly limits reset every 7 days",
+        "summary": "Ollama's Free plan includes cloud-model access with light usage. Limits are not a fixed token number: usage depends on input, cached input, output, and model compute weight. The provider documents a 5-hour session window and 7-day weekly window; exact allowances are account/model dependent.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "gpt-oss:120b",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "minimax-m3",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "gemma4:31b",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "nemotron-3-ultra",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "nemotron-3-super",
+          "power": "very-strong",
+          "quota_weight": 2.0
+        },
+        {
+          "id": "nemotron-3-nano:30b",
+          "power": "strong",
+          "quota_weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "BazaarLink",
+      "preflight_status": "verified",
+      "preflight_note": "Read-only /models access succeeded; auto:free and the current free DeepSeek route are present. Generation remains quarantined until an approved smoke test.",
+      "url": "https://bazaarlink.ai/api/v1",
+      "source_url": "https://bazaarlink.ai/docs",
+      "transport": "openai-compatible",
+      "quota": {
+        "status": "documented",
+        "scope": "account",
+        "dimensions": [
+          "RPM",
+          "requests per day",
+          "free credits"
+        ],
+        "reset": "RPM is rolling; daily usage is unlimited subject to free quota/credits",
+        "summary": "BazaarLink documents a free tier of 10 RPM and 150 requests/day for accounts without credit, plus an auto:free route. A no-generation /models request succeeded and exposed auto:free plus the current `deepseek/deepseek-v4-flash:free` route; paid fallback remains disabled.",
+        "checked_at": "2026-08-11"
+      },
+      "models": [
+        {
+          "id": "auto:free",
+          "power": "strong",
+          "quota_weight": 1.0
+        },
+        {
+          "id": "deepseek/deepseek-v4-flash:free",
+          "power": "strong",
+          "quota_weight": 1.0
+        }
+      ]
+    },
+    {
+      "name": "Grok Build",
+      "url": "https://x.ai/bot",
+      "source_url": "https://x.ai/cli",
+      "transport": "agent-command",
+      "preflight_status": "pending",
+      "preflight_note": "Native coding-agent candidate only. Requires an operator-installed, authenticated CLI and an explicit wrapper; no automated activation or browser automation is configured."
+    }
   ]
 }

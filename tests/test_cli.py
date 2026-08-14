@@ -150,33 +150,6 @@ class CliTests(unittest.TestCase):
             "models/gemini-3.6-flash",
             "models/gemini-3.5-flash",
             "models/gemini-3.5-flash-lite",
-            "models/gemini-2.5-flash",
-        })
-
-    def test_cloudflare_requires_account_id_and_registers_native_adapter(self) -> None:
-        from aipool.provider_catalog import config_prefix, load_catalog
-        provider = next(item for item in load_catalog() if item.provider_name == "Cloudflare Workers AI")
-        prefix = config_prefix(provider)
-        with patch.dict(os.environ, {f"{prefix}_API_KEY": "cf-token"}, clear=True):
-            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
-        self.assertNotIn(f"catalog:{provider.slug}", {adapter.profile.id for adapter in registry.all()})
-        with patch.dict(os.environ, {
-            f"{prefix}_API_KEY": "cf-token", f"{prefix}_ACCOUNT_ID": "account-123",
-        }, clear=True):
-            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
-        adapter = registry.get(f"catalog:{provider.slug}")
-        self.assertEqual(adapter.profile.transport, "cloudflare-workers-ai")
-        self.assertEqual(adapter.endpoint, provider.endpoint)
-
-    def test_cloudflare_catalog_uses_current_documented_model_ids(self) -> None:
-        from aipool.provider_catalog import load_catalog
-        models = {
-            item.model for item in load_catalog()
-            if item.provider_name == "Cloudflare Workers AI"
-        }
-        self.assertEqual(models, {
-            "@cf/zai-org/glm-4.7-flash",
-            "@cf/qwen/qwen3-30b-a3b-fp8",
         })
 
     def test_mistral_catalog_uses_current_documented_model_ids(self) -> None:
@@ -191,29 +164,13 @@ class CliTests(unittest.TestCase):
             "mistral-large-2512",
         })
 
-    def test_zai_catalog_uses_current_official_model_ids(self) -> None:
+    def test_catalog_excludes_providers_without_a_working_keyed_route(self) -> None:
         from aipool.provider_catalog import load_catalog
-        providers = [item for item in load_catalog() if item.provider_name == "Z.AI GLM API"]
-        self.assertEqual({item.model for item in providers}, {"glm-5", "glm-4.7"})
-        self.assertTrue(all(item.source_url.startswith("https://docs.z.ai/") for item in providers))
-
-    def test_catalog_exposes_preflight_gate_for_unverified_contracts(self) -> None:
-        from aipool.provider_catalog import load_catalog
-        by_family = {}
-        for item in load_catalog():
-            by_family.setdefault(item.provider_name, item)
-        self.assertEqual(by_family["TokenRouter"].preflight_status, "pending")
-        self.assertIn(".io", by_family["TokenRouter"].preflight_note)
-        self.assertEqual(by_family["Google AI Studio API"].preflight_status, "verified")
-
-    def test_tokenrouter_registers_responses_adapter(self) -> None:
-        from aipool.provider_catalog import config_prefix, load_catalog
-        provider = next(item for item in load_catalog() if item.provider_name == "TokenRouter")
-        with patch.dict(os.environ, {f"{config_prefix(provider)}_API_KEY": "tr-test"}, clear=True):
-            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
-        adapter = registry.get(f"catalog:{provider.slug}")
-        self.assertEqual(adapter.profile.transport, "tokenrouter-responses")
-        self.assertEqual(adapter.endpoint, "https://api.tokenrouter.io/v1")
+        families = {item.provider_name for item in load_catalog()}
+        self.assertNotIn("Cloudflare Workers AI", families)
+        self.assertNotIn("SambaNova Cloud", families)
+        self.assertNotIn("TokenRouter", families)
+        self.assertNotIn("Z.AI GLM API", families)
 
     def test_kilo_catalog_uses_documented_free_model_ids(self) -> None:
         from aipool.provider_catalog import load_catalog
@@ -252,7 +209,7 @@ class CliTests(unittest.TestCase):
             item.model for item in load_catalog() if item.provider_name == "Groq API"
         }
         self.assertEqual(models, {
-            "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3.6-27b",
+            "openai/gpt-oss-20b", "openai/gpt-oss-120b",
         })
 
     def test_nvidia_catalog_uses_current_free_endpoint_ids(self) -> None:
@@ -274,17 +231,9 @@ class CliTests(unittest.TestCase):
             if item.provider_name == "OpenRouter Free Models"
         }
         self.assertEqual(models, {
-            "openai/gpt-oss-20b:free",
             "nvidia/nemotron-3-super-120b-a12b:free",
             "nvidia/nemotron-3-ultra-550b-a55b:free",
         })
-
-    def test_sambanova_catalog_records_free_tier_guardrail(self) -> None:
-        from aipool.provider_catalog import load_catalog
-        providers = [item for item in load_catalog() if item.provider_name == "SambaNova Cloud"]
-        self.assertEqual(providers[0].quota_status, "documented")
-        self.assertIn("20 RPM", providers[0].quota_summary)
-        self.assertIn("200,000 TPD", providers[0].quota_summary)
 
     def test_active_discovered_model_is_loaded_only_for_serve_registry(self) -> None:
         from aipool.benchmark import BenchmarkResult
