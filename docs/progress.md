@@ -639,3 +639,14 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   state cannot safely distinguish stale health from permanently dead providers;
   release the fixes first, then run one bounded smoke test per configured family
   and remove only entries with confirmed permanent failure.
+
+## 2026-08-13 — LLM7.io candidate added
+
+- LLM7.io's official documentation confirms `https://api.llm7.io/v1` is
+  OpenAI-compatible, supports the `default` free-model selector, and documents
+  conservative free-token limits. An unauthenticated `/v1/models` check from
+  this machine returned 34 models.
+- Added LLM7.io to the catalog as a quarantined-by-default candidate. It will
+  not route until `AIPOOL_PROVIDER_LLM7_IO_API_KEY` is present and a bounded
+  authenticated smoke test succeeds. The key itself was not present in the
+  system-wide credential file during this check.
