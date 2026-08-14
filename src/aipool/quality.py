@@ -40,8 +40,13 @@ def validate_output(output: str, *, require_json: bool = False, task: str = "") 
         return QualityReport(False, "unclosed_code_fence")
     parsed = None
     if require_json:
+        json_text = text
+        if json_text.startswith("```") and json_text.endswith("```"):
+            lines = json_text.splitlines()
+            if len(lines) >= 3:
+                json_text = "\n".join(lines[1:-1]).strip()
         try:
-            parsed = json.loads(text)
+            parsed = json.loads(json_text)
         except json.JSONDecodeError:
             return QualityReport(False, "malformed_json")
         if parsed is None or parsed == {} or parsed == []:

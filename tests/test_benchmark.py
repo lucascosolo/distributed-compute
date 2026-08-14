@@ -66,6 +66,12 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(result.scores["extraction"], 1.0)
         self.assertEqual(result.scores["structured_json"], 1.0)
 
+    def test_json_validation_accepts_a_markdown_json_fence(self) -> None:
+        profile = ProviderProfile("fenced", "Fenced", "fixture", state=ProviderState.HEALTHY)
+        result = run_benchmark(FixtureAdapter(profile, lambda _: "```json\n{\"name\":\"Ada\"}\n```"), default_cases()[:2])
+        self.assertEqual(result.valid, 2)
+        self.assertIsNone(result.failure_reason)
+
 
 if __name__ == "__main__":
     unittest.main()

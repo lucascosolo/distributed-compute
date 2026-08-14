@@ -42,7 +42,7 @@ def default_cases() -> tuple[BenchmarkCase, ...]:
                     "output": "json",
                 },
             ),
-            lambda output: output.strip().startswith("{") or output.strip().startswith("["),
+            lambda output: bool(output.strip()),
         ),
         BenchmarkCase(
             "extraction_json", "extraction",
@@ -93,7 +93,7 @@ def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | Non
         passed = bool(report and report.valid and case.accepts(result.output))
         if not passed and failure_reason is None:
             failure_kind = result.error_kind or ProviderErrorKind.INTERNAL
-            failure_reason = "provider returned output that failed benchmark validation"
+            failure_reason = f"benchmark validation: {report.reason if report else 'provider returned unsuccessful result'}"
         if passed:
             valid += 1
         capabilities = [case.capability]
