@@ -32,7 +32,7 @@ from .worker import QueueWorker
 
 
 def _load_local_config() -> None:
-    """Load ignored operator config without overwriting explicit environment values."""
+    """Load operator config, allowing the dashboard file to override stale process values."""
     candidates: list[Path] = []
     configured = os.environ.get("AIPOOL_CONFIG_FILE")
     if configured:
@@ -68,7 +68,14 @@ def _load_local_config() -> None:
             key, value = line.split("=", 1)
             key, value = key.strip(), value.strip().strip("'\"")
             if key.startswith("AIPOOL_") or key in {"HF_TOKEN"}:
-                os.environ.setdefault(key, value)
+                # A configured operator file is the live control plane for the
+                # dashboard. Its model toggles and rotated credentials must take
+                # effect on reload even when an older EnvironmentFile value is
+                # still present in the long-running process.
+                if configured:
+                    os.environ[key] = value
+                else:
+                    os.environ.setdefault(key, value)
 
 
 def _nonnegative_int(value: str | None, default: int = 0) -> int:

@@ -6,12 +6,24 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from aipool.cli import _build_registry, main
+from aipool.cli import _build_registry, _load_local_config, main
 from aipool.domain import ProviderState
 from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
+    def test_configured_operator_file_overrides_stale_process_values(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "operator.env")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write("AIPOOL_MODEL_SILICONFLOW_QWEN_QWEN2_7B_INSTRUCT_ENABLED=1\n")
+            with patch.dict(os.environ, {
+                "AIPOOL_CONFIG_FILE": path,
+                "AIPOOL_MODEL_SILICONFLOW_QWEN_QWEN2_7B_INSTRUCT_ENABLED": "0",
+            }, clear=False):
+                _load_local_config()
+                self.assertEqual(os.environ["AIPOOL_MODEL_SILICONFLOW_QWEN_QWEN2_7B_INSTRUCT_ENABLED"], "1")
+
     def test_artifact_upload_returns_content_addressed_reference(self) -> None:
         output = io.StringIO()
 
