@@ -104,6 +104,11 @@ def _cloudflare_access_headers() -> dict[str, str]:
     return {"CF-Access-Client-Id": client_id, "CF-Access-Client-Secret": client_secret}
 
 
+def _remote_timeout_seconds() -> float:
+    """Allow slow shared providers to finish before the caller gives up."""
+    return _positive_float(os.environ.get("AIPOOL_REMOTE_TIMEOUT_SECONDS"), 180.0)
+
+
 def _baseline_command(command: tuple[str, ...], timeout: float):
     def run(packet: ContextPacket) -> str:
         completed = subprocess.run(
@@ -260,6 +265,9 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
         usage_window_seconds = _positive_float(
             os.environ.get(f"{provider_prefix}_USAGE_WINDOW_SECONDS"), 60.0
         )
+        timeout_seconds = _positive_float(
+            os.environ.get(f"{provider_prefix}_TIMEOUT_SECONDS"), 120.0
+        )
         power = catalog_provider.power.casefold()
         max_complexity = 1 if power == "light" else 2 if power == "medium" else 3 if power == "strong" else 4
         capabilities = {"classification": 0.6, "structured_json": 0.6, "extraction": 0.6, "summarization": 0.6}
@@ -281,6 +289,7 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
             registry.register(OpenAICompatibleAdapter(
                 profile, endpoint, model, api_key_env,
                 headers_extra=headers_extra, allow_anonymous=catalog_provider.api_key_optional,
+                timeout_seconds=timeout_seconds,
                 artifacts=artifact_store,
             ))
         elif catalog_provider.transport == "cloudflare-workers-ai":
@@ -288,14 +297,19 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
                 profile, model, api_key_env,
                 provider_config_name(catalog_provider, "account_id"),
                 endpoint=os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint,
+                timeout_seconds=timeout_seconds,
             ))
         elif catalog_provider.transport == "tokenrouter-responses":
             registry.register(TokenRouterResponsesAdapter(
                 profile, model, api_key_env,
                 endpoint=os.environ.get(f"{provider_prefix}_ENDPOINT") or catalog_provider.endpoint,
+                timeout_seconds=timeout_seconds,
             ))
         elif catalog_provider.transport == "huggingface-api":
-            registry.register(HuggingFaceInferenceAdapter(profile, model, api_key_env, catalog_provider.endpoint))
+            registry.register(HuggingFaceInferenceAdapter(
+                profile, model, api_key_env, catalog_provider.endpoint,
+                timeout_seconds=timeout_seconds,
+            ))
     if store is not None:
         catalog_by_family = {provider.provider_slug: provider for provider in load_catalog()}
         for row in store.discovered_model_rows():
@@ -552,6 +566,7 @@ def main(argv: list[str] | None = None) -> int:
                     result = enqueue_remote(
                         base_url, task, token=token, idempotency_key=args.idempotency_key,
                         headers_extra=_cloudflare_access_headers(),
+                        timeout_seconds=_remote_timeout_seconds(),
                     )
                 else:
                     store = Store(args.db)
@@ -570,6 +585,7 @@ def main(argv: list[str] | None = None) -> int:
                 result = operation(
                     base_url, args.task_id, token=token,
                     headers_extra=_cloudflare_access_headers(),
+                    timeout_seconds=_remote_timeout_seconds(),
                 )
             else:
                 store = Store(args.db)
@@ -689,6 +705,7 @@ def main(argv: list[str] | None = None) -> int:
                     os.environ.get("AIPOOL_BASE_URL", ""), content,
                     token=os.environ.get("AIPOOL_TOKEN") or None,
                     headers_extra=_cloudflare_access_headers(),
+                    timeout_seconds=_remote_timeout_seconds(),
                 )
             else:
                 reference = ArtifactStore(os.environ.get("AIPOOL_ARTIFACT_ROOT", ".aipool-artifacts")).put(content)
@@ -708,6 +725,7 @@ def main(argv: list[str] | None = None) -> int:
                 os.environ.get("AIPOOL_BASE_URL", ""), task,
                 token=os.environ.get("AIPOOL_TOKEN") or None,
                 headers_extra=_cloudflare_access_headers(),
+                timeout_seconds=_remote_timeout_seconds(),
             )
         except RemoteCoordinatorError as exc:
             print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))

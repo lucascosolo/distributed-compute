@@ -409,7 +409,10 @@ class OpenAICompatibleAdapter:
     endpoint: str
     model: str
     api_key_env: str
-    timeout_seconds: float = 30.0
+    # Free/shared endpoints can queue behind other tenants. Keep the socket
+    # open long enough for a valid response instead of classifying slow work
+    # as provider failure.
+    timeout_seconds: float = 120.0
     opener: Callable[..., object] = request.urlopen
     static_api_key: str = ""
     api_key_file: str = ""
@@ -510,7 +513,7 @@ class CloudflareWorkersAIAdapter:
     api_key_env: str
     account_id_env: str
     endpoint: str = "https://api.cloudflare.com/client/v4/accounts"
-    timeout_seconds: float = 30.0
+    timeout_seconds: float = 120.0
     opener: Callable[..., object] = request.urlopen
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
@@ -583,7 +586,7 @@ class TokenRouterResponsesAdapter:
     model: str
     api_key_env: str
     endpoint: str
-    timeout_seconds: float = 30.0
+    timeout_seconds: float = 120.0
     opener: Callable[..., object] = request.urlopen
 
     def complete(self, task: TaskEnvelope) -> ProviderResult:
@@ -662,7 +665,7 @@ class HuggingFaceInferenceAdapter:
     model: str
     api_key_env: str = "HF_TOKEN"
     endpoint: str = "https://router.huggingface.co/v1/chat/completions"
-    timeout_seconds: float = 30.0
+    timeout_seconds: float = 120.0
     opener: Callable[..., object] = request.urlopen
     artifacts: ArtifactStore | None = None
 

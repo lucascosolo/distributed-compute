@@ -104,12 +104,14 @@ class CliTests(unittest.TestCase):
             f"{config_prefix(provider)}_REQUEST_LIMIT": "5",
             f"{config_prefix(provider)}_TOKEN_LIMIT": "1200",
             f"{config_prefix(provider)}_USAGE_WINDOW_SECONDS": "86400",
+            f"{config_prefix(provider)}_TIMEOUT_SECONDS": "240",
         }, clear=True):
             registry = _build_registry(__import__("argparse").Namespace(command="task"))
         profile = registry.get(f"catalog:{provider.slug}").profile
         self.assertEqual(profile.request_limit, 5)
         self.assertEqual(profile.token_limit, 1200)
         self.assertEqual(profile.usage_window_seconds, 86400)
+        self.assertEqual(registry.get(f"catalog:{provider.slug}").timeout_seconds, 240)
 
     def test_google_ai_studio_key_loads_openai_compatible_models(self) -> None:
         from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix

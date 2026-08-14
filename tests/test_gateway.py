@@ -194,11 +194,9 @@ class GatewayTests(unittest.TestCase):
         self.assertIn(b"Recorded detail", body)
         self.assertIn(b"provider contract note", body)
         self.assertIn(b"provider adapter, account metadata, endpoint, or model ID", body)
-        self.assertIn(b"human review required", body)
-        self.assertIn(b"Approve for bounded smoke test", body)
         self.assertIn(b"Run bounded smoke test", body)
-        self.assertIn(b"Activate routing", body)
-        self.assertIn(b"Disable routing", body)
+        self.assertIn(b"Run bounded smoke test on quarantined models", body)
+        self.assertIn(b"Individual model cards are intentionally hidden", body)
         self.assertIn(b"Requests per window", body)
         self.assertIn(b"Tokens per window", body)
         self.assertIn(b"Quota guidance", body)
@@ -387,6 +385,11 @@ class GatewayTests(unittest.TestCase):
         status, data = self.request("GET", "/admin/provider/smoke-batch-plan?max_models=33")
         self.assertEqual(status, 400)
         self.assertIn("max_models", data["error"])
+
+    def test_smoke_batch_plan_can_target_quarantined_models_only(self) -> None:
+        status, data = self.request("GET", "/admin/provider/smoke-batch-plan?state=invalid")
+        self.assertEqual(status, 400)
+        self.assertIn("state filter", data["error"])
 
     def test_smoke_batch_requires_approval_and_runs_selected_models_sequentially(self) -> None:
         from aipool.benchmark import BenchmarkResult

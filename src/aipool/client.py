@@ -55,7 +55,7 @@ def submit_remote(
     *,
     token: str | None,
     headers_extra: Mapping[str, str] | None = None,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float = 180.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     return _remote_json(
@@ -70,7 +70,7 @@ def upload_artifact_remote(
     *,
     token: str | None,
     headers_extra: Mapping[str, str] | None = None,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float = 180.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> str:
     """Upload one bounded context artifact and return its content-addressed ref."""
@@ -94,7 +94,7 @@ def enqueue_remote(
     token: str | None,
     headers_extra: Mapping[str, str] | None = None,
     idempotency_key: str | None = None,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float = 180.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
@@ -111,7 +111,7 @@ def get_remote_queue(
     *,
     token: str | None,
     headers_extra: Mapping[str, str] | None = None,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float = 180.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     return _remote_json(
@@ -126,7 +126,7 @@ def cancel_remote(
     *,
     token: str | None,
     headers_extra: Mapping[str, str] | None = None,
-    timeout_seconds: float = 30.0,
+    timeout_seconds: float = 180.0,
     opener: Callable[..., object] = request.urlopen,
 ) -> Mapping[str, object]:
     return _remote_json(
