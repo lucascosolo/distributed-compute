@@ -228,8 +228,9 @@ def _build_registry(args: argparse.Namespace, store: Store | None = None) -> Pro
                 "classification": 0.6, "structured_json": 0.6,
                 "extraction": 0.6, "summarization": 0.6,
             }
+            specialized_score = 0.8 if selected_complexity >= 4 else 0.7
             for capability in metadata["capabilities"]:
-                selected_capabilities[str(capability)] = 0.7
+                selected_capabilities[str(capability)] = specialized_score
             selected_profile = ProviderProfile(
                 f"omniroute:{selected_model}", f"OmniRoute · {selected_model}", "omniroute",
                 capabilities=selected_capabilities, reliability=0.3,

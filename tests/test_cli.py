@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from aipool.cli import _build_registry, _load_local_config, main
 from aipool.domain import ProviderState
+from aipool.routing import supports_task
 from aipool.storage import Store
 
 
@@ -106,6 +107,18 @@ class CliTests(unittest.TestCase):
         selected = {item.profile.id for item in registry.all() if item.profile.transport == "omniroute"}
         self.assertIn("omniroute:groq/openai/gpt-oss-120b", selected)
         self.assertIn("omniroute:openrouter/openai/gpt-oss-20b:free", selected)
+
+    def test_specialized_omniroute_routes_satisfy_router_requirements(self) -> None:
+        with patch.dict(os.environ, {
+            "AIPOOL_OMNIROUTE_ENABLED": "true",
+            "AIPOOL_OMNIROUTE_ENDPOINT": "http://127.0.0.1:20128/v1",
+            "AIPOOL_OMNIROUTE_MODEL": "auto/best-free",
+            "AIPOOL_OMNIROUTE_MODELS": "auto/best-coding,auto/best-reasoning",
+        }, clear=True):
+            registry = _build_registry(__import__("argparse").Namespace(command="providers"))
+        self.assertTrue(supports_task(registry.get("omniroute:auto/best-coding").profile, "coding"))
+        self.assertTrue(supports_task(registry.get("omniroute:auto/best-reasoning").profile, "review"))
+        self.assertTrue(supports_task(registry.get("omniroute:auto/best-reasoning").profile, "research"))
 
     def test_task_returns_compact_structured_result(self) -> None:
         task = json.dumps({
