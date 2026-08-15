@@ -1,7 +1,10 @@
 import json
+import socket
 import unittest
+from unittest.mock import patch
+from urllib import error
 
-from aipool.client import RemoteCoordinatorError, cancel_remote, enqueue_remote, get_remote_queue, submit_remote, upload_artifact_remote
+from aipool.client import RemoteCoordinatorError, cancel_remote, enqueue_remote, get_remote_capabilities, get_remote_queue, submit_remote, upload_artifact_remote
 from aipool.domain import TaskEnvelope
 
 
@@ -20,6 +23,40 @@ class Response:
 
 
 class ClientTests(unittest.TestCase):
+    def test_capabilities_client_uses_shared_endpoint(self) -> None:
+        captured = {}
+
+        def opener(req, timeout):
+            captured["url"] = req.full_url
+            captured["method"] = req.get_method()
+            return Response({"coordinator": "auto", "capabilities": []})
+
+        result = get_remote_capabilities("https://compute.example", token="secret", opener=opener)
+        self.assertEqual(result["coordinator"], "auto")
+        self.assertEqual(captured, {"url": "https://compute.example/capabilities", "method": "GET"})
+
+    def test_submit_remote_retries_transient_dns_resolution_failure(self) -> None:
+        attempts = 0
+
+        def opener(req, timeout):
+            nonlocal attempts
+            attempts += 1
+            if attempts < 3:
+                raise error.URLError(socket.gaierror(-3, "Temporary failure in name resolution"))
+            return Response({"success": True, "valid": True, "output": "ok"})
+
+        with patch("aipool.client.time.sleep") as sleep:
+            result = submit_remote(
+                "https://compute.example",
+                TaskEnvelope(task="classification", input_ref="x"),
+                token=None,
+                opener=opener,
+            )
+
+        self.assertTrue(result["success"])
+        self.assertEqual(attempts, 3)
+        self.assertEqual(sleep.call_count, 2)
+
     def test_upload_artifact_remote_returns_content_addressed_reference(self) -> None:
         captured = {}
 

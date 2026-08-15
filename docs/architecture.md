@@ -83,9 +83,11 @@ VPS coordinator after the in-process path is tested; it accepts task envelopes a
 returns structured outcomes, not arbitrary tool permissions.
 
 When no provider is sufficiently capable or delegation is not economical, the
-coordinator returns a successful routing outcome with `native_fallback: true` and
-`next_action: "native_model"`. Claude or Codex completes that task locally rather
-than retrying the same request, then may submit subsequent independent tasks.
+coordinator returns an explicit unsuccessful delegated outcome with
+`native_fallback: true` and `next_action: "native_model"` when it cannot produce a
+delegated result. This keeps an intentional handoff distinct from an empty or
+successful answer. Claude or Codex completes that task locally rather than retrying
+the same request through the pool, then may submit subsequent independent tasks.
 
 ## Delivery phases
 

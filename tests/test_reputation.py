@@ -72,14 +72,15 @@ class ReputationTests(unittest.TestCase):
         self.assertEqual(store.observation("p", "extraction"), (1, 0.5))
         self.assertEqual(store.learned_capabilities(provider)["extraction"], 0.5)
 
-    def test_coordinator_probe_teaches_routing_new_capability(self) -> None:
+    def test_coordinator_best_effort_and_probe_accept_undeclared_capability(self) -> None:
         provider = ProviderProfile("p", "P", "fixture", state=ProviderState.HEALTHY)
         adapter = FixtureAdapter(provider, lambda task: '{"name":"Ada"}')
         store = Store()
         self.addCleanup(store.close)
         coordinator = Coordinator(ProviderRegistry({"p": adapter}), store)
         before = coordinator.submit(TaskEnvelope(task="extraction", input_ref="artifact:before", requirements={"output": "json"}, local_estimate=1))
-        self.assertTrue(before.native_fallback)
+        self.assertTrue(before.valid)
+        self.assertEqual(before.provider_id, "p")
         coordinator.benchmark_provider("p")
         after = coordinator.submit(TaskEnvelope(task="extraction", input_ref="artifact:after", requirements={"output": "json"}, local_estimate=1))
         self.assertTrue(after.valid)

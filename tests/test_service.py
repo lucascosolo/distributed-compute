@@ -86,7 +86,7 @@ class ServiceTests(unittest.TestCase):
         outcome = Coordinator(ProviderRegistry({"first": first, "second": second}), store).submit(
             TaskEnvelope(task="classification", input_ref="synthetic", local_estimate=1.0)
         )
-        self.assertTrue(outcome.success)
+        self.assertFalse(outcome.success)
         self.assertTrue(outcome.native_fallback)
         self.assertEqual(outcome.reason, "all_candidate_providers_failed")
         self.assertEqual(calls, {"first": 1, "second": 0})
@@ -98,6 +98,19 @@ class ServiceTests(unittest.TestCase):
         self.addCleanup(store.close)
         coordinator = Coordinator(ProviderRegistry({"bad": first, "good": second}), store)
         outcome = coordinator.submit(TaskEnvelope(task="classification", input_ref="artifact:x", requirements={"output": "json"}, local_estimate=1.0))
+        self.assertTrue(outcome.success)
+        self.assertEqual(outcome.provider_id, "good")
+        self.assertEqual(store.observation("bad", "classification"), (1, 0))
+        self.assertEqual(store.observation("good", "classification"), (1, 1))
+
+    def test_stale_capability_scores_still_try_healthy_providers(self) -> None:
+        first = FixtureAdapter(profile("bad", classification=0.2, structured_json=0.2), lambda _: "")
+        second = FixtureAdapter(profile("good", classification=0.2, structured_json=0.2), lambda _: '{"label":"docs"}')
+        store = Store()
+        self.addCleanup(store.close)
+        outcome = Coordinator(ProviderRegistry({"bad": first, "good": second}), store).submit(
+            TaskEnvelope(task="classification", input_ref="artifact:x", requirements={"output": "json"}, local_estimate=1.0)
+        )
         self.assertTrue(outcome.success)
         self.assertEqual(outcome.provider_id, "good")
         self.assertEqual(store.observation("bad", "classification"), (1, 0))
@@ -142,8 +155,8 @@ class ServiceTests(unittest.TestCase):
         outcome = Coordinator(ProviderRegistry({"failing": failing}), store).submit(
             TaskEnvelope(task="classification", input_ref="artifact:x", local_estimate=1.0)
         )
-        self.assertTrue(outcome.success)
-        self.assertTrue(outcome.valid)
+        self.assertFalse(outcome.success)
+        self.assertFalse(outcome.valid)
         self.assertTrue(outcome.native_fallback)
         self.assertEqual(outcome.reason, "all_candidate_providers_failed")
         self.assertIsNone(outcome.provider_id)
@@ -155,7 +168,7 @@ class ServiceTests(unittest.TestCase):
         outcome = Coordinator(ProviderRegistry({"disabled": disabled}), store).submit(
             TaskEnvelope(task="classification", input_ref="x", local_estimate=1.0)
         )
-        self.assertTrue(outcome.success)
+        self.assertFalse(outcome.success)
         self.assertTrue(outcome.native_fallback)
         self.assertEqual(outcome.reason, "no_healthy_capable_provider")
 
@@ -166,7 +179,7 @@ class ServiceTests(unittest.TestCase):
         outcome = Coordinator(ProviderRegistry({"cheap": adapter}), store).submit(
             TaskEnvelope(task="classification", input_ref="x", local_estimate=0.001)
         )
-        self.assertTrue(outcome.success)
+        self.assertFalse(outcome.success)
         self.assertIsNone(outcome.provider_id)
         self.assertTrue(outcome.native_fallback)
 

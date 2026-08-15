@@ -15,7 +15,8 @@ from html import escape
 
 from .domain import TaskEnvelope
 from .artifacts import ArtifactStore
-from .benchmark import default_cases, run_benchmark
+from .benchmark import default_cases, route_cases, run_benchmark
+from .capabilities import capability_document
 from .discovered import build_discovered_adapter
 from .model_discovery import classify_model, discover_models
 from .provider_catalog import CatalogProvider, config_prefix, load_catalog, model_config_prefix, provider_config_name
@@ -195,6 +196,25 @@ def make_server(
                 api_key = ""
         return endpoint, api_key
 
+    def omniroute_readiness_snapshot() -> dict[str, object]:
+        """Expose live OmniRoute routes alongside the catalog readiness cards."""
+        profiles = coordinator.health.profiles(
+            adapter.profile for adapter in coordinator.registry.all()
+            if adapter.profile.transport == "omniroute"
+        )
+        models = [
+            {
+                "provider_id": profile.id,
+                "model": profile.id.removeprefix("omniroute:"),
+                "name": profile.name,
+                "state": profile.state.value,
+                "last_benchmark": coordinator.store.latest_benchmark(profile.id),
+            }
+            for profile in profiles
+        ]
+        states = {state: sum(model["state"] == state for model in models) for state in sorted({str(model["state"]) for model in models})}
+        return {"models": models, "summary": {"total": len(models), "states": states}}
+
     def readiness_snapshot() -> dict[str, object]:
         """Return a redacted, no-network report for operator approval decisions."""
         now = time.time()
@@ -260,7 +280,12 @@ def make_server(
                 "last_benchmark": benchmark,
             })
         counts = {state: sum(1 for row in rows if row["state"] == state) for state in sorted({str(row["state"]) for row in rows})}
-        return {"generated_at": now, "providers": rows, "summary": {"total": len(rows), "states": counts}}
+        return {
+            "generated_at": now,
+            "providers": rows,
+            "summary": {"total": len(rows), "states": counts},
+            "omniroute": omniroute_readiness_snapshot(),
+        }
 
     def smoke_batch_plan(
         max_models: int = 12, cases: int = 3, state_filter: str = "",
@@ -426,6 +451,11 @@ def make_server(
             if self.path == "/status":
                 self._send(200, self._operational_status())
                 return
+            if self.path == "/capabilities":
+                self._send(200, capability_document(
+                    coordinator.health.profiles(adapter.profile for adapter in coordinator.registry.all())
+                ))
+                return
             parsed_path = urlsplit(self.path)
             if parsed_path.path.startswith("/artifact/"):
                 reference = parsed_path.path.removeprefix("/artifact/")
@@ -462,20 +492,7 @@ def make_server(
                 })
                 return
             if self.path == "/admin/omniroute/readiness":
-                profiles = coordinator.health.profiles(
-                    adapter.profile for adapter in coordinator.registry.all()
-                    if adapter.profile.transport == "omniroute"
-                )
-                self._send(200, {
-                    "models": [
-                        {
-                            "provider_id": profile.id, "model": profile.id.removeprefix("omniroute:"),
-                            "name": profile.name, "state": profile.state.value,
-                            "last_benchmark": coordinator.store.latest_benchmark(profile.id),
-                        }
-                        for profile in profiles
-                    ],
-                })
+                self._send(200, omniroute_readiness_snapshot())
                 return
             parsed_path = urlsplit(self.path)
             if parsed_path.path == "/admin/provider/smoke-batch-plan":
@@ -535,10 +552,10 @@ function syncOmniSelection(){let selected=[...document.querySelector('#omni-mode
 function filterOmniModels(){let filter=(document.querySelector('#omni-filter').value||'').toLowerCase();for(let option of document.querySelector('#omni-model-options').options)option.hidden=!option.value.toLowerCase().includes(filter)}
 async function scanOmniRouteModels(){let node=document.querySelector('#omni-status');node.textContent=' scanning…';let r=await fetch('/admin/omniroute/models'),d=await r.json();if(!r.ok||!d.success){node.textContent=' '+(d.error||'scan failed');return}let selected=new Set(omniSelected()),list=document.querySelector('#omni-model-options');list.innerHTML=d.models.map(m=>`<option value="${esc(m.id)}" ${selected.has(m.id)?'selected':''}>${esc(m.id)} · ${esc(m.power)}</option>`).join('');node.textContent=' found '+d.count+' live routes; '+selected.size+' selected'}
 async function smokeOmniModels(){let models=omniSelected(),node=document.querySelector('#omni-status');if(!models.length){node.textContent=' select or enter at least one model first';return}node.textContent=' testing '+models.length+' selected routes…';let r=await fetch('/admin/omniroute/smoke-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator_approved:true,models,cases:1})}),d=await r.json();node.textContent=r.ok?' completed '+d.results.length+' OmniRoute model tests':' '+(d.error||'smoke test failed')}
-async function loadReadiness(){let r=await fetch('/admin/readiness');let d=await r.json();let states=Object.entries(d.summary.states).map(([state,count])=>count+' '+state).join(' · ');readiness.innerHTML='<p class="meta">'+d.summary.total+' catalog models · '+states+'</p><p class="status">No provider calls were made. Review key, quota, and health state before running a smoke test.</p>'}
+async function loadReadiness(){let r=await fetch('/admin/readiness');let d=await r.json();let states=Object.entries(d.summary.states).map(([state,count])=>count+' '+state).join(' · ');let omni=d.omniroute||{models:[],summary:{states:{}}},omniStates=Object.entries(omni.summary.states||{}).map(([state,count])=>count+' '+state).join(' · ');let omniNames=(omni.models||[]).filter(p=>p.state==='healthy').map(p=>p.model).join(', ');readiness.innerHTML='<p class="meta">'+d.summary.total+' catalog models · '+states+'</p><p class="meta">Live OmniRoute routes · '+(omni.summary.total||0)+' configured · '+(omniStates||'none')+(omniNames?'<br><strong>Healthy now:</strong> '+esc(omniNames):'')+'</p><p class="status">No provider calls were made. Review key, quota, and health state before running a smoke test.</p>'}
 async function refreshModels(slug){let node=document.querySelector('#live-'+slug);node.textContent=' checking…';let r=await fetch('/admin/discover-models?slug='+encodeURIComponent(slug));let d=await r.json();node.textContent=d.success?' live '+d.models.length+' models: '+d.models.slice(0,5).map(m=>m.id+' ['+m.power+']').join(', '):( ' '+(d.error||'unavailable'));}
 async function smokeProvider(slug){let node=document.querySelector('#smoke-'+slug);node.textContent=' testing…';let r=await fetch('/admin/provider/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({slug,operator_approved:true})});let d=await r.json();node.textContent=r.ok?' smoke '+d.valid+'/'+d.attempts+' valid · '+d.state:' '+(d.error||'smoke test failed');}
-async function smokeAllFamilies(){let node=document.querySelector('#smoke-all'),done=0,failed=0,excluded=[];node.textContent=' planning all quarantined models…';for(;;){let query='/admin/provider/smoke-batch-plan?max_models=32&cases=1&state=quarantined&all_models=1'+(excluded.length?'&exclude='+encodeURIComponent(excluded.join(',')):''),plan=await (await fetch(query)).json();if(!plan.expected_calls)break;let slugs=plan.selected_models.map(x=>x.slug);node.textContent=' testing '+(done+slugs.length)+'+ quarantined models…';let r=await fetch('/admin/provider/smoke-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator_approved:true,slugs,cases:1})}),d=await r.json();if(!r.ok){node.textContent=' smoke batch stopped: '+(d.error||'unknown failure');return}done+=d.results.length;failed+=d.results.filter(x=>x.valid<x.attempts).length;excluded.push(...slugs)}node.textContent=done?' completed '+done+' model smoke tests ('+failed+' failed; see readiness details)':' no eligible quarantined models';}
+async function smokeAllFamilies(){let node=document.querySelector('#smoke-all'),button=document.querySelector('#smoke-all-button'),done=0,failed=0,excluded=[];if(button)button.disabled=true;node.textContent=' planning bounded smoke tests (one case per model; provider calls begin after planning)…';try{for(;;){let query='/admin/provider/smoke-batch-plan?max_models=32&cases=1&state=quarantined&all_models=1'+(excluded.length?'&exclude='+encodeURIComponent(excluded.join(',')):''),response=await fetch(query),plan=await response.json();if(!response.ok)throw new Error(plan.error||'smoke-test planning failed');if(!plan.expected_calls)break;let slugs=plan.selected_models.map(x=>x.slug);node.textContent=' testing '+slugs.length+' models now (completed '+done+'; this batch runs sequentially)…';let batchResponse=await fetch('/admin/provider/smoke-batch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operator_approved:true,slugs,cases:1})}),batch=await batchResponse.json();if(!batchResponse.ok)throw new Error(batch.error||'smoke batch failed');done+=batch.results.length;failed+=batch.results.filter(x=>x.valid<x.attempts).length;excluded.push(...slugs);node.textContent=' completed '+done+' models ('+failed+' failed); planning the next batch…'}node.textContent=done?' finished '+done+' model smoke tests ('+failed+' failed; readiness updated)':' no eligible quarantined models';}catch(error){node.textContent=' smoke test stopped: '+(error instanceof Error?error.message:'unknown failure')}finally{if(button)button.disabled=false}}
 async function reviewModel(encoded,decision){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('[data-review-model]')).find(el=>el.dataset.reviewModel===key);let note=input?.value.trim()||'';if(!note){alert('Add a short review note before deciding.');return}let r=await fetch('/admin/discovered-model/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,decision,note})});let d=await r.json();if(!r.ok){alert(d.error||'Review failed');return}await load()}
 async function smokeTestModel(encoded){let key=decodeURIComponent(encoded);let r=await fetch('/admin/discovered-model/smoke-test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key})});let d=await r.json();if(!r.ok){alert(d.error||'Smoke test failed');return}await load()}
 async function activationChange(encoded,path,attribute){let key=decodeURIComponent(encoded);let input=Array.from(document.querySelectorAll('['+attribute+']')).find(el=>el.getAttribute(attribute)===key);let note=input?.value.trim()||'';if(!note){alert('Add a short decision note first.');return}let r=await fetch('/admin/discovered-model/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model_key:key,note})});let d=await r.json();if(!r.ok){alert(d.error||'Activation change failed');return}await load()}
@@ -824,7 +841,10 @@ form.addEventListener('input',e=>{savebar.classList.add('is-dirty');let el=e.tar
                     missing = [provider_id for provider_id in registry_ids if provider_id not in available]
                     if missing:
                         raise LookupError("OmniRoute models are not selected in the configuration: " + ", ".join(missing))
-                    results = coordinator.benchmark_providers(registry_ids, cases=default_cases()[:cases])
+                    results = {
+                        provider_id: coordinator.benchmark_provider(provider_id, route_cases(provider_id, cases))
+                        for provider_id in registry_ids
+                    }
                 except LookupError as exc:
                     self._send(404, {"error": str(exc)})
                     return

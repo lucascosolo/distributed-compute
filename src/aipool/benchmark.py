@@ -68,6 +68,40 @@ def default_cases() -> tuple[BenchmarkCase, ...]:
     )
 
 
+def route_cases(route_id: str, count: int = 1) -> tuple[BenchmarkCase, ...]:
+    """Choose bounded smoke cases that match a task-specialized route."""
+    if not 1 <= count <= 3:
+        raise ValueError("benchmark case count must be between 1 and 3")
+    route = route_id.casefold()
+    if "coding" in route:
+        cases = (
+            BenchmarkCase(
+                "coding_patch", "coding",
+                TaskEnvelope(
+                    task="coding",
+                    input_ref="Synthetic Python: def add(a, b): return a - b",
+                    requirements={"objective": "Return only the corrected function and no explanation."},
+                ),
+                lambda output: "def" in output and "return" in output,
+            ),
+        )
+    elif "reasoning" in route or "pro-reasoning" in route:
+        cases = (
+            BenchmarkCase(
+                "review_finding", "reasoning",
+                TaskEnvelope(
+                    task="review",
+                    input_ref="Synthetic code: if user_id == admin_id: grant_admin()",
+                    requirements={"objective": "Identify the security problem in one concise sentence."},
+                ),
+                lambda output: len(output.strip()) >= 20,
+            ),
+        )
+    else:
+        cases = default_cases()
+    return cases[:count]
+
+
 def run_benchmark(adapter: ProviderAdapter, cases: Iterable[BenchmarkCase] | None = None) -> BenchmarkResult:
     selected = tuple(cases or default_cases())
     if not selected or len(selected) > 32:

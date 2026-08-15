@@ -83,12 +83,38 @@ class Coordinator:
         ]
         decision = choose_provider(task, profiles)
         if decision.provider is None:
-            outcome = TaskOutcome(
-                task.task_id, Strategy.NO_DELEGATION, None, None, True, True,
-                decision.reason, native_fallback=True,
-            )
-            self.store.record_outcome(outcome)
-            return outcome
+            # A learned capability score can lag a provider's actual behavior.
+            # If the task is economical and there are healthy workers, make a
+            # bounded best-effort attempt before handing the task back natively.
+            # Do not bypass the cost gate or attempt providers that are held,
+            # disabled, quarantined, or part of the delegation chain.
+            best_effort = [
+                profile for profile in profiles
+                if profile.id not in excluded
+                and profile.state in {ProviderState.HEALTHY, ProviderState.DEGRADED}
+            ] if decision.reason == "no_healthy_capable_provider" else []
+            if best_effort:
+                assessment = decision.assessment
+                decision = RoutingDecision(
+                    Strategy.SINGLE,
+                    max(
+                        best_effort,
+                        key=lambda profile: (
+                            profile.reliability,
+                            min((profile.capabilities.get(capability, 0.0) for capability in assessment.capabilities), default=0.0),
+                            -profile.estimated_cost,
+                        ),
+                    ),
+                    assessment,
+                    "best_effort_provider_attempt",
+                )
+            else:
+                outcome = TaskOutcome(
+                    task.task_id, Strategy.NO_DELEGATION, None, None, False, False,
+                    decision.reason, native_fallback=True,
+                )
+                self.store.record_outcome(outcome)
+                return outcome
 
         attempted: set[str] = set()
         blocked_transports: set[str] = set()
@@ -181,7 +207,7 @@ class Coordinator:
             else:
                 reason = "provider_usage_limit_reached"
             outcome = TaskOutcome(
-                task.task_id, Strategy.NO_DELEGATION, None, None, True, True,
+                task.task_id, Strategy.NO_DELEGATION, None, None, False, False,
                 reason, native_fallback=True,
             )
             self.store.record_outcome(outcome)
@@ -191,7 +217,7 @@ class Coordinator:
         # was attempted. This is a native handoff, not a successful delegated
         # result; callers must be told not to retry the same pool request.
         outcome = TaskOutcome(
-            task.task_id, Strategy.NO_DELEGATION, None, None, True, True,
+            task.task_id, Strategy.NO_DELEGATION, None, None, False, False,
             "all_candidate_providers_failed", native_fallback=True,
             orchestration_cost=decision.assessment.single_cost * len(attempted),
         )

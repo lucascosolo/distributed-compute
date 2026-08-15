@@ -217,9 +217,9 @@ the gateway directly to the public Internet without an additional access
 control layer.
 
 The CLI returns machine-readable JSON. A result containing
-`"native_fallback":true` is an intentional handoff: let the native Claude or
-Codex session finish that task rather than repeatedly retrying the same request
-through the pool.
+`"native_fallback":true` and `"success":false` is an intentional handoff: let the
+native Claude or Codex session finish that task rather than repeatedly retrying the
+same request through the pool. The pool did not produce a delegated answer.
 
 ## Configuring legitimate workers
 

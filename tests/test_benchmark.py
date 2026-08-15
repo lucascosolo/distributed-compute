@@ -1,11 +1,16 @@
 import unittest
 
-from aipool.benchmark import default_cases, run_benchmark
+from aipool.benchmark import default_cases, route_cases, run_benchmark
 from aipool.domain import ProviderErrorKind, ProviderProfile, ProviderState, ProviderResult
 from aipool.providers import FixtureAdapter
 
 
 class BenchmarkTests(unittest.TestCase):
+    def test_route_cases_match_specialized_omniroute_routes(self) -> None:
+        self.assertEqual(route_cases("omniroute:auto/best-coding")[0].task.task, "coding")
+        self.assertEqual(route_cases("omniroute:auto/pro-reasoning")[0].task.task, "review")
+        self.assertEqual(route_cases("omniroute:auto/best-fast")[0].task.task, "classification")
+
     def test_default_cases_include_context_and_explicit_objectives(self) -> None:
         cases = default_cases()
         self.assertEqual(len(cases), 3)

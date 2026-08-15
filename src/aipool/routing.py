@@ -45,10 +45,25 @@ _STRATEGY_MULTIPLIER = {
 }
 
 
+def required_capabilities(kind: str) -> tuple[str, ...]:
+    """Return the router's canonical provider requirements for a task kind."""
+    return _CAPABILITIES.get(kind, (kind,))
+
+
+def required_complexity(kind: str) -> int:
+    """Return the router's canonical complexity requirement for a task kind."""
+    return _COMPLEXITY.get(kind, 3)
+
+
+def supports_task(profile: ProviderProfile, kind: str) -> bool:
+    """Report whether a profile would satisfy routing requirements for a task kind."""
+    return _meets(profile, required_capabilities(kind), required_complexity(kind))
+
+
 def assess(task: TaskEnvelope) -> TaskAssessment:
     kind = task.task.value if isinstance(task.task, TaskKind) else str(task.task)
-    capabilities = _CAPABILITIES.get(kind, (kind,))
-    complexity = _COMPLEXITY.get(kind, 3)
+    capabilities = required_capabilities(kind)
+    complexity = required_complexity(kind)
     input_units = max(1, len(task.input_ref) // 64)
     base_cost = 0.05 + (0.01 * input_units) + (0.02 * complexity)
     strategy = task.strategy if task.strategy != Strategy.NO_DELEGATION else Strategy.SINGLE

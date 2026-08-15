@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import base64
+import socket
+import time
 from typing import Callable, Mapping
 from urllib import error, request
 
@@ -12,6 +14,11 @@ from .domain import TaskEnvelope
 
 class RemoteCoordinatorError(RuntimeError):
     """A remote coordinator could not accept or return a task."""
+
+
+def _is_transient_dns_error(exc: error.URLError) -> bool:
+    """Retry only resolver failures, before risking a duplicate POST."""
+    return isinstance(exc.reason, socket.gaierror)
 
 
 def _remote_json(
@@ -37,13 +44,19 @@ def _remote_json(
         headers.update(headers_extra)
     body = json.dumps(payload, separators=(",", ":")).encode() if payload is not None else None
     req = request.Request(f"{base_url}{path}", data=body, headers=headers, method=method)
-    try:
-        with opener(req, timeout=timeout_seconds) as response:  # type: ignore[attr-defined]
-            response_payload = json.loads(response.read())
-    except error.HTTPError as exc:
-        raise RemoteCoordinatorError(f"remote coordinator returned HTTP {exc.code}") from exc
-    except (error.URLError, TimeoutError, OSError, json.JSONDecodeError, TypeError) as exc:
-        raise RemoteCoordinatorError(f"remote coordinator request failed: {exc}") from exc
+    for attempt in range(3):
+        try:
+            with opener(req, timeout=timeout_seconds) as response:  # type: ignore[attr-defined]
+                response_payload = json.loads(response.read())
+            break
+        except error.HTTPError as exc:
+            raise RemoteCoordinatorError(f"remote coordinator returned HTTP {exc.code}") from exc
+        except error.URLError as exc:
+            if attempt == 2 or not _is_transient_dns_error(exc):
+                raise RemoteCoordinatorError(f"remote coordinator request failed: {exc}") from exc
+            time.sleep(0.5 * (2**attempt))
+        except (TimeoutError, OSError, json.JSONDecodeError, TypeError) as exc:
+            raise RemoteCoordinatorError(f"remote coordinator request failed: {exc}") from exc
     if not isinstance(response_payload, dict):
         raise RemoteCoordinatorError("remote coordinator returned a non-object response")
     return response_payload
@@ -60,6 +73,20 @@ def submit_remote(
 ) -> Mapping[str, object]:
     return _remote_json(
         base_url, "/task", token=token, method="POST", payload=task.to_dict(),
+        headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
+    )
+
+
+def get_remote_capabilities(
+    base_url: str,
+    *,
+    token: str | None,
+    headers_extra: Mapping[str, str] | None = None,
+    timeout_seconds: float = 30.0,
+    opener: Callable[..., object] = request.urlopen,
+) -> Mapping[str, object]:
+    return _remote_json(
+        base_url, "/capabilities", token=token, method="GET",
         headers_extra=headers_extra, timeout_seconds=timeout_seconds, opener=opener,
     )
 

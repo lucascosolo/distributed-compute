@@ -650,3 +650,14 @@ PYTHONPATH=src python3 -W error::ResourceWarning -m unittest discover -s tests -
   not route until `AIPOOL_PROVIDER_LLM7_IO_API_KEY` is present and a bounded
   authenticated smoke test succeeds. The key itself was not present in the
   system-wide credential file during this check.
+
+## 2026-08-14 — remote caller resilience and live origin checks
+
+- Remote client calls now retry transient DNS resolver failures twice with short
+  backoff; HTTP, authentication, payload, and non-resolution failures remain
+  immediate errors so a failed POST is not blindly duplicated.
+- The shared remote configuration resolves through Cloudflare Access and the
+  authenticated gateway `/status` endpoint returned HTTP 200. Bounded live
+  classification tasks succeeded from both the Claude and Codex origin files,
+  with `native_fallback=false` and delegated compute savings reported.
+- The full 203-test suite passed on the VPS after the client change.

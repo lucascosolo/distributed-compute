@@ -12,6 +12,18 @@ from aipool.storage import Store
 
 
 class CliTests(unittest.TestCase):
+    def test_capabilities_describes_bounded_work_classes_and_contract(self) -> None:
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            code = main(["capabilities"])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 0)
+        self.assertEqual(result["coordinator"], "auto")
+        names = {item["name"] for item in result["capabilities"]}
+        self.assertEqual(names, {"quick_compute", "coding", "reasoning"})
+        self.assertIn("classification", next(item for item in result["capabilities"] if item["name"] == "quick_compute")["task_kinds"])
+        self.assertEqual(result["commands"]["task"]["required"], ["task", "input_ref"])
+
     def test_configured_operator_file_overrides_stale_process_values(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = os.path.join(directory, "operator.env")
@@ -110,6 +122,22 @@ class CliTests(unittest.TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["provider_id"], "fixture")
         self.assertEqual(result["output"], '{"label":"docs"}')
+
+    def test_task_does_not_report_native_handoff_as_success(self) -> None:
+        task = json.dumps({"task": "classification", "input_ref": "artifact:x", "local_estimate": 1})
+        output = io.StringIO()
+        with tempfile.TemporaryDirectory() as directory:
+            config = os.path.join(directory, "empty.env")
+            open(config, "w", encoding="utf-8").close()
+            with patch.dict(os.environ, {"AIPOOL_CONFIG_FILE": config}, clear=True), contextlib.redirect_stdout(output):
+                code = main(["task", "--json", task])
+        result = json.loads(output.getvalue())
+        self.assertEqual(code, 1)
+        self.assertFalse(result["success"])
+        self.assertFalse(result["valid"])
+        self.assertIsNone(result["output"])
+        self.assertTrue(result["native_fallback"])
+        self.assertEqual(result["next_action"], "native_model")
 
     def test_catalog_provider_uses_shared_configured_quota_limits(self) -> None:
         from aipool.provider_catalog import config_prefix, load_catalog, model_config_prefix

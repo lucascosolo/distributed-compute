@@ -82,6 +82,27 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertTrue(data["success"])
 
+    def test_capabilities_uses_live_routes_and_task_contract(self) -> None:
+        status, data = self.request("GET", "/capabilities")
+        self.assertEqual(status, 200)
+        self.assertEqual(data["coordinator"], "auto")
+        quick = next(item for item in data["capabilities"] if item["name"] == "quick_compute")
+        self.assertIn("classification", quick["task_kinds"])
+        self.assertTrue(any(route["provider_id"] == "p" for route in quick["routes"]))
+        self.assertEqual(data["commands"]["task"]["required"], ["task", "input_ref"])
+
+    def test_capabilities_uses_the_router_task_requirements(self) -> None:
+        reasoning = ProviderProfile(
+            "reasoner", "Reasoner", "fixture",
+            capabilities={"code_review": 0.9, "reasoning": 0.9},
+            max_complexity=4, state=ProviderState.HEALTHY,
+        )
+        self.server.aipool_coordinator.registry.register(FixtureAdapter(reasoning, lambda _: "ok"))
+        status, data = self.request("GET", "/capabilities")
+        self.assertEqual(status, 200)
+        work_class = next(item for item in data["capabilities"] if item["name"] == "reasoning")
+        self.assertTrue(any(route["provider_id"] == "reasoner" for route in work_class["routes"]))
+
     def test_authenticated_artifact_upload_and_read_round_trip(self) -> None:
         status, data = self.request("POST", "/artifact", {"content": base64.b64encode(b"shared context").decode()})
         self.assertEqual(status, 201)

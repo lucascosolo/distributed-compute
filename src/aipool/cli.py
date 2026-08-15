@@ -13,11 +13,12 @@ from dataclasses import replace
 from dataclasses import asdict
 from pathlib import Path
 
-from .client import cancel_remote, enqueue_remote, get_remote_queue, RemoteCoordinatorError, submit_remote, upload_artifact_remote
+from .client import cancel_remote, enqueue_remote, get_remote_capabilities, get_remote_queue, RemoteCoordinatorError, submit_remote, upload_artifact_remote
 from .artifacts import ArtifactStore
 from .benchmark import default_cases, run_benchmark
 from .comparison import run_comparison
 from .context import ContextPacket
+from .capabilities import capability_document
 from .discovery import CandidateRegistry, CommandCandidateProbe, QuarantineProbePipeline, promote_lead
 from .discovery_sources import DiscoveryRunner, HtmlPageSource, LeadRegistry, LocalCatalogSource, RedditSearchSource, RedditThreadSource
 from .discovered import build_discovered_adapter
@@ -431,6 +432,7 @@ def _parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--timeout", type=float, default=120.0)
     benchmark.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     subparsers.add_parser("status", help="show coordinator status")
+    subparsers.add_parser("capabilities", help="describe bounded work classes and task envelope contract")
     stats = subparsers.add_parser("stats", help="show delegation economics and provider usage")
     stats.add_argument("--db", default=os.environ.get("AIPOOL_DB", ":memory:"))
     compare = subparsers.add_parser("compare", help="compare bounded native baseline work with distributed work")
@@ -462,6 +464,22 @@ def main(argv: list[str] | None = None) -> int:
     _load_local_config()
     args = _parser().parse_args(argv)
     registry = _build_registry(args)
+    if args.command == "capabilities":
+        if os.environ.get("AIPOOL_MODE", "local").lower() == "remote":
+            try:
+                result = get_remote_capabilities(
+                    os.environ.get("AIPOOL_BASE_URL", ""),
+                    token=os.environ.get("AIPOOL_TOKEN") or None,
+                    headers_extra=_cloudflare_access_headers(),
+                    timeout_seconds=_remote_timeout_seconds(),
+                )
+            except RemoteCoordinatorError as exc:
+                print(json.dumps({"success": False, "error": str(exc)}, separators=(",", ":")))
+                return 1
+        else:
+            result = capability_document(adapter.profile for adapter in registry.all())
+        print(json.dumps(result, separators=(",", ":")))
+        return 0
     if args.command == "discover":
         store = Store(args.db)
         try:
