@@ -31,7 +31,9 @@ def classify_model(model_id: str) -> dict[str, object]:
     """
     name = model_id.casefold()
     very_strong = any(token in name for token in ("120b", "405b", "pro", "r1", "reasoning"))
-    strong = very_strong or any(token in name for token in ("70b", "72b", "32b", "30b", "coder", "large", "max"))
+    coding_route = any(token in name for token in ("coder", "code", "coding", "starcoder"))
+    reasoning_route = any(token in name for token in ("r1", "reason", "thinking", "o1", "o3"))
+    strong = very_strong or coding_route or any(token in name for token in ("70b", "72b", "32b", "30b", "large", "max"))
     light = any(token in name for token in ("nano", "mini", "lite", "1b", "3b", "7b", "8b", "small"))
     if very_strong:
         power, quota_weight = "very-strong", 2.0
@@ -42,10 +44,10 @@ def classify_model(model_id: str) -> dict[str, object]:
     else:
         power, quota_weight = "medium", 1.0
     capabilities = ["classification", "extraction", "summarization"]
-    if any(token in name for token in ("coder", "code", "starcoder")):
+    if coding_route:
         capabilities.extend(("coding", "instruction_following"))
-    if any(token in name for token in ("r1", "reason", "thinking", "o1", "o3")):
-        capabilities.append("reasoning")
+    if reasoning_route:
+        capabilities.extend(("code_review", "reasoning", "research", "long_context"))
     confidence = "medium" if re.search(r"\d+[bm]", name) else "low"
     return {
         "id": model_id, "power": power, "quota_weight": quota_weight,

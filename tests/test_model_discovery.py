@@ -25,6 +25,17 @@ class ModelDiscoveryTests(unittest.TestCase):
         self.assertIn("coding", coder["capabilities"])
         self.assertEqual(classify_model("mystery-model")["metadata_confidence"], "low")
 
+    def test_task_specialized_route_names_map_to_router_requirements(self) -> None:
+        coding = classify_model("auto/best-coding")
+        self.assertEqual(coding["power"], "strong")
+        self.assertTrue({"coding", "instruction_following"} <= set(coding["capabilities"]))
+        reasoning = classify_model("auto/best-reasoning")
+        self.assertEqual(reasoning["power"], "very-strong")
+        self.assertTrue(
+            {"code_review", "reasoning", "research", "long_context"}
+            <= set(reasoning["capabilities"])
+        )
+
     def test_models_endpoint_normalizes_chat_completion_url(self) -> None:
         self.assertEqual(
             models_endpoint("https://router.example/v1/chat/completions"),
